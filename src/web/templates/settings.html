@@ -461,6 +461,8 @@
         };
 
         const editId = document.getElementById('alertEditId').value;
+        const btn = document.querySelector('#alertModal .btn-primary');
+        btnLoading(btn);
 
         try {
             if (editId) {
@@ -470,9 +472,11 @@
                 await apiCall('POST', '/api/v1/alerts', body);
                 showToast('Alert created', 'success');
             }
+            btnReset(btn);
             closeModal('alertModal');
             loadAlerts();
         } catch (e) {
+            btnReset(btn);
             showToast('Failed to save alert: ' + e.message, 'error');
         }
     }
@@ -561,6 +565,8 @@
         if (!name) { showToast('Please enter a name', 'error'); return; }
         const notes = document.getElementById('providerModalNotes').value.trim();
         const editId = document.getElementById('providerEditId').value;
+        const btn = document.querySelector('#providerModal .btn-primary');
+        btnLoading(btn);
 
         try {
             if (editId) {
@@ -570,9 +576,11 @@
                 await apiCall('POST', '/api/v1/providers', { name, notes: notes || null });
                 showToast('Provider created', 'success');
             }
+            btnReset(btn);
             closeModal('providerModal');
             loadProvidersList();
         } catch (e) {
+            btnReset(btn);
             showToast('Failed to save provider: ' + e.message, 'error');
         }
     }

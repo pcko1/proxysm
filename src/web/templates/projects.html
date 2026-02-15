@@ -135,9 +135,12 @@
     async function createProject() {
         const name = document.getElementById('projectName').value.trim();
         if (!name) { showToast('Project name is required', 'error'); return; }
+        const btn = document.querySelector('#createProjectModal .btn-primary');
+        btnLoading(btn);
 
         try {
             const result = await apiCall('POST', '/api/v1/projects', { name });
+            btnReset(btn);
             closeModal('createProjectModal');
             document.getElementById('projectName').value = '';
 
@@ -150,6 +153,7 @@
             showToast('Project created', 'success');
             loadProjects();
         } catch (e) {
+            btnReset(btn);
             showToast('Create failed: ' + e.message, 'error');
         }
     }
@@ -217,13 +221,17 @@
     async function savePoolAssignments() {
         const checkboxes = document.querySelectorAll('#poolCheckboxes input[type="checkbox"]');
         const selectedPoolIds = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+        const btn = document.querySelector('#managePoolsModal .btn-primary');
+        btnLoading(btn);
 
         try {
             await apiCall('POST', `/api/v1/projects/${currentProjectId}/pools`, { pool_ids: selectedPoolIds });
+            btnReset(btn);
             showToast('Pools updated', 'success');
             closeModal('managePoolsModal');
             loadProjects();
         } catch (e) {
+            btnReset(btn);
             showToast('Update failed: ' + e.message, 'error');
         }
     }

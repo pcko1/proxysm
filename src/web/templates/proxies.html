@@ -18,7 +18,7 @@
         border-left: 3.5px solid transparent;
         border-right: 3.5px solid transparent;
         border-bottom: 4px solid var(--text-muted);
-        opacity: 0.3;
+        opacity: 0.5;
         transition: all var(--transition-fast);
     }
     th.sortable.asc::after {
@@ -249,6 +249,8 @@
         const providerName = document.getElementById('importProviderInput').value.trim();
 
         if (!providerName) { showToast('Please enter a provider name', 'error'); return; }
+        const importBtn = document.querySelector('#importModal .btn-primary');
+        btnLoading(importBtn);
 
         let text = document.getElementById('importText').value.trim();
         const fileInput = document.getElementById('importFile');
@@ -294,6 +296,7 @@
                 poolMsg = `, pool "${poolName}" created with ${proxyIds.length} proxies`;
             }
 
+            btnReset(importBtn);
             showToast(`Imported ${result.created} proxies` + (result.skipped ? `, ${result.skipped} skipped` : '') + poolMsg, 'success');
             closeModal('importModal');
 
@@ -309,6 +312,7 @@
 
             loadProxies();
         } catch (e) {
+            btnReset(importBtn);
             showToast('Import failed: ' + e.message, 'error');
         }
     }

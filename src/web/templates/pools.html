@@ -210,6 +210,8 @@
         const checkboxes = document.querySelectorAll('#proxyCheckboxes .proxy-cb');
         const wantedIds = new Set(Array.from(checkboxes).filter(c => c.checked).map(c => c.value));
         const allIds = new Set(Array.from(checkboxes).map(c => c.value));
+        const btn = document.querySelector('#manageProxiesModal .btn-primary');
+        btnLoading(btn);
 
         const currentData = await apiCall('GET', `/api/v1/ips?pool_id=${currentPoolId}&per_page=100`);
         const currentIds = new Set((currentData.data || []).map(p => p.id));
@@ -224,6 +226,7 @@
             if (toRemove.length > 0) {
                 await apiCall('DELETE', `/api/v1/pools/${currentPoolId}/ips`, { proxy_ids: toRemove });
             }
+            btnReset(btn);
             const totalChanges = toAdd.length + toRemove.length;
             if (totalChanges > 0) {
                 showToast(`Updated pool: ${toAdd.length} added, ${toRemove.length} removed`, 'success');
@@ -233,6 +236,7 @@
             closeModal('manageProxiesModal');
             loadPools();
         } catch (e) {
+            btnReset(btn);
             showToast('Update failed: ' + e.message, 'error');
         }
     }
@@ -241,14 +245,18 @@
         const name = document.getElementById('poolName').value.trim();
         if (!name) { showToast('Pool name is required', 'error'); return; }
         const strategy = document.getElementById('poolStrategy').value;
+        const btn = document.querySelector('#createPoolModal .btn-primary');
+        btnLoading(btn);
 
         try {
             await apiCall('POST', '/api/v1/pools', { name, rotation_strategy: strategy });
+            btnReset(btn);
             showToast('Pool created', 'success');
             closeModal('createPoolModal');
             document.getElementById('poolName').value = '';
             loadPools();
         } catch (e) {
+            btnReset(btn);
             showToast('Create failed: ' + e.message, 'error');
         }
     }

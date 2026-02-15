@@ -275,6 +275,8 @@
         if (!currentProjectId) { showToast('Please select a project first', 'error'); return; }
         const proxyId = document.getElementById('blProxyId').value.trim();
         if (!proxyId) { showToast('Please search and select a proxy', 'error'); return; }
+        const btn = document.querySelector('#addBlModal .btn-primary');
+        btnLoading(btn);
 
         const body = { proxy_id: proxyId };
         const domain = document.getElementById('blDomain').value.trim();
@@ -287,6 +289,7 @@
 
         try {
             await apiCall('POST', `/api/v1/projects/${currentProjectId}/blacklist`, body);
+            btnReset(btn);
             showToast('Proxy blocked', 'success');
             closeModal('addBlModal');
             document.getElementById('blProxySearch').value = '';
@@ -296,6 +299,7 @@
             document.getElementById('blCooldown').value = '';
             loadBlacklist();
         } catch (e) {
+            btnReset(btn);
             showToast('Failed to block: ' + e.message, 'error');
         }
     }

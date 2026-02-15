@@ -711,6 +711,24 @@
         }
         .empty-state p { font-size: 13px; }
 
+        /* ===== BUTTON LOADING ===== */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+            pointer-events: none;
+        }
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: btnSpin 0.6s linear infinite;
+        }
+        @keyframes btnSpin { to { transform: rotate(360deg); } }
+
         /* ===== FOOTER ===== */
         .footer {
             text-align: center;
@@ -842,6 +860,12 @@
         document.getElementById('navToggle').addEventListener('click', function() {
             document.getElementById('navLinks').classList.toggle('open');
         });
+        // Close mobile nav on link click
+        document.querySelectorAll('.navbar-links a').forEach(function(link) {
+            link.addEventListener('click', function() {
+                document.getElementById('navLinks').classList.remove('open');
+            });
+        });
 
         // Admin token
         const ADMIN_TOKEN = '{{ admin_token }}';
@@ -890,10 +914,26 @@
 
         // Modal helpers
         function openModal(id) {
-            document.getElementById(id).classList.add('active');
+            const modal = document.getElementById(id);
+            modal.classList.add('active');
+            // Auto-focus first text input
+            setTimeout(function() {
+                const input = modal.querySelector('input[type="text"]:not([type="hidden"]), textarea, select');
+                if (input) input.focus();
+            }, 80);
         }
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
+        }
+
+        // Button loading state helpers
+        function btnLoading(btn) {
+            btn.disabled = true;
+            btn.classList.add('btn-loading');
+        }
+        function btnReset(btn) {
+            btn.disabled = false;
+            btn.classList.remove('btn-loading');
         }
 
         // Close modals on Escape
@@ -1042,6 +1082,44 @@
                 nameSpan.textContent = 'No file selected';
             }
         }
+
+        // Auto-add copy buttons to code blocks (including dynamically added ones)
+        function addCopyButtons() {
+            document.querySelectorAll('.code-block').forEach(function(block) {
+                if (block.dataset.copyReady) return;
+                block.dataset.copyReady = '1';
+                block.style.position = 'relative';
+                var btn = document.createElement('button');
+                btn.className = 'copy-btn';
+                btn.textContent = 'Copy';
+                btn.style.cssText = 'position:absolute;top:6px;right:6px;';
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    var text = block.textContent.replace(/Copy(ed!)?$/, '').trim();
+                    navigator.clipboard.writeText(text).then(function() {
+                        btn.textContent = 'Copied!';
+                        btn.style.color = 'var(--green)';
+                        setTimeout(function() { btn.textContent = 'Copy'; btn.style.color = ''; }, 2000);
+                    });
+                };
+                block.appendChild(btn);
+            });
+        }
+        addCopyButtons();
+        new MutationObserver(addCopyButtons).observe(document.body, { childList: true, subtree: true });
+
+        // Enter key submits primary button in modals
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+            if (e.target.tagName === 'TEXTAREA') return;
+            var modal = e.target.closest('.modal-overlay.active');
+            if (!modal || modal.id === 'confirmModal') return;
+            var primaryBtn = modal.querySelector('.modal-actions .btn-primary');
+            if (primaryBtn && !primaryBtn.disabled) {
+                e.preventDefault();
+                primaryBtn.click();
+            }
+        });
     </script>
 
     {% block scripts %}{% endblock %}
