@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% block title %}Proxies - ProxyManager{% endblock %}
+
+{% block content %}
+<style>
+    th.sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: color var(--transition-fast);
+    }
+    th.sortable:hover { color: var(--text-secondary); }
+    th.sortable::after {
+        content: '';
+        display: inline-block;
+        margin-left: 4px;
+        width: 0; height: 0;
+        vertical-align: middle;
+        border-left: 3.5px solid transparent;
+        border-right: 3.5px solid transparent;
+        border-bottom: 4px solid var(--text-muted);
+        opacity: 0.3;
+        transition: all var(--transition-fast);
+    }
+    th.sortable.asc::after {
+        border-bottom: 4px solid var(--accent);
+        opacity: 1;
+    }
+    th.sortable.desc::after {
+        border-bottom: none;
+        border-top: 4px solid var(--accent);
+        opacity: 1;
+    }
+    .combobox-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        margin-top: 4px;
+        max-height: 180px;
+        overflow-y: auto;
+        z-index: 10;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .combobox-dropdown .combobox-item {
+        padding: 8px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        color: var(--text-secondary);
+        transition: background var(--transition-fast);
+    }
+    .combobox-dropdown .combobox-item:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+    }
+    .combobox-dropdown .combobox-create {
+        color: var(--accent);
+        font-weight: 600;
+        border-top: 1px solid var(--border);
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1>Proxies</h1>
+    </div>
+    <div class="page-header-actions">
+        <span class="stat-pill" id="proxyStats"></span>
+        <button class="btn btn-primary" onclick="openModal('importModal')">Import Proxies</button>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal">
+    <div class="modal" style="max-width:520px">
+        <h2>Import Proxies</h2>
+        <div class="form-group">
+            <label for="importProviderInput">Provider</label>
+            <div style="position:relative">
+                <input type="text" id="importProviderInput" placeholder="Type to search or create new..." autocomplete="off" oninput="filterProviderSuggestions()" onfocus="showProviderDropdown()">
+                <input type="hidden" id="importProviderId" value="">
+                <div id="providerSuggestions" class="combobox-dropdown" style="display:none"></div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="importText">Proxy list (one per line)</label>
+            <textarea id="importText" rows="6" placeholder="host:port@user:pass&#10;socks5://user:pass@host:port&#10;host:port:user:pass"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Or upload a file</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="importFile" accept=".txt,.csv" onchange="updateFileInput(this, document.getElementById('fileName'))" />
+                <span class="file-input-btn">Choose File</span>
+                <span class="file-input-name" id="fileName">No file selected</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;color:var(--text-secondary);cursor:pointer">
+                <input type="checkbox" id="importCreatePool" style="width:16px;height:16px;accent-color:var(--accent)" onchange="document.getElementById('importPoolFields').style.display = this.checked ? 'block' : 'none'">
+                Also create a pool from this import
+            </label>
+        </div>
+        <div id="importPoolFields" style="display:none">
+            <div class="form-group">
+                <label for="importPoolName">Pool Name</label>
+                <input type="text" id="importPoolName" placeholder="e.g. papaproxy-us-01">
+            </div>
+            <div class="form-group">
+                <label for="importPoolStrategy">Rotation Strategy</label>
+                <select id="importPoolStrategy">
+                    <option value="round_robin" selected>Round Robin</option>
+                    <option value="random">Random</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('importModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="doImport()">Import</button>
+        </div>
+    </div>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th class="col-check"><input type="checkbox" class="row-checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+                <th class="sortable" data-sort="host" onclick="toggleSort('host')">Host:Port</th>
+                <th class="sortable" data-sort="protocol" onclick="toggleSort('protocol')">Protocol</th>
+                <th class="sortable" data-sort="provider" onclick="toggleSort('provider')">Provider</th>
+                <th class="sortable" data-sort="status" onclick="toggleSort('status')">Status</th>
+                <th class="sortable" data-sort="latency" onclick="toggleSort('latency')">Latency</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="proxyTableBody">
+        </tbody>
+    </table>
+</div>
+<div id="emptyState" class="empty-state" style="display:none;">
+    <div class="empty-state-icon">&#128268;</div>
+    <h3>No proxies yet</h3>
+    <p>Import some proxies to get started.</p>
+</div>
+
+<div class="pagination" id="pagination"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    const pageSize = 50;
+    let providerMap = {};
+    let allProviders = [];
+    let sortColumn = null;
+    let sortDir = 'asc';
+
+    async function loadProviders() {
+        try {
+            const data = await apiCall('GET', '/api/v1/providers');
+            allProviders = data.data || [];
+            allProviders.forEach(p => { providerMap[p.id] = p.name; });
+            if (allProviders.length === 0) {
+                // No providers exist yet - that's fine, user will create inline
+            }
+        } catch (e) {
+            console.error('Failed to load providers', e);
+        }
+    }
+
+    function toggleSort(col) {
+        if (sortColumn === col) {
+            sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortColumn = col;
+            sortDir = 'asc';
+        }
+        document.querySelectorAll('th.sortable').forEach(th => {
+            th.classList.remove('asc', 'desc');
+            if (th.dataset.sort === sortColumn) th.classList.add(sortDir);
+        });
+        currentPage = 1;
+        loadProxies();
+    }
+
+    function renderProxies(proxies) {
+        const tbody = document.getElementById('proxyTableBody');
+        const empty = document.getElementById('emptyState');
+
+        if (proxies.length === 0) {
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+            document.querySelector('.table-card').style.display = 'none';
+            return;
+        }
+
+        empty.style.display = 'none';
+        document.querySelector('.table-card').style.display = '';
+
+        tbody.innerHTML = proxies.map(p => {
+            const provName = providerMap[p.provider_id] || '...';
+            const latency = p.avg_latency_ms ? p.avg_latency_ms.toFixed(0) + ' ms' : '-';
+            return `<tr>
+                <td class="col-check"><input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="toggleRowSelection('${p.id}', this)"></td>
+                <td><span class="mono" style="color:var(--text-primary)">${esc(p.host)}:${esc(p.port)}</span></td>
+                <td>${protoTag(p.protocol)}</td>
+                <td class="cell-truncate">${esc(provName)}</td>
+                <td>${statusBadge(p.last_health_status)}</td>
+                <td><span class="mono">${latency}</span></td>
+                <td class="actions"><button class="btn btn-danger btn-sm" onclick="deleteProxy('${p.id}')">Delete</button></td>
+            </tr>`;
+        }).join('');
+
+        clearSelection();
+    }
+
+    async function loadProxies() {
+        try {
+            let url = `/api/v1/ips?page=${currentPage}&per_page=${pageSize}`;
+            if (sortColumn) url += `&sort_by=${sortColumn}&sort_dir=${sortDir}`;
+            const data = await apiCall('GET', url);
+            const proxies = data.data || [];
+            const total = data.meta ? data.meta.total : proxies.length;
+            document.getElementById('proxyStats').innerHTML = `<span class="stat-value">${total}</span> total`;
+            renderProxies(proxies);
+            renderPagination(total);
+        } catch (e) {
+            showToast('Failed to load proxies: ' + e.message, 'error');
+        }
+    }
+
+    function renderPagination(total) {
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        const div = document.getElementById('pagination');
+        if (totalPages <= 1) { div.innerHTML = ''; return; }
+        div.innerHTML = `
+            <button class="btn btn-outline btn-sm" ${currentPage <= 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})">Prev</button>
+            <span class="pagination-info">Page ${currentPage} of ${totalPages}</span>
+            <button class="btn btn-outline btn-sm" ${currentPage >= totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})">Next</button>
+        `;
+    }
+
+    function goPage(p) { currentPage = p; loadProxies(); }
+
+    async function doImport() {
+        let providerId = document.getElementById('importProviderId').value;
+        const providerName = document.getElementById('importProviderInput').value.trim();
+
+        if (!providerName) { showToast('Please enter a provider name', 'error'); return; }
+
+        let text = document.getElementById('importText').value.trim();
+        const fileInput = document.getElementById('importFile');
+        if (!text && fileInput.files.length > 0) {
+            text = await fileInput.files[0].text();
+        }
+        if (!text) { showToast('Please paste proxies or upload a file', 'error'); return; }
+
+        try {
+            // Create provider if new
+            if (!providerId || providerId === '__new__') {
+                const prov = await apiCall('POST', '/api/v1/providers', { name: providerName });
+                providerId = prov.id;
+                allProviders.push(prov);
+            }
+
+            // Import proxies
+            const result = await apiCall('POST', '/api/v1/ips/bulk', {
+                provider_id: providerId,
+                proxies: text,
+            });
+
+            let poolMsg = '';
+
+            // Optional: create pool
+            if (document.getElementById('importCreatePool').checked) {
+                const poolName = document.getElementById('importPoolName').value.trim();
+                const strategy = document.getElementById('importPoolStrategy').value;
+                if (!poolName) { showToast('Please enter a pool name', 'error'); return; }
+
+                // Create pool
+                const pool = await apiCall('POST', '/api/v1/pools', {
+                    name: poolName,
+                    rotation_strategy: strategy,
+                });
+
+                // Get just-imported proxy IDs
+                const proxyData = await apiCall('GET', `/api/v1/ips?provider_id=${providerId}&per_page=100`);
+                const proxyIds = (proxyData.data || []).map(p => p.id);
+                if (proxyIds.length > 0) {
+                    await apiCall('POST', `/api/v1/pools/${pool.id}/ips`, { proxy_ids: proxyIds });
+                }
+                poolMsg = `, pool "${poolName}" created with ${proxyIds.length} proxies`;
+            }
+
+            showToast(`Imported ${result.created} proxies` + (result.skipped ? `, ${result.skipped} skipped` : '') + poolMsg, 'success');
+            closeModal('importModal');
+
+            // Reset form
+            document.getElementById('importText').value = '';
+            document.getElementById('importProviderInput').value = '';
+            document.getElementById('importProviderId').value = '';
+            fileInput.value = '';
+            document.getElementById('fileName').textContent = 'No file selected';
+            document.getElementById('importCreatePool').checked = false;
+            document.getElementById('importPoolFields').style.display = 'none';
+            document.getElementById('importPoolName').value = '';
+
+            loadProxies();
+        } catch (e) {
+            showToast('Import failed: ' + e.message, 'error');
+        }
+    }
+
+    async function deleteProxy(id) {
+        if (!(await confirmAction('This proxy will be permanently removed.'))) return;
+        try {
+            await apiCall('DELETE', `/api/v1/ips/${id}`);
+            showToast('Proxy deleted', 'success');
+            loadProxies();
+        } catch (e) {
+            showToast('Delete failed: ' + e.message, 'error');
+        }
+    }
+
+    async function bulkDelete() {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        if (!(await confirmAction(`Delete ${ids.length} proxies? This cannot be undone.`))) return;
+        let deleted = 0;
+        for (const id of ids) {
+            try { await apiCall('DELETE', `/api/v1/ips/${id}`); deleted++; } catch {}
+        }
+        showToast(`Deleted ${deleted} proxies`, 'success');
+        clearSelection();
+        loadProxies();
+    }
+
+    document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
+
+    function filterProviderSuggestions() {
+        const input = document.getElementById('importProviderInput');
+        const query = input.value.trim().toLowerCase();
+        const dropdown = document.getElementById('providerSuggestions');
+        document.getElementById('importProviderId').value = '';
+
+        if (!query) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        const matches = allProviders.filter(p => p.name.toLowerCase().includes(query));
+        let html = matches.map(p =>
+            `<div class="combobox-item" onclick="selectProvider('${p.id}', '${esc(p.name)}')">${esc(p.name)}</div>`
+        ).join('');
+
+        const exactMatch = allProviders.some(p => p.name.toLowerCase() === query);
+        if (!exactMatch && query) {
+            html += `<div class="combobox-item combobox-create" onclick="selectNewProvider('${esc(input.value.trim())}')">Create "${esc(input.value.trim())}"</div>`;
+        }
+
+        dropdown.innerHTML = html;
+        dropdown.style.display = html ? 'block' : 'none';
+    }
+
+    function showProviderDropdown() {
+        const input = document.getElementById('importProviderInput');
+        if (input.value.trim()) {
+            filterProviderSuggestions();
+        } else {
+            // Show all providers
+            const dropdown = document.getElementById('providerSuggestions');
+            if (allProviders.length > 0) {
+                dropdown.innerHTML = allProviders.map(p =>
+                    `<div class="combobox-item" onclick="selectProvider('${p.id}', '${esc(p.name)}')">${esc(p.name)}</div>`
+                ).join('');
+                dropdown.style.display = 'block';
+            }
+        }
+    }
+
+    function selectProvider(id, name) {
+        document.getElementById('importProviderInput').value = name;
+        document.getElementById('importProviderId').value = id;
+        document.getElementById('providerSuggestions').style.display = 'none';
+        // Auto-suggest pool name
+        const poolNameInput = document.getElementById('importPoolName');
+        if (poolNameInput && !poolNameInput.value) {
+            poolNameInput.value = name.toLowerCase().replace(/\s+/g, '-') + '-01';
+        }
+    }
+
+    function selectNewProvider(name) {
+        document.getElementById('importProviderInput').value = name;
+        document.getElementById('importProviderId').value = '__new__';
+        document.getElementById('providerSuggestions').style.display = 'none';
+        // Auto-suggest pool name
+        const poolNameInput = document.getElementById('importPoolName');
+        if (poolNameInput && !poolNameInput.value) {
+            poolNameInput.value = name.toLowerCase().replace(/\s+/g, '-') + '-01';
+        }
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#importProviderInput') && !e.target.closest('#providerSuggestions')) {
+            document.getElementById('providerSuggestions').style.display = 'none';
+        }
+    });
+
+    loadProviders().then(() => loadProxies());
+</script>
+{% endblock %}

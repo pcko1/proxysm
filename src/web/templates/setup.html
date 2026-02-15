@@ -1,0 +1,834 @@
+{% extends "base.html" %}
+{% block title %}Quick Setup - ProxyManager{% endblock %}
+
+{% block content %}
+<style>
+    .setup-container {
+        max-width: 640px;
+        margin: 0 auto;
+    }
+
+    /* Step indicator */
+    .step-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 36px;
+        gap: 0;
+    }
+    .step-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        border: 2px solid var(--border-light);
+        background: var(--bg-secondary);
+        color: var(--text-muted);
+        transition: all var(--transition-base);
+        flex-shrink: 0;
+        position: relative;
+    }
+    .step-circle.active {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .step-circle.completed {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+    }
+    .step-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .step-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        white-space: nowrap;
+        transition: color var(--transition-base);
+    }
+    .step-item.active .step-label,
+    .step-item.completed .step-label {
+        color: var(--text-secondary);
+    }
+    .step-line {
+        width: 64px;
+        height: 2px;
+        background: var(--border-light);
+        flex-shrink: 0;
+        margin: 0 8px;
+        margin-bottom: 20px;
+        transition: background var(--transition-base);
+    }
+    .step-line.completed {
+        background: var(--accent);
+    }
+
+    /* Steps */
+    .step {
+        display: none;
+        animation: stepIn 0.25s ease;
+    }
+    .step.active {
+        display: block;
+    }
+    @keyframes stepIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .step-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+        letter-spacing: -0.3px;
+    }
+    .step-subtitle {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 20px;
+    }
+
+    .step-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 24px;
+    }
+
+    /* Provider combobox */
+    .combobox-wrapper {
+        position: relative;
+    }
+    .combobox-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 50;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .combobox-dropdown.open {
+        display: block;
+    }
+    .combobox-option {
+        padding: 9px 12px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: background var(--transition-fast);
+        border-bottom: 1px solid var(--border);
+    }
+    .combobox-option:last-child {
+        border-bottom: none;
+    }
+    .combobox-option:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+    }
+    .combobox-option.create-new {
+        color: var(--accent);
+        font-weight: 600;
+    }
+    .combobox-option.create-new:hover {
+        background: var(--accent-subtle);
+    }
+
+    /* Preview text */
+    .preview-text {
+        font-size: 13px;
+        color: var(--text-muted);
+        padding: 10px 14px;
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-top: 4px;
+    }
+    .preview-text strong {
+        color: var(--text-primary);
+    }
+
+    /* Radio group */
+    .radio-group {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .radio-option {
+        flex: 1;
+        position: relative;
+    }
+    .radio-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .radio-option label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 14px;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        text-transform: none;
+        letter-spacing: 0;
+    }
+    .radio-option input[type="radio"]:checked + label {
+        border-color: var(--accent);
+        background: var(--accent-subtle);
+        color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    /* Success state */
+    .setup-success {
+        display: none;
+        text-align: center;
+        animation: stepIn 0.3s ease;
+    }
+    .setup-success.active {
+        display: block;
+    }
+    .success-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--green-bg);
+        border: 2px solid var(--green-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+    }
+    .success-icon svg {
+        color: var(--green);
+    }
+    .success-heading {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+        letter-spacing: -0.3px;
+    }
+    .success-summary {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 24px;
+    }
+
+    .api-key-box {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-light);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+        text-align: left;
+    }
+    .api-key-box .api-key-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 8px;
+    }
+    .api-key-box code {
+        display: block;
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        color: var(--text-primary);
+        word-break: break-all;
+        margin-bottom: 8px;
+    }
+    .api-key-box .api-key-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .api-key-warning {
+        font-size: 11px;
+        color: var(--yellow);
+        font-weight: 500;
+    }
+
+    .usage-box {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-light);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 20px;
+        text-align: left;
+    }
+    .usage-box .usage-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 8px;
+    }
+
+    /* Loading spinner on button */
+    .btn-loading {
+        position: relative;
+        color: transparent !important;
+    }
+    .btn-loading::after {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+        .step-line { width: 32px; }
+        .step-label { font-size: 10px; }
+        .radio-group { flex-direction: column; }
+    }
+</style>
+
+<div class="setup-container">
+    <div class="page-header" style="justify-content:center">
+        <h1>Quick Setup</h1>
+    </div>
+
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+        <div class="step-item active" id="stepItem1">
+            <div class="step-circle active" id="stepCircle1">1</div>
+            <span class="step-label">Import Proxies</span>
+        </div>
+        <div class="step-line" id="stepLine1"></div>
+        <div class="step-item" id="stepItem2">
+            <div class="step-circle" id="stepCircle2">2</div>
+            <span class="step-label">Create Pool</span>
+        </div>
+        <div class="step-line" id="stepLine2"></div>
+        <div class="step-item" id="stepItem3">
+            <div class="step-circle" id="stepCircle3">3</div>
+            <span class="step-label">Connect Project</span>
+        </div>
+    </div>
+
+    <!-- Step 1: Import Proxies -->
+    <div class="step active" id="step1">
+        <div class="step-title">Import Proxies</div>
+        <div class="step-subtitle">Paste your proxy list or upload a file.</div>
+
+        <div class="form-group">
+            <label for="setupProxyText">Proxy List (one per line)</label>
+            <textarea id="setupProxyText" rows="8" placeholder="host:port@user:pass&#10;socks5://user:pass@host:port&#10;host:port:user:pass" oninput="countProxies()"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Or upload a file</label>
+            <div style="display:flex;align-items:center;gap:10px">
+                <input type="file" id="setupFile" accept=".txt,.csv" onchange="onFileSelected(this)" style="display:none" />
+                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('setupFile').click()">Choose File</button>
+                <span class="file-input-name" id="setupFileName">No file selected</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="setupProviderInput">Provider</label>
+            <div class="combobox-wrapper">
+                <input type="text" id="setupProviderInput" placeholder="Type to search or create..." autocomplete="off"
+                    oninput="filterProviders()" onfocus="showProviderDropdown()" />
+                <div class="combobox-dropdown" id="providerDropdown"></div>
+            </div>
+            <input type="hidden" id="setupProviderId" />
+        </div>
+
+        <div class="step-actions">
+            <button class="btn btn-primary" id="step1NextBtn" disabled onclick="goToStep2()">Next</button>
+        </div>
+    </div>
+
+    <!-- Step 2: Create Pool -->
+    <div class="step" id="step2">
+        <div class="step-title">Create Pool</div>
+        <div class="step-subtitle">Configure your proxy rotation pool.</div>
+
+        <div class="form-group">
+            <label for="setupPoolName">Pool Name</label>
+            <input type="text" id="setupPoolName" placeholder="e.g. papaproxy-01" />
+        </div>
+
+        <div class="form-group">
+            <label for="setupStrategy">Rotation Strategy</label>
+            <select id="setupStrategy">
+                <option value="round_robin" selected>Round Robin</option>
+                <option value="random">Random</option>
+            </select>
+        </div>
+
+        <div class="preview-text" id="proxyPreview">
+            <strong>0</strong> proxies will be added to this pool
+        </div>
+
+        <div class="step-actions">
+            <button class="btn btn-outline" onclick="showStep(1)">Back</button>
+            <button class="btn btn-primary" id="step2NextBtn" onclick="goToStep3()">Next</button>
+        </div>
+    </div>
+
+    <!-- Step 3: Connect to Project -->
+    <div class="step" id="step3">
+        <div class="step-title">Connect to Project</div>
+        <div class="step-subtitle">Link your pool to a project for API access.</div>
+
+        <div class="radio-group">
+            <div class="radio-option">
+                <input type="radio" name="projectMode" id="projectModeNew" value="new" checked onchange="toggleProjectMode()">
+                <label for="projectModeNew">Create new project</label>
+            </div>
+            <div class="radio-option">
+                <input type="radio" name="projectMode" id="projectModeExisting" value="existing" onchange="toggleProjectMode()">
+                <label for="projectModeExisting">Use existing project</label>
+            </div>
+        </div>
+
+        <div id="newProjectFields">
+            <div class="form-group">
+                <label for="setupProjectName">Project Name</label>
+                <input type="text" id="setupProjectName" placeholder="e.g. my-scraper" />
+            </div>
+        </div>
+
+        <div id="existingProjectFields" style="display:none">
+            <div class="form-group">
+                <label for="setupExistingProject">Select Project</label>
+                <select id="setupExistingProject">
+                    <option value="">-- Select a project --</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="step-actions">
+            <button class="btn btn-outline" onclick="showStep(2)">Back</button>
+            <button class="btn btn-primary" id="finishBtn" onclick="finishSetup()">Finish</button>
+        </div>
+    </div>
+
+    <!-- Success State -->
+    <div class="setup-success" id="setupSuccess">
+        <div class="success-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        </div>
+        <div class="success-heading">Setup Complete!</div>
+        <div class="success-summary" id="successSummary"></div>
+
+        <div id="apiKeySection" style="display:none">
+            <div class="api-key-box">
+                <div class="api-key-label">API Key</div>
+                <code id="successApiKey"></code>
+                <div class="api-key-actions">
+                    <span class="api-key-warning">Save this key &mdash; it won't be shown again.</span>
+                    <button class="copy-btn" onclick="copySetupApiKey()">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="usage-box" id="usageSection">
+            <div class="usage-label">Usage Example</div>
+            <div class="code-block" id="usageExample"></div>
+        </div>
+
+        <a href="/stats" class="btn btn-primary" style="margin-top:4px">Done</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentStep = 1;
+    let providers = [];
+    let selectedProviderId = null;
+    let selectedProviderName = '';
+    let proxyCount = 0;
+    let createdPoolId = null;
+    let createdProjectId = null;
+    let createdApiKey = null;
+    let createdSlug = null;
+
+    // ---- Step navigation ----
+
+    function showStep(n) {
+        currentStep = n;
+        document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+        const stepEl = document.getElementById('step' + n);
+        if (stepEl) stepEl.classList.add('active');
+        updateStepIndicator();
+    }
+
+    function updateStepIndicator() {
+        for (let i = 1; i <= 3; i++) {
+            const item = document.getElementById('stepItem' + i);
+            const circle = document.getElementById('stepCircle' + i);
+            item.classList.remove('active', 'completed');
+            circle.classList.remove('active', 'completed');
+
+            if (i < currentStep) {
+                item.classList.add('completed');
+                circle.classList.add('completed');
+                circle.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+            } else if (i === currentStep) {
+                item.classList.add('active');
+                circle.classList.add('active');
+                circle.textContent = i;
+            } else {
+                circle.textContent = i;
+            }
+        }
+
+        const line1 = document.getElementById('stepLine1');
+        const line2 = document.getElementById('stepLine2');
+        line1.classList.toggle('completed', currentStep > 1);
+        line2.classList.toggle('completed', currentStep > 2);
+    }
+
+    // ---- Providers ----
+
+    async function loadProviders() {
+        try {
+            const data = await apiCall('GET', '/api/v1/providers');
+            providers = data.data || [];
+        } catch (e) {
+            console.error('Failed to load providers', e);
+        }
+    }
+
+    function showProviderDropdown() {
+        filterProviders();
+        document.getElementById('providerDropdown').classList.add('open');
+    }
+
+    function filterProviders() {
+        const input = document.getElementById('setupProviderInput');
+        const dropdown = document.getElementById('providerDropdown');
+        const query = input.value.trim().toLowerCase();
+
+        let html = '';
+        let hasExactMatch = false;
+
+        const filtered = providers.filter(p => {
+            const name = p.name.toLowerCase();
+            if (name === query) hasExactMatch = true;
+            return !query || name.includes(query);
+        });
+
+        filtered.forEach(p => {
+            html += '<div class="combobox-option" onclick="selectProvider(\'' + p.id + '\', \'' + esc(p.name).replace(/'/g, "\\'") + '\')">' + esc(p.name) + '</div>';
+        });
+
+        if (query && !hasExactMatch) {
+            html += '<div class="combobox-option create-new" onclick="selectNewProvider(\'' + esc(query).replace(/'/g, "\\'") + '\')">+ Create &ldquo;' + esc(query) + '&rdquo;</div>';
+        }
+
+        if (!html) {
+            html = '<div class="combobox-option" style="color:var(--text-muted);cursor:default">No providers found. Type a name to create one.</div>';
+        }
+
+        dropdown.innerHTML = html;
+        dropdown.classList.add('open');
+        validateStep1();
+    }
+
+    function selectProvider(id, name) {
+        selectedProviderId = id;
+        selectedProviderName = name;
+        document.getElementById('setupProviderInput').value = name;
+        document.getElementById('setupProviderId').value = id;
+        document.getElementById('providerDropdown').classList.remove('open');
+        validateStep1();
+    }
+
+    function selectNewProvider(name) {
+        selectedProviderId = null;
+        selectedProviderName = name;
+        document.getElementById('setupProviderInput').value = name;
+        document.getElementById('setupProviderId').value = '';
+        document.getElementById('providerDropdown').classList.remove('open');
+        validateStep1();
+    }
+
+    // Close dropdown on outside click
+    document.addEventListener('click', function(e) {
+        const wrapper = document.querySelector('.combobox-wrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            document.getElementById('providerDropdown').classList.remove('open');
+        }
+    });
+
+    // ---- Proxy counting ----
+
+    function countProxies() {
+        const text = document.getElementById('setupProxyText').value;
+        const lines = text.split('\n').filter(l => l.trim().length > 0);
+        proxyCount = lines.length;
+        document.getElementById('proxyPreview').innerHTML = '<strong>' + proxyCount + '</strong> ' + (proxyCount === 1 ? 'proxy' : 'proxies') + ' will be added to this pool';
+        validateStep1();
+    }
+
+    function onFileSelected(input) {
+        updateFileInput(input, document.getElementById('setupFileName'));
+        if (input.files.length > 0) {
+            input.files[0].text().then(text => {
+                const lines = text.split('\n').filter(l => l.trim().length > 0);
+                proxyCount = lines.length;
+                document.getElementById('proxyPreview').innerHTML = '<strong>' + proxyCount + '</strong> ' + (proxyCount === 1 ? 'proxy' : 'proxies') + ' will be added to this pool (from file)';
+                validateStep1();
+            });
+        }
+    }
+
+    // ---- Validation ----
+
+    function hasProxyInput() {
+        const text = document.getElementById('setupProxyText').value.trim();
+        const fileInput = document.getElementById('setupFile');
+        return text.length > 0 || (fileInput.files && fileInput.files.length > 0);
+    }
+
+    function hasProvider() {
+        const input = document.getElementById('setupProviderInput').value.trim();
+        return input.length > 0;
+    }
+
+    function validateStep1() {
+        const btn = document.getElementById('step1NextBtn');
+        btn.disabled = !(hasProxyInput() && hasProvider());
+    }
+
+    // ---- Step transitions ----
+
+    function goToStep2() {
+        if (!hasProxyInput()) {
+            showToast('Please paste proxies or upload a file', 'error');
+            return;
+        }
+        if (!hasProvider()) {
+            showToast('Please select or create a provider', 'error');
+            return;
+        }
+
+        // Set provider name from input if user typed without selecting
+        const inputVal = document.getElementById('setupProviderInput').value.trim();
+        if (!selectedProviderName || selectedProviderName !== inputVal) {
+            // Check if it matches an existing provider
+            const match = providers.find(p => p.name.toLowerCase() === inputVal.toLowerCase());
+            if (match) {
+                selectedProviderId = match.id;
+                selectedProviderName = match.name;
+            } else {
+                selectedProviderId = null;
+                selectedProviderName = inputVal;
+            }
+        }
+
+        countProxies();
+
+        // Auto-fill pool name
+        const poolNameInput = document.getElementById('setupPoolName');
+        if (!poolNameInput.value.trim()) {
+            const safeName = selectedProviderName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            poolNameInput.value = safeName + '-01';
+        }
+
+        showStep(2);
+    }
+
+    async function goToStep3() {
+        const poolName = document.getElementById('setupPoolName').value.trim();
+        if (!poolName) {
+            showToast('Please enter a pool name', 'error');
+            return;
+        }
+
+        await loadProjects();
+        showStep(3);
+    }
+
+    // ---- Projects ----
+
+    async function loadProjects() {
+        try {
+            const data = await apiCall('GET', '/api/v1/projects');
+            const items = data.data || [];
+            const sel = document.getElementById('setupExistingProject');
+            sel.innerHTML = '<option value="">-- Select a project --</option>';
+            items.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name + ' (' + p.slug + ')';
+                sel.appendChild(opt);
+            });
+        } catch (e) {
+            console.error('Failed to load projects', e);
+        }
+    }
+
+    function toggleProjectMode() {
+        const isNew = document.getElementById('projectModeNew').checked;
+        document.getElementById('newProjectFields').style.display = isNew ? '' : 'none';
+        document.getElementById('existingProjectFields').style.display = isNew ? 'none' : '';
+    }
+
+    // ---- Finish ----
+
+    async function finishSetup() {
+        const finishBtn = document.getElementById('finishBtn');
+        finishBtn.disabled = true;
+        finishBtn.classList.add('btn-loading');
+
+        try {
+            // 1. Create provider if new
+            let providerId = selectedProviderId;
+            if (!providerId) {
+                const prov = await apiCall('POST', '/api/v1/providers', { name: selectedProviderName });
+                providerId = prov.id;
+            }
+
+            // 2. Import proxies
+            const proxyText = document.getElementById('setupProxyText').value.trim();
+            const fileInput = document.getElementById('setupFile');
+            let finalText = proxyText;
+            if (!finalText && fileInput.files.length > 0) {
+                finalText = await fileInput.files[0].text();
+            }
+            const importResult = await apiCall('POST', '/api/v1/ips/bulk', {
+                provider_id: providerId,
+                proxies: finalText,
+            });
+
+            // 3. Create pool
+            const poolName = document.getElementById('setupPoolName').value.trim();
+            const strategy = document.getElementById('setupStrategy').value;
+            const pool = await apiCall('POST', '/api/v1/pools', {
+                name: poolName,
+                rotation_strategy: strategy,
+            });
+            createdPoolId = pool.id;
+
+            // 4. Get imported proxy IDs and assign to pool
+            const proxyData = await apiCall('GET', '/api/v1/ips?provider_id=' + providerId + '&per_page=100');
+            const proxyIds = (proxyData.data || []).map(p => p.id);
+            if (proxyIds.length > 0) {
+                await apiCall('POST', '/api/v1/pools/' + createdPoolId + '/ips', { proxy_ids: proxyIds });
+            }
+
+            // 5. Create or use existing project
+            const isNewProject = document.querySelector('input[name="projectMode"]:checked').value === 'new';
+            let projectName = '';
+            if (isNewProject) {
+                projectName = document.getElementById('setupProjectName').value.trim();
+                if (!projectName) {
+                    showToast('Please enter a project name', 'error');
+                    finishBtn.disabled = false;
+                    finishBtn.classList.remove('btn-loading');
+                    return;
+                }
+                const project = await apiCall('POST', '/api/v1/projects', { name: projectName });
+                createdProjectId = project.id;
+                createdApiKey = project.api_key;
+                createdSlug = project.slug;
+            } else {
+                const projectId = document.getElementById('setupExistingProject').value;
+                if (!projectId) {
+                    showToast('Please select a project', 'error');
+                    finishBtn.disabled = false;
+                    finishBtn.classList.remove('btn-loading');
+                    return;
+                }
+                createdProjectId = projectId;
+                const project = await apiCall('GET', '/api/v1/projects/' + projectId);
+                createdSlug = project.slug;
+                projectName = project.name;
+            }
+
+            // 6. Assign pool to project
+            await apiCall('POST', '/api/v1/projects/' + createdProjectId + '/pools', {
+                pool_ids: [createdPoolId],
+            });
+
+            // 7. Show success
+            showSuccess(importResult.created || proxyCount, poolName, projectName);
+
+        } catch (e) {
+            showToast('Setup failed: ' + e.message, 'error');
+            finishBtn.disabled = false;
+            finishBtn.classList.remove('btn-loading');
+        }
+    }
+
+    function showSuccess(count, poolName, projectName) {
+        // Hide all steps and indicator
+        document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+        document.querySelector('.step-indicator').style.display = 'none';
+
+        // Update summary
+        document.getElementById('successSummary').textContent = count + ' proxies imported \u2192 ' + poolName + ' \u2192 ' + projectName;
+
+        // Show API key if new project
+        if (createdApiKey) {
+            document.getElementById('apiKeySection').style.display = '';
+            document.getElementById('successApiKey').textContent = createdApiKey;
+        }
+
+        // Usage example
+        const slug = esc(createdSlug || 'SLUG');
+        const keyDisplay = createdApiKey ? esc(createdApiKey) : 'YOUR_API_KEY';
+        document.getElementById('usageExample').textContent = 'curl -x http://' + (createdSlug || 'SLUG') + ':' + (createdApiKey || 'YOUR_API_KEY') + '@localhost:9080 https://httpbin.org/ip';
+
+        document.getElementById('setupSuccess').classList.add('active');
+    }
+
+    function copySetupApiKey() {
+        const key = document.getElementById('successApiKey').textContent;
+        navigator.clipboard.writeText(key).then(() => {
+            showToast('API key copied to clipboard', 'success');
+        });
+    }
+
+    // ---- Init ----
+    loadProviders();
+</script>
+{% endblock %}

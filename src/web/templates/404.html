@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Page Not Found - ProxyManager{% endblock %}
+
+{% block content %}
+<div class="empty-state" style="padding-top:120px">
+    <div class="empty-state-icon" style="font-size:56px">&#128123;</div>
+    <h3 style="font-size:20px;margin-bottom:8px">404 - Page Not Found</h3>
+    <p style="margin-bottom:24px">The page you're looking for doesn't exist or has been moved.</p>
+    <a href="/proxies" class="btn btn-outline" style="display:inline-flex">Back to Dashboard</a>
+</div>
+{% endblock %}

@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}Projects - ProxyManager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Projects</h1>
+    <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openModal('createProjectModal')">Create Project</button>
+    </div>
+</div>
+
+<!-- API Key display -->
+<div id="apiKeyAlert" class="alert-warning" style="display:none">
+    <div class="alert-warning-content">
+        <strong>Save this API key now &mdash; it will not be shown again:</strong><br>
+        <code id="apiKeyValue"></code>
+        <button class="copy-btn" onclick="copyApiKey()">Copy</button>
+    </div>
+    <button class="alert-dismiss" onclick="this.closest('.alert-warning').style.display='none'" aria-label="Dismiss">&times;</button>
+</div>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createProjectModal">
+    <div class="modal">
+        <h2>Create Project</h2>
+        <div class="form-group">
+            <label for="projectName">Project Name</label>
+            <input type="text" id="projectName" placeholder="e.g. my-scraper" />
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('createProjectModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createProject()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Pools Modal -->
+<div class="modal-overlay" id="managePoolsModal">
+    <div class="modal">
+        <h2>Manage Pools</h2>
+        <p style="color:var(--text-muted);margin-bottom:14px;font-size:12px" id="managePoolsInfo"></p>
+        <div id="poolCheckboxes"></div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('managePoolsModal')">Close</button>
+            <button class="btn btn-primary" onclick="savePoolAssignments()">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th class="col-check"><input type="checkbox" class="row-checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+                <th>Name</th>
+                <th>Slug</th>
+                <th>Pools</th>
+                <th>Created</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="projectTableBody">
+        </tbody>
+    </table>
+</div>
+<div id="emptyState" class="empty-state" style="display:none;">
+    <div class="empty-state-icon">&#128640;</div>
+    <h3>No projects yet</h3>
+    <p>Create a project to get an API key for proxy rotation.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentProjectId = null;
+    let allPools = [];
+
+    async function loadProjects() {
+        try {
+            const data = await apiCall('GET', '/api/v1/projects');
+            const items = data.data || [];
+            const tbody = document.getElementById('projectTableBody');
+            const empty = document.getElementById('emptyState');
+
+            if (items.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                document.querySelector('.table-card').style.display = 'none';
+            } else {
+                empty.style.display = 'none';
+                document.querySelector('.table-card').style.display = '';
+                tbody.innerHTML = items.map(p => {
+                    const poolCount = p.pools ? p.pools.length : 0;
+                    const poolLabel = poolCount === 1 ? 'pool' : 'pools';
+                    return `<tr>
+                        <td class="col-check"><input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="toggleRowSelection('${p.id}', this)"></td>
+                        <td><strong style="color:var(--text-primary)">${esc(p.name)}</strong></td>
+                        <td><code class="mono">${esc(p.slug)}</code></td>
+                        <td>
+                            <span class="stat-pill" style="cursor:pointer" onclick="managePools('${p.id}', '${esc(p.name)}')">
+                                <span class="stat-value">${poolCount}</span> ${poolLabel}
+                            </span>
+                        </td>
+                        <td style="color:var(--text-muted);font-size:12px">${fmtDate(p.created_at)}</td>
+                        <td class="actions">
+                            <button class="btn btn-outline btn-sm" onclick="toggleUsage('${p.id}')">Usage</button>
+                            <button class="btn btn-outline btn-sm" onclick="managePools('${p.id}', '${esc(p.name)}')">Pools</button>
+                            <button class="btn btn-outline btn-sm" onclick="rotateKey('${p.id}')">Rotate Key</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button>
+                        </td>
+                    </tr>
+                    <tr id="usage-${p.id}" style="display:none">
+                        <td colspan="6" style="padding:0 16px 12px 16px;border-bottom:1px solid var(--border)">
+                            <div class="card" style="margin-top:4px">
+                                <p style="color:var(--text-muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px">Forward Proxy</p>
+                                <div class="code-block">curl -x http://${esc(p.slug)}:YOUR_API_KEY@localhost:9080 https://httpbin.org/ip</div>
+                                <p style="color:var(--text-muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin:12px 0 8px 0">Rotation API</p>
+                                <div class="code-block">curl -H "X-API-Key: YOUR_API_KEY" http://localhost:8080/api/v1/rotate/${esc(p.slug)}</div>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+            }
+            clearSelection();
+        } catch (e) {
+            showToast('Failed to load projects: ' + e.message, 'error');
+        }
+    }
+
+    function toggleUsage(id) {
+        const row = document.getElementById('usage-' + id);
+        row.style.display = row.style.display === 'none' ? '' : 'none';
+    }
+
+    async function createProject() {
+        const name = document.getElementById('projectName').value.trim();
+        if (!name) { showToast('Project name is required', 'error'); return; }
+
+        try {
+            const result = await apiCall('POST', '/api/v1/projects', { name });
+            closeModal('createProjectModal');
+            document.getElementById('projectName').value = '';
+
+            if (result.api_key) {
+                const alert = document.getElementById('apiKeyAlert');
+                document.getElementById('apiKeyValue').textContent = result.api_key;
+                alert.style.display = 'flex';
+            }
+
+            showToast('Project created', 'success');
+            loadProjects();
+        } catch (e) {
+            showToast('Create failed: ' + e.message, 'error');
+        }
+    }
+
+    function copyApiKey() {
+        const key = document.getElementById('apiKeyValue').textContent;
+        navigator.clipboard.writeText(key).then(() => {
+            const btn = document.querySelector('.copy-btn');
+            const orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = orig; }, 2000);
+            showToast('API key copied to clipboard', 'success');
+        });
+    }
+
+    async function rotateKey(id) {
+        if (!(await confirmAction('Generate a new API key? The old key will stop working immediately.', 'Rotate API Key'))) return;
+        try {
+            const result = await apiCall('POST', `/api/v1/projects/${id}/rotate-key`);
+            if (result.api_key) {
+                document.getElementById('apiKeyValue').textContent = result.api_key;
+                document.getElementById('apiKeyAlert').style.display = 'flex';
+            }
+            showToast('API key rotated', 'success');
+        } catch (e) {
+            showToast('Failed to rotate key: ' + e.message, 'error');
+        }
+    }
+
+    async function managePools(projectId, projectName) {
+        currentProjectId = projectId;
+        document.getElementById('managePoolsInfo').textContent = 'Assign pools to ' + projectName;
+
+        try {
+            const [poolsData, projectData] = await Promise.all([
+                apiCall('GET', '/api/v1/pools'),
+                apiCall('GET', `/api/v1/projects/${projectId}`)
+            ]);
+            allPools = poolsData.data || [];
+            const assignedIds = (projectData.pools || []).map(p => p.id);
+
+            const container = document.getElementById('poolCheckboxes');
+            if (allPools.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No pools available. Create a pool first.</p>';
+            } else {
+                container.innerHTML = allPools.map(p => {
+                    const checked = assignedIds.includes(p.id) ? 'checked' : '';
+                    return `<div style="margin-bottom:6px">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;transition:background 0.1s">
+                            <input type="checkbox" value="${p.id}" ${checked} style="width:auto;accent-color:var(--accent)" />
+                            <div>
+                                <div style="font-weight:600;font-size:13px;color:var(--text-primary)">${esc(p.name)}</div>
+                                <div style="font-size:11px;color:var(--text-muted)">${p.proxy_count || 0} proxies &middot; ${esc(p.rotation_strategy).replace('_',' ')}</div>
+                            </div>
+                        </label>
+                    </div>`;
+                }).join('');
+            }
+            openModal('managePoolsModal');
+        } catch (e) {
+            showToast('Failed to load pools: ' + e.message, 'error');
+        }
+    }
+
+    async function savePoolAssignments() {
+        const checkboxes = document.querySelectorAll('#poolCheckboxes input[type="checkbox"]');
+        const selectedPoolIds = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+
+        try {
+            await apiCall('POST', `/api/v1/projects/${currentProjectId}/pools`, { pool_ids: selectedPoolIds });
+            showToast('Pools updated', 'success');
+            closeModal('managePoolsModal');
+            loadProjects();
+        } catch (e) {
+            showToast('Update failed: ' + e.message, 'error');
+        }
+    }
+
+    async function deleteProject(id) {
+        if (!(await confirmAction('Delete this project? Its API key will be revoked.'))) return;
+        try {
+            await apiCall('DELETE', `/api/v1/projects/${id}`);
+            showToast('Project deleted', 'success');
+            loadProjects();
+        } catch (e) {
+            showToast('Delete failed: ' + e.message, 'error');
+        }
+    }
+
+    async function bulkDelete() {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        if (!(await confirmAction(`Delete ${ids.length} projects? Their API keys will be revoked.`))) return;
+        let deleted = 0;
+        for (const id of ids) {
+            try { await apiCall('DELETE', `/api/v1/projects/${id}`); deleted++; } catch {}
+        }
+        showToast(`Deleted ${deleted} projects`, 'success');
+        clearSelection();
+        loadProjects();
+    }
+
+    document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
+    loadProjects();
+</script>
+{% endblock %}

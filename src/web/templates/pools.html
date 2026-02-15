@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% block title %}Pools - ProxyManager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Pools</h1>
+    <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openModal('createPoolModal')">Create Pool</button>
+    </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createPoolModal">
+    <div class="modal">
+        <h2>Create Pool</h2>
+        <div class="form-group">
+            <label for="poolName">Pool Name</label>
+            <input type="text" id="poolName" placeholder="e.g. us-residential" />
+        </div>
+        <div class="form-group">
+            <label for="poolStrategy">Rotation Strategy</label>
+            <select id="poolStrategy">
+                <option value="round_robin" selected>Round Robin</option>
+                <option value="random">Random</option>
+            </select>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('createPoolModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createPool()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Proxies Modal -->
+<div class="modal-overlay" id="manageProxiesModal">
+    <div class="modal" style="max-width:560px">
+        <h2>Manage Proxies</h2>
+        <p style="color:var(--text-muted);margin-bottom:14px;font-size:12px" id="manageProxiesInfo"></p>
+        <div id="proxyCheckboxes" style="max-height:400px;overflow-y:auto"></div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('manageProxiesModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveProxyAssignments()">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th class="col-check"><input type="checkbox" class="row-checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+                <th>Pool Name</th>
+                <th>Proxies</th>
+                <th>Health</th>
+                <th>Strategy</th>
+                <th>Created</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="poolTableBody">
+        </tbody>
+    </table>
+</div>
+<div id="emptyState" class="empty-state" style="display:none;">
+    <div class="empty-state-icon">&#128230;</div>
+    <h3>No pools yet</h3>
+    <p>Create a pool to organize your proxies for rotation.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPoolId = null;
+
+    async function loadPools() {
+        try {
+            const data = await apiCall('GET', '/api/v1/pools');
+            const items = data.data || [];
+            const tbody = document.getElementById('poolTableBody');
+            const empty = document.getElementById('emptyState');
+
+            if (items.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                document.querySelector('.table-card').style.display = 'none';
+            } else {
+                empty.style.display = 'none';
+                document.querySelector('.table-card').style.display = '';
+                tbody.innerHTML = items.map(p => {
+                    const proxyCount = p.proxy_count || 0;
+                    const healthyCount = p.healthy_count || 0;
+                    const strategy = esc(p.rotation_strategy).replace('_', ' ');
+                    const healthPct = proxyCount > 0 ? Math.round(healthyCount / proxyCount * 100) : 0;
+                    const barColor = proxyCount === 0 ? 'var(--text-muted)' : healthPct > 70 ? 'var(--green)' : healthPct > 30 ? 'var(--yellow)' : 'var(--red)';
+                    const barWidth = proxyCount === 0 ? 0 : healthPct;
+                    return `<tr>
+                        <td class="col-check"><input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="toggleRowSelection('${p.id}', this)"></td>
+                        <td><strong style="color:var(--text-primary)">${esc(p.name)}</strong></td>
+                        <td>
+                            <span class="stat-pill" style="cursor:pointer" onclick="manageProxies('${p.id}', '${esc(p.name)}')">
+                                <span class="stat-value">${proxyCount}</span> ${proxyCount === 1 ? 'proxy' : 'proxies'}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <div style="flex:1;max-width:72px;height:4px;background:var(--border-light);border-radius:2px;overflow:hidden">
+                                    <div style="width:${barWidth}%;height:100%;background:${barColor};border-radius:2px;transition:width 0.3s ease"></div>
+                                </div>
+                                <span class="mono" style="font-size:11px">${healthyCount}/${proxyCount}</span>
+                            </div>
+                        </td>
+                        <td><span class="tag tag-http">${strategy}</span></td>
+                        <td style="color:var(--text-muted);font-size:12px">${fmtDate(p.created_at)}</td>
+                        <td class="actions">
+                            <button class="btn btn-outline btn-sm" onclick="manageProxies('${p.id}', '${esc(p.name)}')">Proxies</button>
+                            <button class="btn btn-danger btn-sm" onclick="deletePool('${p.id}')">Delete</button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            }
+            clearSelection();
+        } catch (e) {
+            showToast('Failed to load pools: ' + e.message, 'error');
+        }
+    }
+
+    async function manageProxies(poolId, poolName) {
+        currentPoolId = poolId;
+        document.getElementById('manageProxiesInfo').textContent = 'Assign proxies to ' + poolName;
+
+        try {
+            const [allProxiesData, poolProxiesData, providersData] = await Promise.all([
+                apiCall('GET', '/api/v1/ips?per_page=100'),
+                apiCall('GET', `/api/v1/ips?pool_id=${poolId}&per_page=100`),
+                apiCall('GET', '/api/v1/providers')
+            ]);
+            const allProxies = allProxiesData.data || [];
+            const assignedIds = new Set((poolProxiesData.data || []).map(p => p.id));
+            const providers = providersData.data || [];
+            const providerMap = {};
+            providers.forEach(p => { providerMap[p.id] = p.name; });
+
+            const container = document.getElementById('proxyCheckboxes');
+            if (allProxies.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No proxies available. Import proxies first.</p>';
+            } else {
+                const byProvider = {};
+                allProxies.forEach(p => {
+                    const pid = p.provider_id;
+                    if (!byProvider[pid]) byProvider[pid] = [];
+                    byProvider[pid].push(p);
+                });
+
+                let html = '';
+                for (const [providerId, proxies] of Object.entries(byProvider)) {
+                    const provName = providerMap[providerId] || 'Unknown';
+                    const allChecked = proxies.every(p => assignedIds.has(p.id));
+                    html += `<div style="margin-bottom:14px">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
+                                <input type="checkbox" class="provider-toggle" data-provider="${providerId}" ${allChecked ? 'checked' : ''}
+                                    onchange="toggleProviderProxies('${providerId}', this.checked)"
+                                    style="width:auto;accent-color:var(--accent)" />
+                                <strong style="font-size:12px;color:var(--text-primary)">${esc(provName)}</strong>
+                                <span style="font-size:11px;color:var(--text-muted)">(${proxies.length})</span>
+                            </label>
+                        </div>`;
+                    html += proxies.map(p => {
+                        const checked = assignedIds.has(p.id) ? 'checked' : '';
+                        const statusDot = p.last_health_status === 'healthy' ? 'var(--green)' : p.last_health_status === 'dead' ? 'var(--red)' : 'var(--text-muted)';
+                        return `<div style="margin-bottom:3px;margin-left:6px">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;transition:background 0.1s">
+                                <input type="checkbox" class="proxy-cb" data-provider="${providerId}" value="${p.id}" ${checked} style="width:auto;accent-color:var(--accent)"
+                                    onchange="updateProviderToggle('${providerId}')" />
+                                <div style="flex:1;display:flex;align-items:center;gap:8px">
+                                    <span class="mono" style="font-size:11px">${esc(p.host)}:${esc(p.port)}</span>
+                                    ${protoTag(p.protocol)}
+                                    <span style="width:6px;height:6px;border-radius:50%;background:${statusDot};flex-shrink:0"></span>
+                                </div>
+                            </label>
+                        </div>`;
+                    }).join('');
+                    html += '</div>';
+                }
+                container.innerHTML = html;
+            }
+            openModal('manageProxiesModal');
+        } catch (e) {
+            showToast('Failed to load proxies: ' + e.message, 'error');
+        }
+    }
+
+    function toggleProviderProxies(providerId, checked) {
+        document.querySelectorAll(`.proxy-cb[data-provider="${providerId}"]`).forEach(cb => {
+            cb.checked = checked;
+        });
+    }
+
+    function updateProviderToggle(providerId) {
+        const cbs = document.querySelectorAll(`.proxy-cb[data-provider="${providerId}"]`);
+        const toggle = document.querySelector(`.provider-toggle[data-provider="${providerId}"]`);
+        if (!toggle) return;
+        const allChecked = Array.from(cbs).every(cb => cb.checked);
+        const someChecked = Array.from(cbs).some(cb => cb.checked);
+        toggle.checked = allChecked;
+        toggle.indeterminate = someChecked && !allChecked;
+    }
+
+    async function saveProxyAssignments() {
+        const checkboxes = document.querySelectorAll('#proxyCheckboxes .proxy-cb');
+        const wantedIds = new Set(Array.from(checkboxes).filter(c => c.checked).map(c => c.value));
+        const allIds = new Set(Array.from(checkboxes).map(c => c.value));
+
+        const currentData = await apiCall('GET', `/api/v1/ips?pool_id=${currentPoolId}&per_page=100`);
+        const currentIds = new Set((currentData.data || []).map(p => p.id));
+
+        const toAdd = [...wantedIds].filter(id => !currentIds.has(id));
+        const toRemove = [...currentIds].filter(id => !wantedIds.has(id));
+
+        try {
+            if (toAdd.length > 0) {
+                await apiCall('POST', `/api/v1/pools/${currentPoolId}/ips`, { proxy_ids: toAdd });
+            }
+            if (toRemove.length > 0) {
+                await apiCall('DELETE', `/api/v1/pools/${currentPoolId}/ips`, { proxy_ids: toRemove });
+            }
+            const totalChanges = toAdd.length + toRemove.length;
+            if (totalChanges > 0) {
+                showToast(`Updated pool: ${toAdd.length} added, ${toRemove.length} removed`, 'success');
+            } else {
+                showToast('No changes made', 'success');
+            }
+            closeModal('manageProxiesModal');
+            loadPools();
+        } catch (e) {
+            showToast('Update failed: ' + e.message, 'error');
+        }
+    }
+
+    async function createPool() {
+        const name = document.getElementById('poolName').value.trim();
+        if (!name) { showToast('Pool name is required', 'error'); return; }
+        const strategy = document.getElementById('poolStrategy').value;
+
+        try {
+            await apiCall('POST', '/api/v1/pools', { name, rotation_strategy: strategy });
+            showToast('Pool created', 'success');
+            closeModal('createPoolModal');
+            document.getElementById('poolName').value = '';
+            loadPools();
+        } catch (e) {
+            showToast('Create failed: ' + e.message, 'error');
+        }
+    }
+
+    async function deletePool(id) {
+        if (!(await confirmAction('This pool will be permanently deleted.'))) return;
+        try {
+            await apiCall('DELETE', `/api/v1/pools/${id}`);
+            showToast('Pool deleted', 'success');
+            loadPools();
+        } catch (e) {
+            showToast('Delete failed: ' + e.message, 'error');
+        }
+    }
+
+    async function bulkDelete() {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        if (!(await confirmAction(`Delete ${ids.length} pools? This cannot be undone.`))) return;
+        let deleted = 0;
+        for (const id of ids) {
+            try { await apiCall('DELETE', `/api/v1/pools/${id}`); deleted++; } catch {}
+        }
+        showToast(`Deleted ${deleted} pools`, 'success');
+        clearSelection();
+        loadPools();
+    }
+
+    document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
+    loadPools();
+</script>
+{% endblock %}
