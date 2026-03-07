@@ -10,7 +10,6 @@ from src.database import get_db
 from src.models.metrics import MetricsRollup
 from src.models.pool import Pool
 from src.models.project import Project
-from src.models.provider import Provider
 from src.models.proxy import Proxy
 from src.schemas.stats import EntityStats, OverviewStats, TimeseriesPoint, TimeseriesResponse
 
@@ -36,10 +35,9 @@ async def get_overview_stats(
         status_map[row[0]] = row[1]
         total_proxies += row[1]
 
-    # Count pools, projects, providers
+    # Count pools, projects
     total_pools = (await db.execute(select(func.count(Pool.id)))).scalar() or 0
     total_projects = (await db.execute(select(func.count(Project.id)))).scalar() or 0
-    total_providers = (await db.execute(select(func.count(Provider.id)))).scalar() or 0
 
     # Get last 24h metrics totals across all entities at proxy level
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
@@ -67,7 +65,6 @@ async def get_overview_stats(
         unknown_proxies=status_map.get("unknown", 0),
         total_pools=total_pools,
         total_projects=total_projects,
-        total_providers=total_providers,
         total_requests_24h=int(m[0]),
         successful_requests_24h=int(m[1]),
         failed_requests_24h=int(m[2]),
@@ -168,8 +165,6 @@ async def get_timeseries(
 ips_stats_router = APIRouter(tags=["stats"])
 pools_stats_router = APIRouter(tags=["stats"])
 projects_stats_router = APIRouter(tags=["stats"])
-providers_stats_router = APIRouter(tags=["stats"])
-
 
 @ips_stats_router.get("/ips/{proxy_id}/stats", response_model=EntityStats)
 async def get_proxy_stats(
@@ -208,16 +203,3 @@ async def get_project_stats(
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return await _entity_stats(db, "project", project_id)
-
-
-@providers_stats_router.get("/providers/{provider_id}/stats", response_model=EntityStats)
-async def get_provider_stats(
-    provider_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    _: None = Depends(admin_auth),
-):
-    """Performance stats for a provider."""
-    provider = await db.get(Provider, provider_id)
-    if provider is None:
-        raise HTTPException(status_code=404, detail="Provider not found")
-    return await _entity_stats(db, "provider", provider_id)

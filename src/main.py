@@ -60,18 +60,16 @@ async def shutdown() -> None:
 
 
 # Register API routers
-from src.api.providers import router as providers_router  # noqa: E402
 from src.api.proxies import router as proxies_router  # noqa: E402
 from src.api.pools import router as pools_router  # noqa: E402
 from src.api.projects import router as projects_router  # noqa: E402
 from src.api.rotation import router as rotation_router  # noqa: E402
 from src.api.system import router as system_router  # noqa: E402
 from src.api.stats import router as stats_router  # noqa: E402
-from src.api.stats import ips_stats_router, pools_stats_router, projects_stats_router, providers_stats_router  # noqa: E402
+from src.api.stats import ips_stats_router, pools_stats_router, projects_stats_router  # noqa: E402
 from src.api.blacklist import router as blacklist_router  # noqa: E402
 from src.api.alerts import router as alerts_router  # noqa: E402
 
-app.include_router(providers_router, prefix="/api/v1")
 app.include_router(proxies_router, prefix="/api/v1")
 app.include_router(pools_router, prefix="/api/v1")
 app.include_router(projects_router, prefix="/api/v1")
@@ -81,7 +79,6 @@ app.include_router(stats_router, prefix="/api/v1")
 app.include_router(ips_stats_router, prefix="/api/v1")
 app.include_router(pools_stats_router, prefix="/api/v1")
 app.include_router(projects_stats_router, prefix="/api/v1")
-app.include_router(providers_stats_router, prefix="/api/v1")
 app.include_router(blacklist_router, prefix="/api/v1")
 app.include_router(alerts_router, prefix="/api/v1")
 

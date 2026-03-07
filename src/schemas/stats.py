@@ -11,7 +11,6 @@ class OverviewStats(BaseModel):
     unknown_proxies: int = 0
     total_pools: int = 0
     total_projects: int = 0
-    total_providers: int = 0
     total_requests_24h: int = 0
     successful_requests_24h: int = 0
     failed_requests_24h: int = 0
