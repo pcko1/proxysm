@@ -7,7 +7,6 @@ from src.schemas.project import (
     ProjectResponse,
     ProjectUpdate,
 )
-from src.schemas.provider import ProviderCreate, ProviderResponse, ProviderUpdate
 from src.schemas.proxy import ProxyBulkImport, ProxyCreate, ProxyResponse, ProxyUpdate
 
 __all__ = [
@@ -23,9 +22,6 @@ __all__ = [
     "ProjectCreateResponse",
     "ProjectResponse",
     "ProjectUpdate",
-    "ProviderCreate",
-    "ProviderResponse",
-    "ProviderUpdate",
     "ProxyBulkImport",
     "ProxyCreate",
     "ProxyResponse",

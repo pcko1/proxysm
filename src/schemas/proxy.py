@@ -9,7 +9,7 @@ class ProxyCreate(BaseModel):
     host: str
     port: int = Field(ge=0, le=65535)
     protocol: Literal["http", "https", "socks5"]
-    provider_id: uuid.UUID
+    provider: str | None = None
     username: str | None = None
     password: str | None = None
 
@@ -23,7 +23,7 @@ class ProxyResponse(BaseModel):
     host: str
     port: int
     protocol: str
-    provider_id: uuid.UUID
+    provider: str | None = None
     is_active: bool
     last_health_status: str | None = None
     avg_latency_ms: float | None = None
@@ -33,6 +33,6 @@ class ProxyResponse(BaseModel):
 
 
 class ProxyBulkImport(BaseModel):
-    provider_id: uuid.UUID
+    provider: str | None = None
     proxies: str | None = None
     proxy_list: list[ProxyCreate] | None = None
