@@ -1,5 +1,4 @@
 from src.models.base import Base
-from src.models.provider import Provider
 from src.models.proxy import Proxy
 from src.models.pool import Pool
 from src.models.project import Project
@@ -12,7 +11,6 @@ from src.models.alert import AlertRule
 
 __all__ = [
     "Base",
-    "Provider",
     "Proxy",
     "Pool",
     "Project",

@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -7,20 +6,17 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Float,
-    ForeignKey,
     Integer,
     String,
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from src.models.associations import PoolProxy
-    from src.models.provider import Provider
 
 
 class Proxy(Base, UUIDMixin, TimestampMixin):
@@ -37,9 +33,7 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         ),
     )
 
-    provider_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("providers.id", ondelete="CASCADE"), nullable=False
-    )
+    provider: Mapped[str | None] = mapped_column(String(255), nullable=True)
     host: Mapped[str] = mapped_column(String(255), nullable=False)
     port: Mapped[int] = mapped_column(Integer, nullable=False)
     protocol: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -54,13 +48,10 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
     )
     avg_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    # Phase 2: Geo-detection fields
     country_code: Mapped[str | None] = mapped_column(String(2), nullable=True)
     city: Mapped[str | None] = mapped_column(String(255), nullable=True)
     asn: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
-    # Relationships
-    provider: Mapped["Provider"] = relationship("Provider", back_populates="proxies")
     pool_proxies: Mapped[list["PoolProxy"]] = relationship(
         "PoolProxy", back_populates="proxy", cascade="all, delete-orphan"
     )
