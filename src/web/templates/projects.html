@@ -47,6 +47,34 @@
     </div>
 </div>
 
+<!-- Block Proxy Modal -->
+<div class="modal-overlay" id="blockProxyModal">
+    <div class="modal">
+        <h2>Block Proxy</h2>
+        <p style="color:var(--text-muted);margin-bottom:14px;font-size:12px" id="blockModalInfo"></p>
+        <div class="form-group">
+            <label for="blockProxySearch">Proxy</label>
+            <div style="position:relative">
+                <input type="text" id="blockProxySearch" placeholder="Search by host:port..." autocomplete="off" oninput="searchBlockProxies()">
+                <input type="hidden" id="blockProxyId" value="">
+                <div id="blockProxyResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-tertiary);border:1px solid var(--border-light);border-radius:8px;margin-top:4px;max-height:180px;overflow-y:auto;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,0.4)"></div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="blockDomain">Target Domain <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional)</span></label>
+            <input type="text" id="blockDomain" placeholder="e.g. example.com">
+        </div>
+        <div class="form-group">
+            <label for="blockReason">Reason <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional)</span></label>
+            <input type="text" id="blockReason" placeholder="e.g. Frequent timeouts">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('blockProxyModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="doBlockProxy()">Block</button>
+        </div>
+    </div>
+</div>
+
 <div class="table-card">
     <table>
         <thead>
@@ -116,6 +144,9 @@
                                 <div class="code-block">curl -x http://${esc(p.slug)}:YOUR_API_KEY@localhost:9080 https://httpbin.org/ip</div>
                                 <p style="color:var(--text-muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin:12px 0 8px 0">Rotation API</p>
                                 <div class="code-block">curl -H "X-API-Key: YOUR_API_KEY" http://localhost:8080/api/v1/rotate/${esc(p.slug)}</div>
+                                <p style="color:var(--text-muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin:12px 0 8px 0">Blacklist</p>
+                                <div id="bl-${p.id}" style="font-size:13px;color:var(--text-muted)"></div>
+                                <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="openBlockModal('${p.id}', '${esc(p.name)}')">Block Proxy</button>
                             </div>
                         </td>
                     </tr>`;
@@ -129,7 +160,12 @@
 
     function toggleUsage(id) {
         const row = document.getElementById('usage-' + id);
-        row.style.display = row.style.display === 'none' ? '' : 'none';
+        if (row.style.display === 'none') {
+            row.style.display = '';
+            loadBlacklist(id);
+        } else {
+            row.style.display = 'none';
+        }
     }
 
     async function createProject() {
@@ -261,6 +297,120 @@
     }
 
     document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
+
+    // --- Blacklist ---
+    let blProjectId = null;
+
+    async function loadBlacklist(projectId) {
+        const container = document.getElementById('bl-' + projectId);
+        if (!container) return;
+        try {
+            const items = await apiCall('GET', `/api/v1/projects/${projectId}/blacklist`);
+            if (items.length === 0) {
+                container.innerHTML = '<span style="color:var(--text-muted)">No blocked proxies.</span>';
+                return;
+            }
+            container.innerHTML = '<table style="min-width:auto;margin-top:4px"><thead><tr><th>Proxy</th><th>Domain</th><th>Reason</th><th>Expires</th><th></th></tr></thead><tbody>' +
+                items.map(bl => {
+                    const proxy = bl.proxy_host ? `${esc(bl.proxy_host)}:${bl.proxy_port}` : esc(bl.proxy_id);
+                    const domain = bl.target_domain ? esc(bl.target_domain) : '<span style="color:var(--text-muted)">All</span>';
+                    const reason = bl.reason ? esc(bl.reason) : '<span style="color:var(--text-muted)">-</span>';
+                    const expires = bl.expires_at ? fmtDate(bl.expires_at) : '<span style="color:var(--text-muted)">Permanent</span>';
+                    return `<tr>
+                        <td><span class="mono">${proxy}</span></td>
+                        <td>${domain}</td>
+                        <td class="cell-truncate">${reason}</td>
+                        <td>${expires}</td>
+                        <td class="actions"><button class="btn btn-outline btn-sm" onclick="unblock('${projectId}', '${bl.proxy_id}')">Unblock</button></td>
+                    </tr>`;
+                }).join('') + '</tbody></table>';
+        } catch (e) {
+            container.innerHTML = '<span style="color:var(--red)">Failed to load blacklist</span>';
+        }
+    }
+
+    async function unblock(projectId, proxyId) {
+        if (!(await confirmAction('Unblock this proxy?', 'Unblock'))) return;
+        try {
+            await apiCall('DELETE', `/api/v1/projects/${projectId}/blacklist/${proxyId}`);
+            showToast('Proxy unblocked', 'success');
+            loadBlacklist(projectId);
+        } catch (e) {
+            showToast('Failed: ' + e.message, 'error');
+        }
+    }
+
+    function openBlockModal(projectId, projectName) {
+        blProjectId = projectId;
+        document.getElementById('blockModalInfo').textContent = 'Block a proxy for ' + projectName;
+        document.getElementById('blockProxySearch').value = '';
+        document.getElementById('blockProxyId').value = '';
+        document.getElementById('blockDomain').value = '';
+        document.getElementById('blockReason').value = '';
+        openModal('blockProxyModal');
+    }
+
+    let blockSearchTimeout = null;
+    async function searchBlockProxies() {
+        const query = document.getElementById('blockProxySearch').value.trim();
+        const dropdown = document.getElementById('blockProxyResults');
+        document.getElementById('blockProxyId').value = '';
+        if (query.length < 2) { dropdown.style.display = 'none'; return; }
+        clearTimeout(blockSearchTimeout);
+        blockSearchTimeout = setTimeout(async () => {
+            try {
+                const data = await apiCall('GET', '/api/v1/ips?per_page=20');
+                const proxies = (data.data || []).filter(p =>
+                    `${p.host}:${p.port}`.toLowerCase().includes(query.toLowerCase())
+                );
+                if (proxies.length === 0) {
+                    dropdown.innerHTML = '<div style="padding:8px 12px;font-size:13px;color:var(--text-muted)">No proxies found</div>';
+                } else {
+                    dropdown.innerHTML = proxies.map(p =>
+                        `<div style="padding:8px 12px;font-size:13px;cursor:pointer;color:var(--text-secondary);transition:background 0.1s" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''" onclick="selectBlockProxy('${p.id}', '${esc(p.host)}:${p.port}')">${esc(p.host)}:${p.port} <span style="color:var(--text-muted);font-size:11px">${esc(p.protocol)}</span></div>`
+                    ).join('');
+                }
+                dropdown.style.display = 'block';
+            } catch (e) { dropdown.style.display = 'none'; }
+        }, 200);
+    }
+
+    function selectBlockProxy(id, label) {
+        document.getElementById('blockProxySearch').value = label;
+        document.getElementById('blockProxyId').value = id;
+        document.getElementById('blockProxyResults').style.display = 'none';
+    }
+
+    async function doBlockProxy() {
+        if (!blProjectId) return;
+        const proxyId = document.getElementById('blockProxyId').value;
+        if (!proxyId) { showToast('Please select a proxy', 'error'); return; }
+        const btn = document.querySelector('#blockProxyModal .btn-primary');
+        btnLoading(btn);
+        const body = { proxy_id: proxyId };
+        const domain = document.getElementById('blockDomain').value.trim();
+        const reason = document.getElementById('blockReason').value.trim();
+        if (domain) body.target_domain = domain;
+        if (reason) body.reason = reason;
+        try {
+            await apiCall('POST', `/api/v1/projects/${blProjectId}/blacklist`, body);
+            btnReset(btn);
+            showToast('Proxy blocked', 'success');
+            closeModal('blockProxyModal');
+            loadBlacklist(blProjectId);
+        } catch (e) {
+            btnReset(btn);
+            showToast('Failed: ' + e.message, 'error');
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#blockProxySearch') && !e.target.closest('#blockProxyResults')) {
+            var el = document.getElementById('blockProxyResults');
+            if (el) el.style.display = 'none';
+        }
+    });
+
     loadProjects();
 </script>
 {% endblock %}
