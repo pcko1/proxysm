@@ -16,22 +16,17 @@ def _ctx(request: Request) -> dict:
 
 @router.get("/", response_class=RedirectResponse)
 async def index():
-    return RedirectResponse(url="/stats")
+    return RedirectResponse(url="/dashboard")
 
 
-@router.get("/stats", response_class=HTMLResponse)
-async def stats_page(request: Request):
-    return templates.TemplateResponse("stats.html", _ctx(request))
+@router.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", _ctx(request))
 
 
-@router.get("/dashboard", response_class=RedirectResponse)
-async def dashboard_redirect():
-    return RedirectResponse(url="/stats")
-
-
-@router.get("/blacklist", response_class=HTMLResponse)
-async def blacklist_page(request: Request):
-    return templates.TemplateResponse("blacklist.html", _ctx(request))
+@router.get("/stats", response_class=RedirectResponse)
+async def stats_redirect():
+    return RedirectResponse(url="/dashboard")
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -59,11 +54,15 @@ async def setup_page(request: Request):
     return templates.TemplateResponse("setup.html", _ctx(request))
 
 
+@router.get("/blacklist", response_class=RedirectResponse)
+async def blacklist_redirect():
+    return RedirectResponse(url="/projects")
+
+
 @router.get("/providers", response_class=RedirectResponse)
 async def providers_redirect():
-    return RedirectResponse(url="/settings")
+    return RedirectResponse(url="/proxies")
 
 
 def not_found_handler(request: Request, exc: Exception):
-    """Custom 404 handler returning styled page."""
     return templates.TemplateResponse("404.html", _ctx(request), status_code=404)
