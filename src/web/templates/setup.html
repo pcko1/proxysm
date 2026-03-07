@@ -107,50 +107,6 @@
         margin-top: 24px;
     }
 
-    /* Provider combobox */
-    .combobox-wrapper {
-        position: relative;
-    }
-    .combobox-dropdown {
-        display: none;
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-light);
-        border-radius: 8px;
-        max-height: 200px;
-        overflow-y: auto;
-        z-index: 50;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    }
-    .combobox-dropdown.open {
-        display: block;
-    }
-    .combobox-option {
-        padding: 9px 12px;
-        font-size: 13px;
-        color: var(--text-secondary);
-        cursor: pointer;
-        transition: background var(--transition-fast);
-        border-bottom: 1px solid var(--border);
-    }
-    .combobox-option:last-child {
-        border-bottom: none;
-    }
-    .combobox-option:hover {
-        background: var(--bg-hover);
-        color: var(--text-primary);
-    }
-    .combobox-option.create-new {
-        color: var(--accent);
-        font-weight: 600;
-    }
-    .combobox-option.create-new:hover {
-        background: var(--accent-subtle);
-    }
-
     /* Preview text */
     .preview-text {
         font-size: 13px;
@@ -347,13 +303,8 @@
         </div>
 
         <div class="form-group">
-            <label for="setupProviderInput">Provider</label>
-            <div class="combobox-wrapper">
-                <input type="text" id="setupProviderInput" placeholder="Type to search or create..." autocomplete="off"
-                    oninput="filterProviders()" onfocus="showProviderDropdown()" />
-                <div class="combobox-dropdown" id="providerDropdown"></div>
-            </div>
-            <input type="hidden" id="setupProviderId" />
+            <label for="setupProvider">Provider <span style="color:var(--text-muted);font-weight:400;text-transform:none;font-size:11px">(optional label)</span></label>
+            <input type="text" id="setupProvider" placeholder="e.g. BrightData, IPRoyal..." oninput="validateStep1()" />
         </div>
 
         <div class="step-actions">
@@ -453,7 +404,7 @@
             <div class="code-block" id="usageExample"></div>
         </div>
 
-        <a href="/stats" class="btn btn-primary" style="margin-top:4px">Done</a>
+        <a href="/dashboard" class="btn btn-primary" style="margin-top:4px">Done</a>
     </div>
 </div>
 {% endblock %}
@@ -461,9 +412,6 @@
 {% block scripts %}
 <script>
     let currentStep = 1;
-    let providers = [];
-    let selectedProviderId = null;
-    let selectedProviderName = '';
     let proxyCount = 0;
     let createdPoolId = null;
     let createdProjectId = null;
@@ -506,79 +454,6 @@
         line2.classList.toggle('completed', currentStep > 2);
     }
 
-    // ---- Providers ----
-
-    async function loadProviders() {
-        try {
-            const data = await apiCall('GET', '/api/v1/providers');
-            providers = data.data || [];
-        } catch (e) {
-            console.error('Failed to load providers', e);
-        }
-    }
-
-    function showProviderDropdown() {
-        filterProviders();
-        document.getElementById('providerDropdown').classList.add('open');
-    }
-
-    function filterProviders() {
-        const input = document.getElementById('setupProviderInput');
-        const dropdown = document.getElementById('providerDropdown');
-        const query = input.value.trim().toLowerCase();
-
-        let html = '';
-        let hasExactMatch = false;
-
-        const filtered = providers.filter(p => {
-            const name = p.name.toLowerCase();
-            if (name === query) hasExactMatch = true;
-            return !query || name.includes(query);
-        });
-
-        filtered.forEach(p => {
-            html += '<div class="combobox-option" onclick="selectProvider(\'' + p.id + '\', \'' + esc(p.name).replace(/'/g, "\\'") + '\')">' + esc(p.name) + '</div>';
-        });
-
-        if (query && !hasExactMatch) {
-            html += '<div class="combobox-option create-new" onclick="selectNewProvider(\'' + esc(query).replace(/'/g, "\\'") + '\')">+ Create &ldquo;' + esc(query) + '&rdquo;</div>';
-        }
-
-        if (!html) {
-            html = '<div class="combobox-option" style="color:var(--text-muted);cursor:default">No providers found. Type a name to create one.</div>';
-        }
-
-        dropdown.innerHTML = html;
-        dropdown.classList.add('open');
-        validateStep1();
-    }
-
-    function selectProvider(id, name) {
-        selectedProviderId = id;
-        selectedProviderName = name;
-        document.getElementById('setupProviderInput').value = name;
-        document.getElementById('setupProviderId').value = id;
-        document.getElementById('providerDropdown').classList.remove('open');
-        validateStep1();
-    }
-
-    function selectNewProvider(name) {
-        selectedProviderId = null;
-        selectedProviderName = name;
-        document.getElementById('setupProviderInput').value = name;
-        document.getElementById('setupProviderId').value = '';
-        document.getElementById('providerDropdown').classList.remove('open');
-        validateStep1();
-    }
-
-    // Close dropdown on outside click
-    document.addEventListener('click', function(e) {
-        const wrapper = document.querySelector('.combobox-wrapper');
-        if (wrapper && !wrapper.contains(e.target)) {
-            document.getElementById('providerDropdown').classList.remove('open');
-        }
-    });
-
     // ---- Proxy counting ----
 
     function countProxies() {
@@ -610,13 +485,12 @@
     }
 
     function hasProvider() {
-        const input = document.getElementById('setupProviderInput').value.trim();
-        return input.length > 0;
+        return document.getElementById('setupProvider').value.trim().length > 0;
     }
 
     function validateStep1() {
         const btn = document.getElementById('step1NextBtn');
-        btn.disabled = !(hasProxyInput() && hasProvider());
+        btn.disabled = !hasProxyInput();
     }
 
     // ---- Step transitions ----
@@ -626,32 +500,16 @@
             showToast('Please paste proxies or upload a file', 'error');
             return;
         }
-        if (!hasProvider()) {
-            showToast('Please select or create a provider', 'error');
-            return;
-        }
-
-        // Set provider name from input if user typed without selecting
-        const inputVal = document.getElementById('setupProviderInput').value.trim();
-        if (!selectedProviderName || selectedProviderName !== inputVal) {
-            // Check if it matches an existing provider
-            const match = providers.find(p => p.name.toLowerCase() === inputVal.toLowerCase());
-            if (match) {
-                selectedProviderId = match.id;
-                selectedProviderName = match.name;
-            } else {
-                selectedProviderId = null;
-                selectedProviderName = inputVal;
-            }
-        }
 
         countProxies();
 
-        // Auto-fill pool name
         const poolNameInput = document.getElementById('setupPoolName');
         if (!poolNameInput.value.trim()) {
-            const safeName = selectedProviderName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-            poolNameInput.value = safeName + '-01';
+            const providerVal = document.getElementById('setupProvider').value.trim();
+            if (providerVal) {
+                const safeName = providerVal.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                poolNameInput.value = safeName + '-01';
+            }
         }
 
         showStep(2);
@@ -701,14 +559,9 @@
         finishBtn.classList.add('btn-loading');
 
         try {
-            // 1. Create provider if new
-            let providerId = selectedProviderId;
-            if (!providerId) {
-                const prov = await apiCall('POST', '/api/v1/providers', { name: selectedProviderName });
-                providerId = prov.id;
-            }
+            const provider = document.getElementById('setupProvider').value.trim() || null;
 
-            // 2. Import proxies
+            // 1. Import proxies
             const proxyText = document.getElementById('setupProxyText').value.trim();
             const fileInput = document.getElementById('setupFile');
             let finalText = proxyText;
@@ -716,11 +569,11 @@
                 finalText = await fileInput.files[0].text();
             }
             const importResult = await apiCall('POST', '/api/v1/ips/bulk', {
-                provider_id: providerId,
+                provider: provider,
                 proxies: finalText,
             });
 
-            // 3. Create pool
+            // 2. Create pool
             const poolName = document.getElementById('setupPoolName').value.trim();
             const strategy = document.getElementById('setupStrategy').value;
             const pool = await apiCall('POST', '/api/v1/pools', {
@@ -729,14 +582,15 @@
             });
             createdPoolId = pool.id;
 
-            // 4. Get imported proxy IDs and assign to pool
-            const proxyData = await apiCall('GET', '/api/v1/ips?provider_id=' + providerId + '&per_page=100');
+            // 3. Get imported proxy IDs and assign to pool
+            const filterParam = provider ? `&provider=${encodeURIComponent(provider)}` : '';
+            const proxyData = await apiCall('GET', `/api/v1/ips?per_page=100${filterParam}`);
             const proxyIds = (proxyData.data || []).map(p => p.id);
             if (proxyIds.length > 0) {
                 await apiCall('POST', '/api/v1/pools/' + createdPoolId + '/ips', { proxy_ids: proxyIds });
             }
 
-            // 5. Create or use existing project
+            // 4. Create or use existing project
             const isNewProject = document.querySelector('input[name="projectMode"]:checked').value === 'new';
             let projectName = '';
             if (isNewProject) {
@@ -765,12 +619,12 @@
                 projectName = project.name;
             }
 
-            // 6. Assign pool to project
+            // 5. Assign pool to project
             await apiCall('POST', '/api/v1/projects/' + createdProjectId + '/pools', {
                 pool_ids: [createdPoolId],
             });
 
-            // 7. Show success
+            // 6. Show success
             showSuccess(importResult.created || proxyCount, poolName, projectName);
 
         } catch (e) {
@@ -810,6 +664,5 @@
     }
 
     // ---- Init ----
-    loadProviders();
 </script>
 {% endblock %}
