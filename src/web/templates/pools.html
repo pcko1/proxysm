@@ -129,16 +129,12 @@
         document.getElementById('manageProxiesInfo').textContent = 'Assign proxies to ' + poolName;
 
         try {
-            const [allProxiesData, poolProxiesData, providersData] = await Promise.all([
+            const [allProxiesData, poolProxiesData] = await Promise.all([
                 apiCall('GET', '/api/v1/ips?per_page=100'),
                 apiCall('GET', `/api/v1/ips?pool_id=${poolId}&per_page=100`),
-                apiCall('GET', '/api/v1/providers')
             ]);
             const allProxies = allProxiesData.data || [];
             const assignedIds = new Set((poolProxiesData.data || []).map(p => p.id));
-            const providers = providersData.data || [];
-            const providerMap = {};
-            providers.forEach(p => { providerMap[p.id] = p.name; });
 
             const container = document.getElementById('proxyCheckboxes');
             if (allProxies.length === 0) {
@@ -146,20 +142,20 @@
             } else {
                 const byProvider = {};
                 allProxies.forEach(p => {
-                    const pid = p.provider_id;
-                    if (!byProvider[pid]) byProvider[pid] = [];
-                    byProvider[pid].push(p);
+                    const prov = p.provider || 'No Provider';
+                    if (!byProvider[prov]) byProvider[prov] = [];
+                    byProvider[prov].push(p);
                 });
 
                 let html = '';
-                for (const [providerId, proxies] of Object.entries(byProvider)) {
-                    const provName = providerMap[providerId] || 'Unknown';
+                for (const [provName, proxies] of Object.entries(byProvider)) {
+                    const provKey = provName.replace(/[^a-zA-Z0-9]/g, '_');
                     const allChecked = proxies.every(p => assignedIds.has(p.id));
                     html += `<div style="margin-bottom:14px">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">
                             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
-                                <input type="checkbox" class="provider-toggle" data-provider="${providerId}" ${allChecked ? 'checked' : ''}
-                                    onchange="toggleProviderProxies('${providerId}', this.checked)"
+                                <input type="checkbox" class="provider-toggle" data-provider="${provKey}" ${allChecked ? 'checked' : ''}
+                                    onchange="toggleProviderProxies('${provKey}', this.checked)"
                                     style="width:auto;accent-color:var(--accent)" />
                                 <strong style="font-size:12px;color:var(--text-primary)">${esc(provName)}</strong>
                                 <span style="font-size:11px;color:var(--text-muted)">(${proxies.length})</span>
@@ -170,8 +166,8 @@
                         const statusDot = p.last_health_status === 'healthy' ? 'var(--green)' : p.last_health_status === 'dead' ? 'var(--red)' : 'var(--text-muted)';
                         return `<div style="margin-bottom:3px;margin-left:6px">
                             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;transition:background 0.1s">
-                                <input type="checkbox" class="proxy-cb" data-provider="${providerId}" value="${p.id}" ${checked} style="width:auto;accent-color:var(--accent)"
-                                    onchange="updateProviderToggle('${providerId}')" />
+                                <input type="checkbox" class="proxy-cb" data-provider="${provKey}" value="${p.id}" ${checked} style="width:auto;accent-color:var(--accent)"
+                                    onchange="updateProviderToggle('${provKey}')" />
                                 <div style="flex:1;display:flex;align-items:center;gap:8px">
                                     <span class="mono" style="font-size:11px">${esc(p.host)}:${esc(p.port)}</span>
                                     ${protoTag(p.protocol)}
