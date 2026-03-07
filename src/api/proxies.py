@@ -21,7 +21,7 @@ _SORT_COLUMNS = {
     "host": Proxy.host,
     "port": Proxy.port,
     "protocol": Proxy.protocol,
-    "provider": Proxy.provider_id,
+    "provider": Proxy.provider,
     "status": Proxy.last_health_status,
     "latency": Proxy.avg_latency_ms,
 }
@@ -34,7 +34,7 @@ async def list_proxies(
     pool_id: uuid.UUID | None = Query(None),
     status_filter: str | None = Query(None, alias="status"),
     protocol: str | None = Query(None),
-    provider_id: uuid.UUID | None = Query(None),
+    provider: str | None = Query(None),
     sort_by: str | None = Query(None),
     sort_dir: str = Query("asc"),
     db: AsyncSession = Depends(get_db),
@@ -52,9 +52,9 @@ async def list_proxies(
     if protocol:
         base = base.where(Proxy.protocol == protocol)
         count_base = count_base.where(Proxy.protocol == protocol)
-    if provider_id:
-        base = base.where(Proxy.provider_id == provider_id)
-        count_base = count_base.where(Proxy.provider_id == provider_id)
+    if provider:
+        base = base.where(Proxy.provider == provider)
+        count_base = count_base.where(Proxy.provider == provider)
 
     total = (await db.execute(count_base)).scalar() or 0
 
@@ -82,7 +82,7 @@ async def create_proxy(
         host=body.host,
         port=body.port,
         protocol=body.protocol,
-        provider_id=body.provider_id,
+        provider=body.provider,
         username=body.username,
         password_encrypted=body.password,
     )
@@ -142,7 +142,7 @@ async def bulk_import_proxies(
             host=entry["host"],
             port=entry["port"],
             protocol=entry["protocol"],
-            provider_id=body.provider_id,
+            provider=body.provider,
             username=entry["username"],
             password_encrypted=entry["password"],
         )
