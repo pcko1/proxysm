@@ -30,36 +30,6 @@
         border-top: 4px solid var(--accent);
         opacity: 1;
     }
-    .combobox-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-light);
-        border-radius: 8px;
-        margin-top: 4px;
-        max-height: 180px;
-        overflow-y: auto;
-        z-index: 10;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    }
-    .combobox-dropdown .combobox-item {
-        padding: 8px 12px;
-        font-size: 13px;
-        cursor: pointer;
-        color: var(--text-secondary);
-        transition: background var(--transition-fast);
-    }
-    .combobox-dropdown .combobox-item:hover {
-        background: var(--bg-hover);
-        color: var(--text-primary);
-    }
-    .combobox-dropdown .combobox-create {
-        color: var(--accent);
-        font-weight: 600;
-        border-top: 1px solid var(--border);
-    }
 </style>
 
 <div class="page-header">
@@ -77,12 +47,8 @@
     <div class="modal" style="max-width:520px">
         <h2>Import Proxies</h2>
         <div class="form-group">
-            <label for="importProviderInput">Provider</label>
-            <div style="position:relative">
-                <input type="text" id="importProviderInput" placeholder="Type to search or create new..." autocomplete="off" oninput="filterProviderSuggestions()" onfocus="showProviderDropdown()">
-                <input type="hidden" id="importProviderId" value="">
-                <div id="providerSuggestions" class="combobox-dropdown" style="display:none"></div>
-            </div>
+            <label for="importProvider">Provider <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional label)</span></label>
+            <input type="text" id="importProvider" placeholder="e.g. BrightData, IPRoyal...">
         </div>
         <div class="form-group">
             <label for="importText">Proxy list (one per line)</label>
@@ -152,23 +118,8 @@
 <script>
     let currentPage = 1;
     const pageSize = 50;
-    let providerMap = {};
-    let allProviders = [];
     let sortColumn = null;
     let sortDir = 'asc';
-
-    async function loadProviders() {
-        try {
-            const data = await apiCall('GET', '/api/v1/providers');
-            allProviders = data.data || [];
-            allProviders.forEach(p => { providerMap[p.id] = p.name; });
-            if (allProviders.length === 0) {
-                // No providers exist yet - that's fine, user will create inline
-            }
-        } catch (e) {
-            console.error('Failed to load providers', e);
-        }
-    }
 
     function toggleSort(col) {
         if (sortColumn === col) {
@@ -200,7 +151,7 @@
         document.querySelector('.table-card').style.display = '';
 
         tbody.innerHTML = proxies.map(p => {
-            const provName = providerMap[p.provider_id] || '...';
+            const provName = p.provider || '-';
             const latency = p.avg_latency_ms ? p.avg_latency_ms.toFixed(0) + ' ms' : '-';
             return `<tr>
                 <td class="col-check"><input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="toggleRowSelection('${p.id}', this)"></td>
@@ -245,10 +196,7 @@
     function goPage(p) { currentPage = p; loadProxies(); }
 
     async function doImport() {
-        let providerId = document.getElementById('importProviderId').value;
-        const providerName = document.getElementById('importProviderInput').value.trim();
-
-        if (!providerName) { showToast('Please enter a provider name', 'error'); return; }
+        const provider = document.getElementById('importProvider').value.trim() || null;
         const importBtn = document.querySelector('#importModal .btn-primary');
         btnLoading(importBtn);
 
@@ -257,38 +205,28 @@
         if (!text && fileInput.files.length > 0) {
             text = await fileInput.files[0].text();
         }
-        if (!text) { showToast('Please paste proxies or upload a file', 'error'); return; }
+        if (!text) { btnReset(importBtn); showToast('Please paste proxies or upload a file', 'error'); return; }
 
         try {
-            // Create provider if new
-            if (!providerId || providerId === '__new__') {
-                const prov = await apiCall('POST', '/api/v1/providers', { name: providerName });
-                providerId = prov.id;
-                allProviders.push(prov);
-            }
-
-            // Import proxies
             const result = await apiCall('POST', '/api/v1/ips/bulk', {
-                provider_id: providerId,
+                provider: provider,
                 proxies: text,
             });
 
             let poolMsg = '';
 
-            // Optional: create pool
             if (document.getElementById('importCreatePool').checked) {
                 const poolName = document.getElementById('importPoolName').value.trim();
                 const strategy = document.getElementById('importPoolStrategy').value;
-                if (!poolName) { showToast('Please enter a pool name', 'error'); return; }
+                if (!poolName) { btnReset(importBtn); showToast('Please enter a pool name', 'error'); return; }
 
-                // Create pool
                 const pool = await apiCall('POST', '/api/v1/pools', {
                     name: poolName,
                     rotation_strategy: strategy,
                 });
 
-                // Get just-imported proxy IDs
-                const proxyData = await apiCall('GET', `/api/v1/ips?provider_id=${providerId}&per_page=100`);
+                const filterParam = provider ? `&provider=${encodeURIComponent(provider)}` : '';
+                const proxyData = await apiCall('GET', `/api/v1/ips?per_page=100${filterParam}`);
                 const proxyIds = (proxyData.data || []).map(p => p.id);
                 if (proxyIds.length > 0) {
                     await apiCall('POST', `/api/v1/pools/${pool.id}/ips`, { proxy_ids: proxyIds });
@@ -300,10 +238,8 @@
             showToast(`Imported ${result.created} proxies` + (result.skipped ? `, ${result.skipped} skipped` : '') + poolMsg, 'success');
             closeModal('importModal');
 
-            // Reset form
             document.getElementById('importText').value = '';
-            document.getElementById('importProviderInput').value = '';
-            document.getElementById('importProviderId').value = '';
+            document.getElementById('importProvider').value = '';
             fileInput.value = '';
             document.getElementById('fileName').textContent = 'No file selected';
             document.getElementById('importCreatePool').checked = false;
@@ -343,76 +279,6 @@
 
     document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
 
-    function filterProviderSuggestions() {
-        const input = document.getElementById('importProviderInput');
-        const query = input.value.trim().toLowerCase();
-        const dropdown = document.getElementById('providerSuggestions');
-        document.getElementById('importProviderId').value = '';
-
-        if (!query) {
-            dropdown.style.display = 'none';
-            return;
-        }
-
-        const matches = allProviders.filter(p => p.name.toLowerCase().includes(query));
-        let html = matches.map(p =>
-            `<div class="combobox-item" onclick="selectProvider('${p.id}', '${esc(p.name)}')">${esc(p.name)}</div>`
-        ).join('');
-
-        const exactMatch = allProviders.some(p => p.name.toLowerCase() === query);
-        if (!exactMatch && query) {
-            html += `<div class="combobox-item combobox-create" onclick="selectNewProvider('${esc(input.value.trim())}')">Create "${esc(input.value.trim())}"</div>`;
-        }
-
-        dropdown.innerHTML = html;
-        dropdown.style.display = html ? 'block' : 'none';
-    }
-
-    function showProviderDropdown() {
-        const input = document.getElementById('importProviderInput');
-        if (input.value.trim()) {
-            filterProviderSuggestions();
-        } else {
-            // Show all providers
-            const dropdown = document.getElementById('providerSuggestions');
-            if (allProviders.length > 0) {
-                dropdown.innerHTML = allProviders.map(p =>
-                    `<div class="combobox-item" onclick="selectProvider('${p.id}', '${esc(p.name)}')">${esc(p.name)}</div>`
-                ).join('');
-                dropdown.style.display = 'block';
-            }
-        }
-    }
-
-    function selectProvider(id, name) {
-        document.getElementById('importProviderInput').value = name;
-        document.getElementById('importProviderId').value = id;
-        document.getElementById('providerSuggestions').style.display = 'none';
-        // Auto-suggest pool name
-        const poolNameInput = document.getElementById('importPoolName');
-        if (poolNameInput && !poolNameInput.value) {
-            poolNameInput.value = name.toLowerCase().replace(/\s+/g, '-') + '-01';
-        }
-    }
-
-    function selectNewProvider(name) {
-        document.getElementById('importProviderInput').value = name;
-        document.getElementById('importProviderId').value = '__new__';
-        document.getElementById('providerSuggestions').style.display = 'none';
-        // Auto-suggest pool name
-        const poolNameInput = document.getElementById('importPoolName');
-        if (poolNameInput && !poolNameInput.value) {
-            poolNameInput.value = name.toLowerCase().replace(/\s+/g, '-') + '-01';
-        }
-    }
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('#importProviderInput') && !e.target.closest('#providerSuggestions')) {
-            document.getElementById('providerSuggestions').style.display = 'none';
-        }
-    });
-
-    loadProviders().then(() => loadProxies());
+    loadProxies();
 </script>
 {% endblock %}
