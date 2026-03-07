@@ -214,20 +214,6 @@
         </div>
     </div>
 
-    <!-- Manage Providers -->
-    <div class="settings-card alert-card-full">
-        <h3>
-            <span>Providers</span>
-            <button class="btn btn-primary btn-sm" onclick="openCreateProviderModal()">Add Provider</button>
-        </h3>
-        <div id="providersList"></div>
-        <div class="empty-state" id="providersEmpty" style="display:none;padding:30px 16px">
-            <div class="empty-state-icon" style="font-size:28px">&#127968;</div>
-            <h3>No Providers</h3>
-            <p>Providers are auto-created when you import proxies.</p>
-        </div>
-    </div>
-
     <!-- Alert Rules -->
     <div class="settings-card alert-card-full">
         <h3>
@@ -285,25 +271,6 @@
         <div class="modal-actions">
             <button class="btn btn-outline" onclick="closeModal('alertModal')">Cancel</button>
             <button class="btn btn-primary" onclick="saveAlert()">Save</button>
-        </div>
-    </div>
-</div>
-<!-- Create/Edit Provider Modal -->
-<div class="modal-overlay" id="providerModal">
-    <div class="modal" style="max-width:420px">
-        <h2 id="providerModalTitle">Add Provider</h2>
-        <input type="hidden" id="providerEditId" value="">
-        <div class="form-group">
-            <label for="providerModalName">Name</label>
-            <input type="text" id="providerModalName" placeholder="e.g. PapaProxy">
-        </div>
-        <div class="form-group">
-            <label for="providerModalNotes">Notes (optional)</label>
-            <textarea id="providerModalNotes" rows="2" placeholder="Account info, plan details..."></textarea>
-        </div>
-        <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeModal('providerModal')">Cancel</button>
-            <button class="btn btn-primary" onclick="saveProvider()">Save</button>
         </div>
     </div>
 </div>
@@ -502,102 +469,7 @@
         }
     }
 
-    async function loadProvidersList() {
-        try {
-            const data = await apiCall('GET', '/api/v1/providers');
-            const items = data.data || [];
-            const container = document.getElementById('providersList');
-            const empty = document.getElementById('providersEmpty');
-
-            if (items.length === 0) {
-                container.innerHTML = '';
-                empty.style.display = 'block';
-                return;
-            }
-
-            empty.style.display = 'none';
-            container.innerHTML = items.map(p => {
-                const proxyCount = p.proxy_count !== undefined ? p.proxy_count : 0;
-                const notes = p.notes ? esc(p.notes).substring(0, 60) : '';
-                return `<div class="alert-row">
-                    <div class="alert-info">
-                        <div class="alert-name">${esc(p.name)}</div>
-                        <div class="alert-meta">
-                            <span>${proxyCount} proxies</span>
-                            ${notes ? '<span>' + notes + '</span>' : ''}
-                            <span>Created ${fmtDate(p.created_at)}</span>
-                        </div>
-                    </div>
-                    <div class="alert-actions">
-                        <button class="btn btn-outline btn-sm" onclick="editProvider('${p.id}')">Edit</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteProvider('${p.id}')">Delete</button>
-                    </div>
-                </div>`;
-            }).join('');
-        } catch (e) {
-            showToast('Failed to load providers: ' + e.message, 'error');
-        }
-    }
-
-    function openCreateProviderModal() {
-        document.getElementById('providerModalTitle').textContent = 'Add Provider';
-        document.getElementById('providerEditId').value = '';
-        document.getElementById('providerModalName').value = '';
-        document.getElementById('providerModalNotes').value = '';
-        openModal('providerModal');
-    }
-
-    async function editProvider(id) {
-        try {
-            const provider = await apiCall('GET', `/api/v1/providers/${id}`);
-            document.getElementById('providerModalTitle').textContent = 'Edit Provider';
-            document.getElementById('providerEditId').value = id;
-            document.getElementById('providerModalName').value = provider.name;
-            document.getElementById('providerModalNotes').value = provider.notes || '';
-            openModal('providerModal');
-        } catch (e) {
-            showToast('Failed to load provider: ' + e.message, 'error');
-        }
-    }
-
-    async function saveProvider() {
-        const name = document.getElementById('providerModalName').value.trim();
-        if (!name) { showToast('Please enter a name', 'error'); return; }
-        const notes = document.getElementById('providerModalNotes').value.trim();
-        const editId = document.getElementById('providerEditId').value;
-        const btn = document.querySelector('#providerModal .btn-primary');
-        btnLoading(btn);
-
-        try {
-            if (editId) {
-                await apiCall('PATCH', `/api/v1/providers/${editId}`, { name, notes: notes || null });
-                showToast('Provider updated', 'success');
-            } else {
-                await apiCall('POST', '/api/v1/providers', { name, notes: notes || null });
-                showToast('Provider created', 'success');
-            }
-            btnReset(btn);
-            closeModal('providerModal');
-            loadProvidersList();
-        } catch (e) {
-            btnReset(btn);
-            showToast('Failed to save provider: ' + e.message, 'error');
-        }
-    }
-
-    async function deleteProvider(id) {
-        if (!(await confirmAction('Delete this provider and all its proxies? This cannot be undone.'))) return;
-        try {
-            await apiCall('DELETE', `/api/v1/providers/${id}`);
-            showToast('Provider deleted', 'success');
-            loadProvidersList();
-        } catch (e) {
-            showToast('Failed to delete provider: ' + e.message, 'error');
-        }
-    }
-
     loadSystemInfo();
     loadAlerts();
-    loadProvidersList();
 </script>
 {% endblock %}
