@@ -137,6 +137,7 @@ async def get_status_codes(
 
 @router.get("/pool-metrics")
 async def get_pool_metrics(
+    project_id: uuid.UUID | None = Query(None),
     hours: int = Query(24, ge=1, le=168),
     db: AsyncSession = Depends(get_db),
     _: None = Depends(admin_auth),
@@ -144,7 +145,13 @@ async def get_pool_metrics(
     """Aggregate metrics per pool from metrics_rollup (24h window)."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
 
-    sql = text("""
+    project_filter = ""
+    params: dict = {"cutoff": cutoff}
+    if project_id:
+        project_filter = "JOIN project_pools prjp ON prjp.pool_id = m.entity_id AND prjp.project_id = :project_id"
+        params["project_id"] = project_id
+
+    sql = text(f"""
         SELECT
             m.entity_id AS pool_id,
             p.name AS pool_name,
@@ -155,6 +162,7 @@ async def get_pool_metrics(
             rl_stats.median_ms
         FROM metrics_rollup m
         JOIN pools p ON p.id = m.entity_id
+        {project_filter}
         LEFT JOIN LATERAL (
             SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY rl.response_time_ms) AS median_ms
             FROM request_log rl
@@ -168,7 +176,7 @@ async def get_pool_metrics(
         ORDER BY total_requests DESC
     """)
 
-    rows = await db.execute(sql, {"cutoff": cutoff})
+    rows = await db.execute(sql, params)
     data = []
     for row in rows:
         total = row.total_requests
@@ -187,6 +195,7 @@ async def get_pool_metrics(
 
 @router.get("/pool-latency-histogram")
 async def get_pool_latency_histogram(
+    project_id: uuid.UUID | None = Query(None),
     hours: int = Query(24, ge=1, le=168),
     db: AsyncSession = Depends(get_db),
     _: None = Depends(admin_auth),
@@ -194,7 +203,13 @@ async def get_pool_latency_histogram(
     """Latency distribution histogram per pool from request_log."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
 
-    sql = text("""
+    project_filter = ""
+    params: dict = {"cutoff": cutoff}
+    if project_id:
+        project_filter = "JOIN project_pools prjp ON prjp.pool_id = pp.pool_id AND prjp.project_id = :project_id"
+        params["project_id"] = project_id
+
+    sql = text(f"""
         SELECT
             pp.pool_id,
             p.name AS pool_name,
@@ -208,12 +223,13 @@ async def get_pool_latency_histogram(
         FROM request_log rl
         JOIN pool_proxies pp ON pp.proxy_id = rl.proxy_id
         JOIN pools p ON p.id = pp.pool_id
+        {project_filter}
         WHERE rl.created_at >= :cutoff AND rl.response_time_ms IS NOT NULL
         GROUP BY pp.pool_id, p.name
         ORDER BY total DESC
     """)
 
-    rows = await db.execute(sql, {"cutoff": cutoff})
+    rows = await db.execute(sql, params)
     data = []
     for row in rows:
         data.append({

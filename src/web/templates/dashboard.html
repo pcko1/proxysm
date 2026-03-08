@@ -204,7 +204,6 @@
 <!-- Tab Switcher -->
 <div class="dash-tabs">
     <button class="dash-tab active" onclick="switchTab('proxies')">Proxies</button>
-    <button class="dash-tab" onclick="switchTab('pools')">Pools</button>
     <button class="dash-tab" onclick="switchTab('projects')">Projects</button>
 </div>
 
@@ -289,59 +288,15 @@
 
 </div><!-- /section-proxies -->
 
-<!-- SECTION 2: POOLS -->
-<div class="dash-section" id="section-pools">
-<div class="dashboard-grid">
-    <!-- Pool Utilization -->
-    <div class="dash-card">
-        <h3><span>Pool Utilization</span></h3>
-        <div id="poolUtilContainer"></div>
-        <div class="empty-state" id="poolUtilEmpty" style="display:none;padding:30px 16px">
-            <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
-            <h3>No Pools</h3>
-            <p>Create pools to see utilization.</p>
-        </div>
-    </div>
-
-    <!-- Pool Metrics -->
-    <div class="dash-card">
-        <h3><span>Pool Performance</span></h3>
-        <div id="poolMetricsContainer">
-            <table class="metrics-table">
-                <thead><tr><th>Pool</th><th>Requests</th><th>Error Rate</th><th>Median Latency</th></tr></thead>
-                <tbody id="poolMetricsBody"></tbody>
-            </table>
-        </div>
-        <div class="empty-state" id="poolMetricsEmpty" style="display:none;padding:30px 16px">
-            <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
-            <h3>No Data</h3>
-            <p>Pool metrics will appear once traffic flows.</p>
-        </div>
-    </div>
-</div>
-
-<!-- Latency Histogram -->
-<div class="dash-card" style="margin-bottom:20px">
-    <h3><span>Latency Distribution</span></h3>
-    <div id="latencyHistContainer"></div>
-    <div class="empty-state" id="latencyHistEmpty" style="display:none;padding:30px 16px">
-        <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
-        <h3>No Data</h3>
-        <p>Latency data will appear once traffic flows.</p>
-    </div>
-</div>
-
-</div><!-- /section-pools -->
-
-<!-- SECTION 3: PROJECTS -->
+<!-- SECTION 2: PROJECTS -->
 <div class="dash-section" id="section-projects">
 
-<!-- Per-project stats table -->
+<!-- Project Selector -->
 <div class="dash-card" style="margin-bottom:20px">
     <h3><span>Project Overview</span></h3>
     <div id="projectStatsContainer">
         <table class="metrics-table">
-            <thead><tr><th>Project</th><th>Requests (24h)</th><th>Bandwidth</th><th>Median Latency</th><th>Error Rate</th></tr></thead>
+            <thead><tr><th>Project</th><th>Requests (24h)</th><th>Bandwidth</th><th>Median Latency</th><th>Error Rate</th><th></th></tr></thead>
             <tbody id="projectStatsBody"></tbody>
         </table>
     </div>
@@ -352,22 +307,68 @@
     </div>
 </div>
 
-<!-- Status Code Breakdown -->
-<div class="dash-card">
-    <h3><span>Status Code Breakdown</span></h3>
-    <div id="statusCodeContainer"></div>
-    <div class="empty-state" id="statusCodeEmpty" style="display:none;padding:30px 16px">
-        <div class="empty-state-icon" style="font-size:28px">&#128200;</div>
-        <h3>No Data</h3>
-        <p>Status codes will appear once requests flow.</p>
+<!-- Project Detail (shown when a project is selected) -->
+<div id="projectDetail" style="display:none">
+    <div class="dash-card" style="margin-bottom:20px">
+        <h3>
+            <span id="projectDetailTitle">Project Details</span>
+            <button class="btn btn-outline btn-sm" onclick="deselectProject()">Back to All</button>
+        </h3>
+
+        <!-- Status Code Breakdown -->
+        <h4 style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Status Codes</h4>
+        <div id="statusCodeContainer"></div>
+        <div class="empty-state" id="statusCodeEmpty" style="display:none;padding:20px 16px">
+            <p style="color:var(--text-muted);font-size:13px">No status code data yet.</p>
+        </div>
+        <div class="sc-legend" id="statusCodeLegend" style="display:none;margin-bottom:20px">
+            <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--green)"></span>2xx</div>
+            <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--accent)"></span>3xx</div>
+            <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--yellow)"></span>4xx</div>
+            <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--red)"></span>5xx</div>
+        </div>
     </div>
-    <div class="sc-legend" id="statusCodeLegend" style="display:none">
-        <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--green)"></span>2xx</div>
-        <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--accent)"></span>3xx</div>
-        <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--yellow)"></span>4xx</div>
-        <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--red)"></span>5xx</div>
+
+    <!-- Pool Stats for selected project -->
+    <div class="dashboard-grid">
+        <div class="dash-card">
+            <h3><span>Pool Utilization</span></h3>
+            <div id="poolUtilContainer"></div>
+            <div class="empty-state" id="poolUtilEmpty" style="display:none;padding:30px 16px">
+                <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
+                <h3>No Pools</h3>
+                <p>Assign pools to this project.</p>
+            </div>
+        </div>
+
+        <div class="dash-card">
+            <h3><span>Pool Performance</span></h3>
+            <div id="poolMetricsContainer">
+                <table class="metrics-table">
+                    <thead><tr><th>Pool</th><th>Requests</th><th>Error Rate</th><th>Median Latency</th></tr></thead>
+                    <tbody id="poolMetricsBody"></tbody>
+                </table>
+            </div>
+            <div class="empty-state" id="poolMetricsEmpty" style="display:none;padding:30px 16px">
+                <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
+                <h3>No Data</h3>
+                <p>Pool metrics will appear once traffic flows.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Latency Histogram -->
+    <div class="dash-card" style="margin-top:20px">
+        <h3><span>Latency Distribution</span></h3>
+        <div id="latencyHistContainer"></div>
+        <div class="empty-state" id="latencyHistEmpty" style="display:none;padding:30px 16px">
+            <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
+            <h3>No Data</h3>
+            <p>Latency data will appear once traffic flows.</p>
+        </div>
     </div>
 </div>
+
 </div><!-- /section-projects -->
 {% endblock %}
 
@@ -375,6 +376,9 @@
 <script>
     let currentGranularity = '1hour';
     let refreshTimer = null;
+    let selectedProjectId = null;
+    let selectedProjectName = null;
+    let projectsCache = [];
 
     function switchTab(tab) {
         document.querySelectorAll('.dash-tab').forEach(btn => btn.classList.toggle('active', btn.textContent.toLowerCase() === tab));
@@ -476,7 +480,6 @@
         let barsHtml = '';
         let labelsHtml = '';
         const labelInterval = Math.max(1, Math.ceil(filled.length / 10));
-
         const nowIdx = filled.length - 1;
 
         filled.forEach((point, i) => {
@@ -512,6 +515,8 @@
         loadTimeseries();
     }
 
+    // === PROXIES TAB ===
+
     async function loadOverview() {
         try {
             const d = await apiCall('GET', '/api/v1/stats/overview');
@@ -527,40 +532,11 @@
         try {
             const hours = hoursForGranularity(currentGranularity);
             const resp = await apiCall('GET', `/api/v1/stats/timeseries?granularity=${currentGranularity}&hours=${hours}`);
-            const data = resp.data || [];
-            drawTimeseries(data, currentGranularity);
+            drawTimeseries(resp.data || [], currentGranularity);
         } catch (e) {
             console.error('Failed to load timeseries', e);
             drawTimeseries([], currentGranularity);
         }
-    }
-
-    async function loadPoolUtilization() {
-        try {
-            const poolData = await apiCall('GET', '/api/v1/pools?per_page=100');
-            const pools = poolData.data || [];
-            const container = document.getElementById('poolUtilContainer');
-            const empty = document.getElementById('poolUtilEmpty');
-            if (pools.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
-            container.style.display = 'block'; empty.style.display = 'none';
-            let html = '';
-            for (const pool of pools.slice(0, 8)) {
-                const proxyData = await apiCall('GET', `/api/v1/ips?pool_id=${pool.id}&per_page=100`);
-                const proxies = proxyData.data || [];
-                const total = proxies.length;
-                const healthy = proxies.filter(p => p.last_health_status === 'healthy').length;
-                const pct = total > 0 ? Math.round(healthy / total * 100) : 0;
-                let barColor = 'var(--green)';
-                if (pct < 30) barColor = 'var(--red)';
-                else if (pct < 70) barColor = 'var(--yellow)';
-                html += `<div class="pool-bar-row">
-                    <span class="pool-bar-name" title="${esc(pool.name)}">${esc(pool.name)}</span>
-                    <div class="pool-bar-track"><div class="pool-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
-                    <span class="pool-bar-pct">${pct}%</span>
-                </div>`;
-            }
-            container.innerHTML = html;
-        } catch (e) { console.error('Failed to load pool utilization', e); }
     }
 
     async function loadFailingProxies() {
@@ -584,9 +560,108 @@
         } catch (e) { console.error('Failed to load failing proxies', e); }
     }
 
-    async function loadPoolMetrics() {
+    // === PROJECTS TAB ===
+
+    function selectProject(id, name) {
+        selectedProjectId = id;
+        selectedProjectName = name;
+        document.getElementById('projectStatsContainer').parentElement.style.display = 'none';
+        document.getElementById('projectStatsEmpty').style.display = 'none';
+        document.getElementById('projectDetail').style.display = 'block';
+        document.getElementById('projectDetailTitle').textContent = name;
+        loadProjectDetail();
+    }
+
+    function deselectProject() {
+        selectedProjectId = null;
+        selectedProjectName = null;
+        document.getElementById('projectDetail').style.display = 'none';
+        document.getElementById('projectStatsContainer').parentElement.style.display = '';
+        loadProjectStats();
+    }
+
+    async function loadProjectStats() {
         try {
-            const resp = await apiCall('GET', '/api/v1/stats/pool-metrics');
+            const projResp = await apiCall('GET', '/api/v1/projects?per_page=100');
+            const projects = projResp.data || [];
+            projectsCache = projects;
+            const tbody = document.getElementById('projectStatsBody');
+            const container = document.getElementById('projectStatsContainer');
+            const empty = document.getElementById('projectStatsEmpty');
+            if (projects.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
+            container.style.display = ''; empty.style.display = 'none';
+
+            const statsPromises = projects.map(p => apiCall('GET', `/api/v1/projects/${p.id}/stats`).catch(() => null));
+            const stats = await Promise.all(statsPromises);
+
+            tbody.innerHTML = projects.map((p, i) => {
+                const s = stats[i];
+                if (!s) return `<tr><td>${esc(p.name)}</td><td colspan="4" class="mono">-</td><td></td></tr>`;
+                const bw = formatBytes((s.bytes_sent || 0) + (s.bytes_received || 0));
+                const latency = s.median_response_time_ms !== null ? s.median_response_time_ms.toFixed(0) + ' ms' : (s.avg_response_time_ms !== null ? s.avg_response_time_ms.toFixed(0) + ' ms' : '-');
+                const errStyle = s.error_rate > 5 ? 'color:var(--red);font-weight:600' : '';
+                return `<tr style="cursor:pointer" onclick="selectProject('${p.id}', '${esc(p.name)}')">
+                    <td style="color:var(--accent);font-weight:500">${esc(p.name)}</td>
+                    <td class="mono">${formatNum(s.total_requests)}</td>
+                    <td class="mono">${bw}</td>
+                    <td class="mono">${latency}</td>
+                    <td class="mono" style="${errStyle}">${s.error_rate}%</td>
+                    <td style="color:var(--text-muted);font-size:12px">View &rarr;</td>
+                </tr>`;
+            }).join('');
+
+            // Auto-select if only one project
+            if (projects.length === 1 && !selectedProjectId) {
+                selectProject(projects[0].id, projects[0].name);
+            }
+        } catch (e) { console.error('Failed to load project stats', e); }
+    }
+
+    async function loadProjectDetail() {
+        if (!selectedProjectId) return;
+        await Promise.all([
+            loadPoolUtilization(),
+            loadPoolMetrics(),
+            loadLatencyHistogram(),
+            loadStatusCodes(),
+        ]);
+    }
+
+    async function loadPoolUtilization() {
+        if (!selectedProjectId) return;
+        try {
+            // Get pools for this project
+            const projResp = await apiCall('GET', `/api/v1/projects/${selectedProjectId}`);
+            const poolIds = (projResp.pools || []).map(p => p.id || p.pool_id);
+            const container = document.getElementById('poolUtilContainer');
+            const empty = document.getElementById('poolUtilEmpty');
+            if (poolIds.length === 0) { container.innerHTML = ''; empty.style.display = 'block'; return; }
+            container.style.display = 'block'; empty.style.display = 'none';
+            let html = '';
+            for (const poolId of poolIds.slice(0, 8)) {
+                const poolData = await apiCall('GET', `/api/v1/pools/${poolId}`);
+                const proxyData = await apiCall('GET', `/api/v1/ips?pool_id=${poolId}&per_page=100`);
+                const proxies = proxyData.data || [];
+                const total = proxies.length;
+                const healthy = proxies.filter(p => p.last_health_status === 'healthy').length;
+                const pct = total > 0 ? Math.round(healthy / total * 100) : 0;
+                let barColor = 'var(--green)';
+                if (pct < 30) barColor = 'var(--red)';
+                else if (pct < 70) barColor = 'var(--yellow)';
+                html += `<div class="pool-bar-row">
+                    <span class="pool-bar-name" title="${esc(poolData.name)}">${esc(poolData.name)}</span>
+                    <div class="pool-bar-track"><div class="pool-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+                    <span class="pool-bar-pct">${pct}%</span>
+                </div>`;
+            }
+            container.innerHTML = html;
+        } catch (e) { console.error('Failed to load pool utilization', e); }
+    }
+
+    async function loadPoolMetrics() {
+        if (!selectedProjectId) return;
+        try {
+            const resp = await apiCall('GET', `/api/v1/stats/pool-metrics?project_id=${selectedProjectId}`);
             const data = resp.data || [];
             const tbody = document.getElementById('poolMetricsBody');
             const container = document.getElementById('poolMetricsContainer');
@@ -607,8 +682,9 @@
     }
 
     async function loadLatencyHistogram() {
+        if (!selectedProjectId) return;
         try {
-            const resp = await apiCall('GET', '/api/v1/stats/pool-latency-histogram');
+            const resp = await apiCall('GET', `/api/v1/stats/pool-latency-histogram?project_id=${selectedProjectId}`);
             const data = resp.data || [];
             const container = document.getElementById('latencyHistContainer');
             const empty = document.getElementById('latencyHistEmpty');
@@ -636,41 +712,10 @@
         } catch (e) { console.error('Failed to load latency histogram', e); }
     }
 
-    async function loadProjectStats() {
-        try {
-            // Load projects list
-            const projResp = await apiCall('GET', '/api/v1/projects?per_page=100');
-            const projects = projResp.data || [];
-            const tbody = document.getElementById('projectStatsBody');
-            const container = document.getElementById('projectStatsContainer');
-            const empty = document.getElementById('projectStatsEmpty');
-            if (projects.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
-            container.style.display = ''; empty.style.display = 'none';
-
-            // Load per-project stats
-            const statsPromises = projects.map(p => apiCall('GET', `/api/v1/projects/${p.id}/stats`).catch(() => null));
-            const stats = await Promise.all(statsPromises);
-
-            tbody.innerHTML = projects.map((p, i) => {
-                const s = stats[i];
-                if (!s) return `<tr><td>${esc(p.name)}</td><td colspan="4" class="mono">-</td></tr>`;
-                const bw = formatBytes((s.bytes_sent || 0) + (s.bytes_received || 0));
-                const latency = s.median_response_time_ms !== null ? s.median_response_time_ms.toFixed(0) + ' ms' : (s.avg_response_time_ms !== null ? s.avg_response_time_ms.toFixed(0) + ' ms' : '-');
-                const errStyle = s.error_rate > 5 ? 'color:var(--red);font-weight:600' : '';
-                return `<tr>
-                    <td>${esc(p.name)}</td>
-                    <td class="mono">${formatNum(s.total_requests)}</td>
-                    <td class="mono">${bw}</td>
-                    <td class="mono">${latency}</td>
-                    <td class="mono" style="${errStyle}">${s.error_rate}%</td>
-                </tr>`;
-            }).join('');
-        } catch (e) { console.error('Failed to load project stats', e); }
-    }
-
     async function loadStatusCodes() {
+        if (!selectedProjectId) return;
         try {
-            const resp = await apiCall('GET', '/api/v1/stats/status-codes');
+            const resp = await apiCall('GET', `/api/v1/stats/status-codes?project_id=${selectedProjectId}`);
             const data = resp.data || [];
             const container = document.getElementById('statusCodeContainer');
             const empty = document.getElementById('statusCodeEmpty');
@@ -697,16 +742,14 @@
         } catch (e) { console.error('Failed to load status codes', e); }
     }
 
+    // === MAIN ===
+
     async function loadStats() {
         await Promise.all([
             loadOverview(),
             loadTimeseries(),
-            loadPoolUtilization(),
             loadFailingProxies(),
-            loadPoolMetrics(),
-            loadLatencyHistogram(),
-            loadProjectStats(),
-            loadStatusCodes(),
+            selectedProjectId ? loadProjectDetail() : loadProjectStats(),
         ]);
     }
 
