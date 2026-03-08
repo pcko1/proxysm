@@ -181,11 +181,18 @@
     .hist-labels { display: flex; gap: 4px; margin-top: 4px; }
     .hist-labels span { flex: 1; text-align: center; font-size: 9px; color: var(--text-muted); }
     /* Line chart */
-    .line-chart-wrap { position: relative; height: 140px; }
-    .line-chart-svg { width: 100%; height: 100%; }
+    .line-chart-wrap { position: relative; height: 120px; overflow: visible; }
+    .line-chart-svg { width: 100%; height: 100%; overflow: visible; }
     .line-chart-svg text { font-size: 9px; fill: var(--text-muted); }
     .line-chart-svg .grid-line { stroke: var(--border); stroke-width: 0.5; }
     .line-chart-svg .data-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .line-chart-svg .hover-dot { opacity: 0; transition: opacity 0.15s; }
+    .line-chart-svg .hover-area:hover + .hover-dot, .line-chart-svg .hover-dot:hover { opacity: 1; }
+    .chart-tooltip {
+        display: none; position: absolute; background: var(--bg-tertiary); border: 1px solid var(--border-light);
+        border-radius: 6px; padding: 6px 10px; font-size: 11px; color: var(--text-primary);
+        pointer-events: none; z-index: 10; white-space: nowrap; line-height: 1.5;
+    }
     .line-chart-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 11px; color: var(--text-muted); }
     .line-chart-legend-item { display: flex; align-items: center; gap: 5px; }
     .line-chart-legend-dot { width: 12px; height: 3px; border-radius: 2px; flex-shrink: 0; }
@@ -380,28 +387,19 @@
         <span class="throughput-badge"><span class="throughput-num" id="throughputNum">-</span> req/min</span>
     </h2>
 
-    <div class="dash-card" style="margin-bottom:20px">
-        <!-- Status Code Breakdown -->
-        <h4 style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Status Codes</h4>
-        <div id="statusCodeContainer"></div>
-        <div class="empty-state" id="statusCodeEmpty" style="display:none;padding:20px 16px">
-            <p style="color:var(--text-muted);font-size:13px">No status code data yet.</p>
-        </div>
-        <div class="sc-legend" id="statusCodeLegend" style="display:none;margin-bottom:20px">
-            <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--green)"></span>2xx</div>
-            <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--accent)"></span>3xx</div>
-            <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--yellow)"></span>4xx</div>
-            <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--red)"></span>5xx</div>
-        </div>
-    </div>
-
-    <!-- Error Rate Trend + Error Type Breakdown -->
+    <!-- 1. Status Codes + Error Breakdown -->
     <div class="dashboard-grid">
         <div class="dash-card">
-            <h3><span>Error Rate Trend</span></h3>
-            <div class="line-chart-wrap" id="errorRateTrendChart"></div>
-            <div class="line-chart-legend">
-                <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--red)"></span>Error Rate %</div>
+            <h3><span>Status Codes</span></h3>
+            <div id="statusCodeContainer"></div>
+            <div class="empty-state" id="statusCodeEmpty" style="display:none;padding:20px 16px">
+                <p style="color:var(--text-muted);font-size:13px">No status code data yet.</p>
+            </div>
+            <div class="sc-legend" id="statusCodeLegend" style="display:none;margin-top:10px">
+                <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--green)"></span>2xx</div>
+                <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--accent)"></span>3xx</div>
+                <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--yellow)"></span>4xx</div>
+                <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--red)"></span>5xx</div>
             </div>
         </div>
         <div class="dash-card">
@@ -413,13 +411,32 @@
         </div>
     </div>
 
-    <!-- Top Domains + Proxy Rotation -->
+    <!-- 2. Error Rate Trend + Bandwidth Over Time -->
+    <div class="dashboard-grid">
+        <div class="dash-card">
+            <h3><span>Error Rate Trend</span></h3>
+            <div class="line-chart-wrap" id="errorRateTrendChart"></div>
+            <div class="line-chart-legend">
+                <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--red)"></span>Error Rate %</div>
+            </div>
+        </div>
+        <div class="dash-card">
+            <h3><span>Bandwidth Over Time</span></h3>
+            <div class="line-chart-wrap" id="bandwidthTrendChart"></div>
+            <div class="line-chart-legend">
+                <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--accent)"></span>Received</div>
+                <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--green)"></span>Sent</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Top Domains + Pool Performance -->
     <div class="dashboard-grid">
         <div class="dash-card">
             <h3><span>Top Target Domains</span></h3>
             <div id="topDomainsContainer">
                 <table class="metrics-table">
-                    <thead><tr><th>Domain</th><th>Requests</th><th>Success</th><th>Median Latency</th></tr></thead>
+                    <thead><tr><th>Domain</th><th>Requests</th><th>Success</th><th>Latency</th><th>Avg Size</th></tr></thead>
                     <tbody id="topDomainsBody"></tbody>
                 </table>
             </div>
@@ -427,38 +444,6 @@
                 <p style="color:var(--text-muted);font-size:13px">No domain data yet.</p>
             </div>
         </div>
-        <div class="dash-card">
-            <h3><span>Proxy Rotation Distribution</span></h3>
-            <div class="rotation-bars" id="rotationBarsContainer"></div>
-            <div class="rotation-summary" id="rotationSummary"></div>
-            <div class="empty-state" id="rotationEmpty" style="display:none;padding:20px 16px">
-                <p style="color:var(--text-muted);font-size:13px">No rotation data yet.</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Bandwidth Over Time -->
-    <div class="dash-card" style="margin-bottom:20px">
-        <h3><span>Bandwidth Over Time</span></h3>
-        <div class="line-chart-wrap" id="bandwidthTrendChart"></div>
-        <div class="line-chart-legend">
-            <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--accent)"></span>Received</div>
-            <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--green)"></span>Sent</div>
-        </div>
-    </div>
-
-    <!-- Pool Stats for selected project -->
-    <div class="dashboard-grid">
-        <div class="dash-card">
-            <h3><span>Pool Utilization</span></h3>
-            <div id="poolUtilContainer"></div>
-            <div class="empty-state" id="poolUtilEmpty" style="display:none;padding:30px 16px">
-                <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
-                <h3>No Pools</h3>
-                <p>Assign pools to this project.</p>
-            </div>
-        </div>
-
         <div class="dash-card">
             <h3><span>Pool Performance</span></h3>
             <div id="poolMetricsContainer">
@@ -475,14 +460,35 @@
         </div>
     </div>
 
-    <!-- Latency Histogram -->
+    <!-- 4. Pool Utilization + Latency Distribution -->
+    <div class="dashboard-grid">
+        <div class="dash-card">
+            <h3><span>Pool Utilization</span></h3>
+            <div id="poolUtilContainer"></div>
+            <div class="empty-state" id="poolUtilEmpty" style="display:none;padding:30px 16px">
+                <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
+                <h3>No Pools</h3>
+                <p>Assign pools to this project.</p>
+            </div>
+        </div>
+        <div class="dash-card">
+            <h3><span>Latency Distribution</span></h3>
+            <div id="latencyHistContainer"></div>
+            <div class="empty-state" id="latencyHistEmpty" style="display:none;padding:30px 16px">
+                <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
+                <h3>No Data</h3>
+                <p>Latency data will appear once traffic flows.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Proxy Rotation Distribution (full width, bottom) -->
     <div class="dash-card" style="margin-top:20px">
-        <h3><span>Latency Distribution</span></h3>
-        <div id="latencyHistContainer"></div>
-        <div class="empty-state" id="latencyHistEmpty" style="display:none;padding:30px 16px">
-            <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
-            <h3>No Data</h3>
-            <p>Latency data will appear once traffic flows.</p>
+        <h3><span>Proxy Rotation Distribution</span></h3>
+        <div class="rotation-bars" id="rotationBarsContainer"></div>
+        <div class="rotation-summary" id="rotationSummary"></div>
+        <div class="empty-state" id="rotationEmpty" style="display:none;padding:20px 16px">
+            <p style="color:var(--text-muted);font-size:13px">No rotation data yet.</p>
         </div>
     </div>
 </div>
@@ -891,64 +897,126 @@
 
     // === LINE CHART RENDERER ===
 
-    function drawLineChart(containerId, datasets, labels) {
-        // datasets: [{ values: [num], color: 'var(--red)', label: 'P50' }]
-        // labels: [string] — x-axis labels
+    function drawLineChart(containerId, datasets, labels, opts = {}) {
         const container = document.getElementById(containerId);
         if (!datasets.length || !datasets[0].values.length) {
             container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--text-muted);font-size:13px">No data yet</div>';
             return;
         }
 
-        const W = 600, H = 130, padL = 45, padR = 10, padT = 10, padB = 22;
+        const rect = container.getBoundingClientRect();
+        const W = Math.max(rect.width || 400, 200);
+        const H = 120;
+        const padL = 50, padR = 15, padT = 8, padB = 20;
         const chartW = W - padL - padR, chartH = H - padT - padB;
         const allVals = datasets.flatMap(d => d.values.filter(v => v !== null));
         const maxVal = Math.max(...allVals, 1);
-        const minVal = Math.min(...allVals, 0);
+        const minVal = Math.min(0, ...allVals);
         const range = maxVal - minVal || 1;
         const n = datasets[0].values.length;
+        const formatVal = opts.formatValue || (v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(1)+'k' : Math.round(v));
 
-        function x(i) { return padL + (i / Math.max(n - 1, 1)) * chartW; }
-        function y(v) { return padT + chartH - ((v - minVal) / range) * chartH; }
+        function xPos(i) { return padL + (i / Math.max(n - 1, 1)) * chartW; }
+        function yPos(v) { return padT + chartH - ((v - minVal) / range) * chartH; }
 
-        // Grid lines
-        let svg = `<svg class="line-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
-        const gridSteps = 4;
-        for (let i = 0; i <= gridSteps; i++) {
-            const gy = padT + (i / gridSteps) * chartH;
-            const val = maxVal - (i / gridSteps) * range;
+        // Build SVG
+        let svg = `<svg class="line-chart-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`;
+
+        // Grid lines + Y labels
+        for (let i = 0; i <= 3; i++) {
+            const gy = padT + (i / 3) * chartH;
+            const val = maxVal - (i / 3) * range;
             svg += `<line class="grid-line" x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}"/>`;
-            let label = val >= 1000 ? (val/1000).toFixed(1) + 'k' : Math.round(val);
-            svg += `<text x="${padL - 4}" y="${gy + 3}" text-anchor="end">${label}</text>`;
+            svg += `<text x="${padL - 5}" y="${gy + 3}" text-anchor="end">${formatVal(val)}</text>`;
         }
 
         // X-axis labels
-        const labelInterval = Math.max(1, Math.ceil(n / 6));
+        const labelCount = Math.min(n, 8);
+        const labelInterval = Math.max(1, Math.ceil(n / labelCount));
         for (let i = 0; i < n; i++) {
             if (i % labelInterval === 0 || i === n - 1) {
-                svg += `<text x="${x(i)}" y="${H - 2}" text-anchor="middle">${labels[i] || ''}</text>`;
+                svg += `<text x="${xPos(i)}" y="${H - 3}" text-anchor="middle">${labels[i] || ''}</text>`;
             }
         }
 
-        // Data lines
+        // Data lines + area fills
         datasets.forEach(ds => {
             let points = [];
             ds.values.forEach((v, i) => {
-                if (v !== null) points.push(`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+                if (v !== null) points.push({ i, x: xPos(i), y: yPos(v) });
             });
             if (points.length > 1) {
-                svg += `<polyline class="data-line" stroke="${ds.color}" points="${points.join(' ')}"/>`;
+                // Area fill
+                const areaPoints = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+                const bottom = padT + chartH;
+                svg += `<polygon fill="${ds.color}" opacity="0.08" points="${points[0].x.toFixed(1)},${bottom} ${areaPoints} ${points[points.length-1].x.toFixed(1)},${bottom}"/>`;
+                // Line
+                svg += `<polyline class="data-line" stroke="${ds.color}" points="${areaPoints}"/>`;
             }
-            // Dots at data points
-            ds.values.forEach((v, i) => {
-                if (v !== null) {
-                    svg += `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.5" fill="${ds.color}" opacity="0.7"/>`;
-                }
-            });
         });
 
+        // Hover columns (vertical hit areas for each data point)
+        const colW = chartW / Math.max(n - 1, 1);
+        for (let i = 0; i < n; i++) {
+            const cx = xPos(i);
+            // Vertical hover line (hidden, shown on hover via JS)
+            svg += `<line x1="${cx}" y1="${padT}" x2="${cx}" y2="${padT + chartH}" stroke="var(--text-muted)" stroke-width="0.5" stroke-dasharray="3,3" opacity="0" class="hover-line-${i}"/>`;
+            // Dots for each dataset
+            datasets.forEach((ds, di) => {
+                const v = ds.values[i];
+                if (v !== null) {
+                    svg += `<circle cx="${cx.toFixed(1)}" cy="${yPos(v).toFixed(1)}" r="3.5" fill="${ds.color}" opacity="0" class="hover-dot-${i}"/>`;
+                }
+            });
+            // Invisible hit area
+            svg += `<rect x="${cx - colW/2}" y="${padT}" width="${colW}" height="${chartH}" fill="transparent" class="hover-col"
+                data-idx="${i}" data-x="${cx.toFixed(0)}"
+                onmouseenter="chartHover(this, true)" onmouseleave="chartHover(this, false)"/>`;
+        }
+
         svg += '</svg>';
+
+        // Tooltip div
+        const tooltipId = containerId + '_tip';
+        svg += `<div class="chart-tooltip" id="${tooltipId}"></div>`;
+
         container.innerHTML = svg;
+
+        // Store data on container for hover handler
+        container._chartData = { datasets, labels, formatVal, H, padT, chartH };
+    }
+
+    function chartHover(el, enter) {
+        const svg = el.closest('svg');
+        const wrap = svg.parentElement;
+        const idx = parseInt(el.dataset.idx);
+        const cx = parseFloat(el.dataset.x);
+        const data = wrap._chartData;
+        const tip = wrap.querySelector('.chart-tooltip');
+
+        // Toggle hover elements
+        svg.querySelectorAll(`.hover-dot-${idx}, .hover-line-${idx}`).forEach(e => e.setAttribute('opacity', enter ? '1' : '0'));
+
+        if (!enter || !data) { tip.style.display = 'none'; return; }
+
+        // Build tooltip content
+        let html = `<strong>${data.labels[idx] || ''}</strong>`;
+        data.datasets.forEach(ds => {
+            const v = ds.values[idx];
+            const label = ds.tipLabel || '';
+            html += `<br><span style="color:${ds.color}">\u25CF</span> ${label}${v !== null ? data.formatVal(v) : '-'}`;
+        });
+        tip.innerHTML = html;
+        tip.style.display = 'block';
+
+        // Position tooltip
+        const tipRect = tip.getBoundingClientRect();
+        const wrapRect = wrap.getBoundingClientRect();
+        let left = cx - tipRect.width / 2;
+        if (left < 0) left = 0;
+        if (left + tipRect.width > wrapRect.width) left = wrapRect.width - tipRect.width;
+        tip.style.left = left + 'px';
+        tip.style.top = '-8px';
     }
 
     // === PROXIES TAB: NEW CHARTS ===
@@ -962,9 +1030,9 @@
                 return dt.getHours().toString().padStart(2, '0') + ':00';
             });
             drawLineChart('latencyTrendChart', [
-                { values: data.map(d => d.p50), color: 'var(--accent)' },
-                { values: data.map(d => d.p95), color: 'var(--yellow)' },
-            ], labels);
+                { values: data.map(d => d.p50), color: 'var(--accent)', tipLabel: 'P50: ' },
+                { values: data.map(d => d.p95), color: 'var(--yellow)', tipLabel: 'P95: ' },
+            ], labels, { formatValue: v => Math.round(v) + ' ms' });
         } catch (e) { console.error('Failed to load latency trend', e); }
     }
 
@@ -1013,8 +1081,8 @@
             });
             const errorRates = data.map(d => d.total_requests > 0 ? (d.failed_requests / d.total_requests * 100) : null);
             drawLineChart('errorRateTrendChart', [
-                { values: errorRates, color: 'var(--red)' },
-            ], labels);
+                { values: errorRates, color: 'var(--red)', tipLabel: 'Error: ' },
+            ], labels, { formatValue: v => v.toFixed(1) + '%' });
         } catch (e) { console.error('Failed to load error rate trend', e); }
     }
 
@@ -1063,11 +1131,13 @@
             tbody.innerHTML = data.map(d => {
                 const rateStyle = d.success_rate < 90 ? 'color:var(--red);font-weight:600' : d.success_rate < 99 ? 'color:var(--yellow)' : 'color:var(--green)';
                 const latency = d.median_latency_ms !== null ? d.median_latency_ms.toFixed(0) + ' ms' : '-';
+                const avgSize = d.avg_response_bytes !== null ? formatBytes(d.avg_response_bytes) : '-';
                 return `<tr>
                     <td class="mono" style="color:var(--text-primary)">${esc(d.domain)}</td>
                     <td class="mono">${formatNum(d.total_requests)}</td>
                     <td class="mono" style="${rateStyle}">${d.success_rate}%</td>
                     <td class="mono">${latency}</td>
+                    <td class="mono">${avgSize}</td>
                 </tr>`;
             }).join('');
         } catch (e) { console.error('Failed to load top domains', e); }
@@ -1118,9 +1188,9 @@
                 return dt.getHours().toString().padStart(2, '0') + ':00';
             });
             drawLineChart('bandwidthTrendChart', [
-                { values: data.map(d => d.bytes_received), color: 'var(--accent)' },
-                { values: data.map(d => d.bytes_sent), color: 'var(--green)' },
-            ], labels);
+                { values: data.map(d => d.bytes_received), color: 'var(--accent)', tipLabel: 'Recv: ' },
+                { values: data.map(d => d.bytes_sent), color: 'var(--green)', tipLabel: 'Sent: ' },
+            ], labels, { formatValue: v => formatBytes(v) });
         } catch (e) { console.error('Failed to load bandwidth trend', e); }
     }
 

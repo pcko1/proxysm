@@ -271,7 +271,8 @@ async def get_top_domains(
             COUNT(*) FILTER (WHERE rl.status_code >= 200 AND rl.status_code < 400) AS successful,
             COUNT(*) FILTER (WHERE rl.status_code >= 400 OR rl.status_code IS NULL) AS failed,
             percentile_cont(0.5) WITHIN GROUP (ORDER BY rl.response_time_ms)
-                FILTER (WHERE rl.response_time_ms IS NOT NULL) AS median_latency_ms
+                FILTER (WHERE rl.response_time_ms IS NOT NULL) AS median_latency_ms,
+            AVG(rl.bytes_received) FILTER (WHERE rl.bytes_received > 0) AS avg_response_bytes
         FROM request_log rl
         {filters}
         GROUP BY rl.target_domain
@@ -286,6 +287,7 @@ async def get_top_domains(
             "success_rate": round(row.successful / row.total_requests * 100, 1) if row.total_requests > 0 else 0,
             "failed": row.failed,
             "median_latency_ms": round(row.median_latency_ms, 1) if row.median_latency_ms else None,
+            "avg_response_bytes": round(row.avg_response_bytes) if row.avg_response_bytes else None,
         }
         for row in rows
     ]}
