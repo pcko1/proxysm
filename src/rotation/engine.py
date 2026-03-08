@@ -22,7 +22,7 @@ class RateLimitExceededError(Exception):
 
 class RotationEngine:
     """Manages proxy rotation across multiple strategies with sticky sessions,
-    rate limiting, connection tracking, and per-project blacklists."""
+    rate limiting, and connection tracking."""
 
     VALID_STRATEGIES = frozenset({
         "round_robin",
@@ -63,9 +63,7 @@ class RotationEngine:
             One of ``round_robin``, ``random``, ``weighted_random``,
             ``least_connections``.
         project_id : str, optional
-            Project identifier used for blacklist filtering and rate-limit
-            scoping.  When ``None`` or empty, blacklist checks are skipped
-            inside the Lua scripts.
+            Project identifier used for rate-limit scoping.
         session_key : str, optional
             Opaque key used to pin a proxy to a caller session (sticky
             sessions).  When provided the engine will first check for an
@@ -78,23 +76,7 @@ class RotationEngine:
             if sticky_proxy_id:
                 health = await self._redis.get(f"proxy:{sticky_proxy_id}:health")
                 if health != "dead":
-                    # Check blacklist if project_id is provided
-                    if project_id:
-                        blacklisted = await self._redis.sismember(
-                            f"blacklist:{project_id}", sticky_proxy_id
-                        )
-                        if blacklisted:
-                            log.info(
-                                "sticky_proxy_blacklisted",
-                                pool_id=pool_id,
-                                session_key=session_key,
-                                proxy_id=sticky_proxy_id,
-                            )
-                            # Fall through to normal rotation
-                        else:
-                            return await self._build_proxy_dict(sticky_proxy_id, pool_id)
-                    else:
-                        return await self._build_proxy_dict(sticky_proxy_id, pool_id)
+                    return await self._build_proxy_dict(sticky_proxy_id, pool_id)
 
         # --- rotation via Lua ---
         proj = project_id or ""
@@ -267,26 +249,3 @@ class RotationEngine:
             ttl=ttl,
         )
 
-    # ------------------------------------------------------------------
-    # Blacklist management
-    # ------------------------------------------------------------------
-
-    async def add_to_blacklist(self, project_id: str, proxy_id: str) -> None:
-        """Add a proxy to the per-project blacklist."""
-        await self._redis.sadd(f"blacklist:{project_id}", proxy_id)
-        log.info(
-            "proxy_blacklisted",
-            project_id=project_id,
-            proxy_id=proxy_id,
-        )
-
-    async def remove_from_blacklist(
-        self, project_id: str, proxy_id: str
-    ) -> None:
-        """Remove a proxy from the per-project blacklist."""
-        await self._redis.srem(f"blacklist:{project_id}", proxy_id)
-        log.info(
-            "proxy_unblacklisted",
-            project_id=project_id,
-            proxy_id=proxy_id,
-        )

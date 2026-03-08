@@ -54,11 +54,6 @@ async def setup_page(request: Request):
     return templates.TemplateResponse("setup.html", _ctx(request))
 
 
-@router.get("/blacklist", response_class=RedirectResponse)
-async def blacklist_redirect():
-    return RedirectResponse(url="/projects")
-
-
 @router.get("/providers", response_class=RedirectResponse)
 async def providers_redirect():
     return RedirectResponse(url="/proxies")

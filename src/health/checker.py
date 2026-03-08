@@ -76,12 +76,10 @@ async def start_health_checker() -> None:
     )
 
     # Register Phase 2 background services on the same scheduler
-    from src.services.blacklist import start_blacklist_service
     from src.services.metrics import start_metrics_service
     from src.services.bandwidth import start_bandwidth_service
     from src.services.partitions import start_partition_service
 
-    start_blacklist_service(_scheduler)
     start_metrics_service(_scheduler)
     start_bandwidth_service(_scheduler)
     start_partition_service(_scheduler)

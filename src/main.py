@@ -67,7 +67,6 @@ from src.api.rotation import router as rotation_router  # noqa: E402
 from src.api.system import router as system_router  # noqa: E402
 from src.api.stats import router as stats_router  # noqa: E402
 from src.api.stats import ips_stats_router, pools_stats_router, projects_stats_router  # noqa: E402
-from src.api.blacklist import router as blacklist_router  # noqa: E402
 from src.api.alerts import router as alerts_router  # noqa: E402
 
 app.include_router(proxies_router, prefix="/api/v1")
@@ -79,7 +78,6 @@ app.include_router(stats_router, prefix="/api/v1")
 app.include_router(ips_stats_router, prefix="/api/v1")
 app.include_router(pools_stats_router, prefix="/api/v1")
 app.include_router(projects_stats_router, prefix="/api/v1")
-app.include_router(blacklist_router, prefix="/api/v1")
 app.include_router(alerts_router, prefix="/api/v1")
 
 # Register web UI routes

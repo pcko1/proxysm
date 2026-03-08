@@ -18,6 +18,7 @@ class ProjectResponse(BaseModel):
     id: uuid.UUID
     name: str
     slug: str
+    api_key: str | None = None
     pools: list[PoolResponse] = []
     created_at: datetime
 

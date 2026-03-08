@@ -36,3 +36,4 @@ class ProxyBulkImport(BaseModel):
     provider: str | None = None
     proxies: str | None = None
     proxy_list: list[ProxyCreate] | None = None
+    url: str | None = None

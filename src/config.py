@@ -24,10 +24,6 @@ class Settings(BaseSettings):
     health_failures_to_degraded: int = 2
     health_recoveries_to_healthy: int = 3
 
-    # Phase 2: Blacklisting defaults
-    blacklist_eval_interval: int = 30
-    blacklist_cooldown_check_interval: int = 60
-
     # Phase 2: Metrics
     metrics_rollup_interval: int = 300
     bandwidth_flush_interval: int = 30

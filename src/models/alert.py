@@ -16,7 +16,7 @@ class AlertRule(Base, UUIDMixin, TimestampMixin):
             name="ck_alert_condition_type",
         ),
         CheckConstraint(
-            "action_type IN ('webhook', 'auto_blacklist')",
+            "action_type IN ('webhook')",
             name="ck_alert_action_type",
         ),
     )

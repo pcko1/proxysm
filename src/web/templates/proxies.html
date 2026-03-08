@@ -63,6 +63,10 @@
             </div>
         </div>
         <div class="form-group">
+            <label for="importUrl">Or fetch from URL</label>
+            <input type="text" id="importUrl" placeholder="https://provider.com/api/getproxy/?format=txt&...">
+        </div>
+        <div class="form-group">
             <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;color:var(--text-secondary);cursor:pointer">
                 <input type="checkbox" id="importCreatePool" style="width:16px;height:16px;accent-color:var(--accent)" onchange="document.getElementById('importPoolFields').style.display = this.checked ? 'block' : 'none'">
                 Also create a pool from this import
@@ -160,7 +164,9 @@
                 <td class="cell-truncate">${esc(provName)}</td>
                 <td>${statusBadge(p.last_health_status)}</td>
                 <td><span class="mono">${latency}</span></td>
-                <td class="actions"><button class="btn btn-danger btn-sm" onclick="deleteProxy('${p.id}')">Delete</button></td>
+                <td class="actions">
+                    <button class="btn btn-danger btn-sm" onclick="deleteProxy('${p.id}')">Delete</button>
+                </td>
             </tr>`;
         }).join('');
 
@@ -202,16 +208,17 @@
 
         let text = document.getElementById('importText').value.trim();
         const fileInput = document.getElementById('importFile');
+        const importUrl = document.getElementById('importUrl').value.trim() || null;
         if (!text && fileInput.files.length > 0) {
             text = await fileInput.files[0].text();
         }
-        if (!text) { btnReset(importBtn); showToast('Please paste proxies or upload a file', 'error'); return; }
+        if (!text && !importUrl) { btnReset(importBtn); showToast('Please paste proxies, upload a file, or enter a URL', 'error'); return; }
 
         try {
-            const result = await apiCall('POST', '/api/v1/ips/bulk', {
-                provider: provider,
-                proxies: text,
-            });
+            const payload = { provider: provider };
+            if (text) payload.proxies = text;
+            if (importUrl) payload.url = importUrl;
+            const result = await apiCall('POST', '/api/v1/ips/bulk', payload);
 
             let poolMsg = '';
 
@@ -240,6 +247,7 @@
 
             document.getElementById('importText').value = '';
             document.getElementById('importProvider').value = '';
+            document.getElementById('importUrl').value = '';
             fileInput.value = '';
             document.getElementById('fileName').textContent = 'No file selected';
             document.getElementById('importCreatePool').checked = false;

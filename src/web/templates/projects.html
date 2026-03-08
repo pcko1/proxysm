@@ -2,6 +2,83 @@
 {% block title %}Projects - ProxyManager{% endblock %}
 
 {% block content %}
+<style>
+    .usage-label {
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin: 12px 0 6px 0;
+    }
+    .usage-label:first-child { margin-top: 0; }
+    .usage-tab {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    .usage-tab:hover { color: var(--text-secondary); }
+    .usage-tab.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+    }
+    .code-block-wrap pre.code-block {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+    .usage-section {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 8px;
+        overflow: hidden;
+    }
+    .usage-section summary {
+        padding: 10px 14px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--text-primary);
+        background: var(--bg-secondary);
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        user-select: none;
+    }
+    .usage-section summary::-webkit-details-marker { display: none; }
+    .usage-section summary::before {
+        content: '\25B6';
+        font-size: 9px;
+        color: var(--text-muted);
+        transition: transform 0.15s;
+    }
+    .usage-section[open] summary::before { transform: rotate(90deg); }
+    .usage-section summary:hover { background: var(--bg-hover); }
+    .usage-desc {
+        font-weight: 400;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+    .usage-section-body {
+        padding: 10px 14px;
+    }
+    .api-key-cell {
+        padding: 2px 6px;
+        border-radius: 4px;
+        transition: background 0.15s, color 0.15s;
+    }
+    .api-key-cell:hover {
+        background: var(--accent-subtle);
+        color: var(--accent);
+    }
+</style>
 <div class="page-header">
     <h1>Projects</h1>
     <div class="page-header-actions">
@@ -12,7 +89,7 @@
 <!-- API Key display -->
 <div id="apiKeyAlert" class="alert-warning" style="display:none">
     <div class="alert-warning-content">
-        <strong>Save this API key now &mdash; it will not be shown again:</strong><br>
+        <strong>Your new API key:</strong><br>
         <code id="apiKeyValue"></code>
         <button class="copy-btn" onclick="copyApiKey()">Copy</button>
     </div>
@@ -47,34 +124,6 @@
     </div>
 </div>
 
-<!-- Block Proxy Modal -->
-<div class="modal-overlay" id="blockProxyModal">
-    <div class="modal">
-        <h2>Block Proxy</h2>
-        <p style="color:var(--text-muted);margin-bottom:14px;font-size:12px" id="blockModalInfo"></p>
-        <div class="form-group">
-            <label for="blockProxySearch">Proxy</label>
-            <div style="position:relative">
-                <input type="text" id="blockProxySearch" placeholder="Search by host:port..." autocomplete="off" oninput="searchBlockProxies()">
-                <input type="hidden" id="blockProxyId" value="">
-                <div id="blockProxyResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-tertiary);border:1px solid var(--border-light);border-radius:8px;margin-top:4px;max-height:180px;overflow-y:auto;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,0.4)"></div>
-            </div>
-        </div>
-        <div class="form-group">
-            <label for="blockDomain">Target Domain <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional)</span></label>
-            <input type="text" id="blockDomain" placeholder="e.g. example.com">
-        </div>
-        <div class="form-group">
-            <label for="blockReason">Reason <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional)</span></label>
-            <input type="text" id="blockReason" placeholder="e.g. Frequent timeouts">
-        </div>
-        <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeModal('blockProxyModal')">Cancel</button>
-            <button class="btn btn-primary" onclick="doBlockProxy()">Block</button>
-        </div>
-    </div>
-</div>
-
 <div class="table-card">
     <table>
         <thead>
@@ -82,6 +131,7 @@
                 <th class="col-check"><input type="checkbox" class="row-checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
                 <th>Name</th>
                 <th>Slug</th>
+                <th>API Key</th>
                 <th>Pools</th>
                 <th>Created</th>
                 <th></th>
@@ -102,6 +152,26 @@
 <script>
     let currentProjectId = null;
     let allPools = [];
+
+    function copyText(text, el) {
+        navigator.clipboard.writeText(text).then(() => {
+            const orig = el.textContent;
+            el.textContent = 'Copied!';
+            el.style.color = 'var(--green)';
+            setTimeout(() => { el.textContent = orig; el.style.color = ''; }, 1500);
+            showToast('API key copied', 'success');
+        });
+    }
+
+    function switchLangTab(group, lang, btn) {
+        const tabs = btn.closest('.lang-tabs');
+        tabs.querySelectorAll('.usage-tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll(`.lang-panel[data-group="${group}"]`).forEach(el => {
+            el.style.display = el.dataset.lang === lang ? '' : 'none';
+        });
+    }
+
 
     async function loadProjects() {
         try {
@@ -124,6 +194,7 @@
                         <td class="col-check"><input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="toggleRowSelection('${p.id}', this)"></td>
                         <td><strong style="color:var(--text-primary)">${esc(p.name)}</strong></td>
                         <td><code class="mono">${esc(p.slug)}</code></td>
+                        <td>${p.api_key ? '<code class="mono api-key-cell" style="font-size:11px;cursor:pointer" title="Click to copy" onclick="copyText(\'' + esc(p.api_key) + '\', this)">' + esc(p.api_key) + '</code>' : '<span style="color:var(--text-muted)">Rotate to reveal</span>'}</td>
                         <td>
                             <span class="stat-pill" style="cursor:pointer" onclick="managePools('${p.id}', '${esc(p.name)}')">
                                 <span class="stat-value">${poolCount}</span> ${poolLabel}
@@ -138,15 +209,237 @@
                         </td>
                     </tr>
                     <tr id="usage-${p.id}" style="display:none">
-                        <td colspan="6" style="padding:0 16px 12px 16px;border-bottom:1px solid var(--border)">
+                        <td colspan="7" style="padding:0 16px 12px 16px;border-bottom:1px solid var(--border)">
                             <div class="card" style="margin-top:4px">
-                                <p style="color:var(--text-muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px">Forward Proxy</p>
-                                <div class="code-block">curl -x http://${esc(p.slug)}:YOUR_API_KEY@localhost:9080 https://httpbin.org/ip</div>
-                                <p style="color:var(--text-muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin:12px 0 8px 0">Rotation API</p>
-                                <div class="code-block">curl -H "X-API-Key: YOUR_API_KEY" http://localhost:8080/api/v1/rotate/${esc(p.slug)}</div>
-                                <p style="color:var(--text-muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin:12px 0 8px 0">Blacklist</p>
-                                <div id="bl-${p.id}" style="font-size:13px;color:var(--text-muted)"></div>
-                                <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="openBlockModal('${p.id}', '${esc(p.name)}')">Block Proxy</button>
+
+                                <details class="usage-section" open>
+                                    <summary>Proxy Rotator <span class="usage-desc">Point your client at port 9080 &mdash; rotates proxies automatically</span></summary>
+                                    <div class="usage-section-body">
+                                        <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap" class="lang-tabs" data-group="http-${p.id}">
+                                            <button class="btn btn-sm usage-tab active" onclick="switchLangTab('http-${p.id}','curl',this)">cURL</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','python',this)">Python</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','javascript',this)">JavaScript</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','go',this)">Go</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','rust',this)">Rust</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','csharp',this)">C#</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','java',this)">Java</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','cpp',this)">C++</button>
+                                        </div>
+                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="curl">
+                                            <pre class="code-block"><code class="language-bash">curl -x http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080 \\
+  https://httpbin.org/ip</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="python" style="display:none">
+                                            <pre class="code-block"><code class="language-python">import requests
+
+result = requests.get(
+    "https://httpbin.org/ip",
+    proxies={
+        "http": "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080",
+        "https": "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080",
+    },
+    timeout=10
+)
+print(result.json())</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="javascript" style="display:none">
+                                            <pre class="code-block"><code class="language-javascript">import { ProxyAgent } from "proxy-agent";
+
+const agent = new ProxyAgent(
+  "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080"
+);
+
+const resp = await fetch("https://httpbin.org/ip", { agent });
+console.log(await resp.json());</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="go" style="display:none">
+                                            <pre class="code-block"><code class="language-go">proxyURL, _ := url.Parse(
+    "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080",
+)
+client := &http.Client{
+    Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)},
+}
+resp, _ := client.Get("https://httpbin.org/ip")
+defer resp.Body.Close()
+body, _ := io.ReadAll(resp.Body)
+fmt.Println(string(body))</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="rust" style="display:none">
+                                            <pre class="code-block"><code class="language-rust">let client = reqwest::Client::builder()
+    .proxy(reqwest::Proxy::all(
+        "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080"
+    )?)
+    .build()?;
+let body = client.get("https://httpbin.org/ip")
+    .send().await?.text().await?;
+println!("{body}");</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="csharp" style="display:none">
+                                            <pre class="code-block"><code class="language-csharp">var handler = new HttpClientHandler {
+    Proxy = new WebProxy("http://localhost:9080") {
+        Credentials = new NetworkCredential(
+            "${esc(p.slug)}", "${esc(p.api_key || 'YOUR_API_KEY')}"
+        )
+    }
+};
+using var client = new HttpClient(handler);
+var result = await client.GetStringAsync("https://httpbin.org/ip");
+Console.WriteLine(result);</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="java" style="display:none">
+                                            <pre class="code-block"><code class="language-java">var client = HttpClient.newBuilder()
+    .proxy(ProxySelector.of(
+        new InetSocketAddress("localhost", 9080)))
+    .authenticator(new Authenticator() {
+        protected PasswordAuthentication getPasswordAuthentication() {
+            return new PasswordAuthentication(
+                "${esc(p.slug)}", "${esc(p.api_key || 'YOUR_API_KEY')}".toCharArray());
+        }
+    })
+    .build();
+var req = HttpRequest.newBuilder()
+    .uri(URI.create("https://httpbin.org/ip")).build();
+var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+System.out.println(resp.body());</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="cpp" style="display:none">
+                                            <pre class="code-block"><code class="language-cpp">CURL* curl = curl_easy_init();
+std::string response;
+curl_easy_setopt(curl, CURLOPT_URL, "https://httpbin.org/ip");
+curl_easy_setopt(curl, CURLOPT_PROXY, "http://localhost:9080");
+curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD,
+    "${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}");
+curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
+curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+curl_easy_perform(curl);
+std::cout << response << std::endl;</code></pre>
+                                        </div>
+                                    </div>
+                                </details>
+
+                                <details class="usage-section">
+                                    <summary>Get Proxy <span class="usage-desc">Returns proxy connection details &mdash; you connect to the proxy yourself</span></summary>
+                                    <div class="usage-section-body">
+                                        <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap" class="lang-tabs" data-group="api-${p.id}">
+                                            <button class="btn btn-sm usage-tab active" onclick="switchLangTab('api-${p.id}','curl',this)">cURL</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','python',this)">Python</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','javascript',this)">JavaScript</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','go',this)">Go</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','rust',this)">Rust</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','csharp',this)">C#</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','java',this)">Java</button>
+                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','cpp',this)">C++</button>
+                                        </div>
+                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="curl">
+                                            <pre class="code-block"><code class="language-bash">curl -H "X-API-Key: ${esc(p.api_key || 'YOUR_API_KEY')}" \\
+  http://localhost:8080/api/v1/rotate/${esc(p.slug)}</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="python" style="display:none">
+                                            <pre class="code-block"><code class="language-python">import requests
+
+API_KEY = "${esc(p.api_key || 'YOUR_API_KEY')}"
+BASE = "http://localhost:8080"
+
+# Get proxy from pool
+resp = requests.get(
+    f"{BASE}/api/v1/rotate/${esc(p.slug)}",
+    headers={"X-API-Key": API_KEY}
+)
+proxy = resp.json()
+print(proxy)
+# {"host": "1.2.3.4", "port": 8080, "protocol": "http", ...}
+
+# Use it to make a request
+proxy_url = f"{proxy['protocol']}://"
+if proxy.get("username"):
+    proxy_url += f"{proxy['username']}:{proxy['password']}@"
+proxy_url += f"{proxy['host']}:{proxy['port']}"
+
+result = requests.get(
+    "https://httpbin.org/ip",
+    proxies={"http": proxy_url, "https": proxy_url},
+    timeout=10
+)
+print(result.json())</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="javascript" style="display:none">
+                                            <pre class="code-block"><code class="language-javascript">const API_KEY = "${esc(p.api_key || 'YOUR_API_KEY')}";
+const BASE = "http://localhost:8080";
+
+// Get proxy from pool
+const resp = await fetch(
+  \`\${BASE}/api/v1/rotate/${esc(p.slug)}\`,
+  { headers: { "X-API-Key": API_KEY } }
+);
+const proxy = await resp.json();
+console.log(proxy);
+// { host: "1.2.3.4", port: 8080, protocol: "http", ... }</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="go" style="display:none">
+                                            <pre class="code-block"><code class="language-go">package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+)
+
+func main() {
+	apiKey := "${esc(p.api_key || 'YOUR_API_KEY')}"
+	base := "http://localhost:8080"
+
+	req, _ := http.NewRequest("GET", base+"/api/v1/rotate/${esc(p.slug)}", nil)
+	req.Header.Set("X-API-Key", apiKey)
+	resp, _ := http.DefaultClient.Do(req)
+	defer resp.Body.Close()
+
+	var proxy map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&proxy)
+	fmt.Println(proxy)
+}</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="rust" style="display:none">
+                                            <pre class="code-block"><code class="language-rust">// reqwest = { version = "0.12", features = ["json"] }
+let proxy: serde_json::Value = reqwest::Client::new()
+    .get("http://localhost:8080/api/v1/rotate/${esc(p.slug)}")
+    .header("X-API-Key", "${esc(p.api_key || 'YOUR_API_KEY')}")
+    .send().await?
+    .json().await?;
+println!("{proxy}");</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="csharp" style="display:none">
+                                            <pre class="code-block"><code class="language-csharp">using var client = new HttpClient();
+client.DefaultRequestHeaders.Add("X-API-Key", "${esc(p.api_key || 'YOUR_API_KEY')}");
+var proxy = await client.GetFromJsonAsync&lt;Dictionary&lt;string, object&gt;&gt;(
+    "http://localhost:8080/api/v1/rotate/${esc(p.slug)}"
+);
+Console.WriteLine(string.Join(", ", proxy!));</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="java" style="display:none">
+                                            <pre class="code-block"><code class="language-java">var client = HttpClient.newHttpClient();
+var req = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8080/api/v1/rotate/${esc(p.slug)}"))
+    .header("X-API-Key", "${esc(p.api_key || 'YOUR_API_KEY')}")
+    .build();
+var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+System.out.println(resp.body());</code></pre>
+                                        </div>
+                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="cpp" style="display:none">
+                                            <pre class="code-block"><code class="language-cpp">CURL* curl = curl_easy_init();
+std::string response;
+struct curl_slist* hdrs = nullptr;
+hdrs = curl_slist_append(hdrs, "X-API-Key: ${esc(p.api_key || 'YOUR_API_KEY')}");
+curl_easy_setopt(curl, CURLOPT_URL,
+    "http://localhost:8080/api/v1/rotate/${esc(p.slug)}");
+curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdrs);
+curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
+curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+curl_easy_perform(curl);
+std::cout << response << std::endl;</code></pre>
+                                        </div>
+                                    </div>
+                                </details>
+
                             </div>
                         </td>
                     </tr>`;
@@ -160,12 +453,7 @@
 
     function toggleUsage(id) {
         const row = document.getElementById('usage-' + id);
-        if (row.style.display === 'none') {
-            row.style.display = '';
-            loadBlacklist(id);
-        } else {
-            row.style.display = 'none';
-        }
+        row.style.display = row.style.display === 'none' ? '' : 'none';
     }
 
     async function createProject() {
@@ -297,119 +585,6 @@
     }
 
     document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
-
-    // --- Blacklist ---
-    let blProjectId = null;
-
-    async function loadBlacklist(projectId) {
-        const container = document.getElementById('bl-' + projectId);
-        if (!container) return;
-        try {
-            const items = await apiCall('GET', `/api/v1/projects/${projectId}/blacklist`);
-            if (items.length === 0) {
-                container.innerHTML = '<span style="color:var(--text-muted)">No blocked proxies.</span>';
-                return;
-            }
-            container.innerHTML = '<table style="min-width:auto;margin-top:4px"><thead><tr><th>Proxy</th><th>Domain</th><th>Reason</th><th>Expires</th><th></th></tr></thead><tbody>' +
-                items.map(bl => {
-                    const proxy = bl.proxy_host ? `${esc(bl.proxy_host)}:${bl.proxy_port}` : esc(bl.proxy_id);
-                    const domain = bl.target_domain ? esc(bl.target_domain) : '<span style="color:var(--text-muted)">All</span>';
-                    const reason = bl.reason ? esc(bl.reason) : '<span style="color:var(--text-muted)">-</span>';
-                    const expires = bl.expires_at ? fmtDate(bl.expires_at) : '<span style="color:var(--text-muted)">Permanent</span>';
-                    return `<tr>
-                        <td><span class="mono">${proxy}</span></td>
-                        <td>${domain}</td>
-                        <td class="cell-truncate">${reason}</td>
-                        <td>${expires}</td>
-                        <td class="actions"><button class="btn btn-outline btn-sm" onclick="unblock('${projectId}', '${bl.proxy_id}')">Unblock</button></td>
-                    </tr>`;
-                }).join('') + '</tbody></table>';
-        } catch (e) {
-            container.innerHTML = '<span style="color:var(--red)">Failed to load blacklist</span>';
-        }
-    }
-
-    async function unblock(projectId, proxyId) {
-        if (!(await confirmAction('Unblock this proxy?', 'Unblock'))) return;
-        try {
-            await apiCall('DELETE', `/api/v1/projects/${projectId}/blacklist/${proxyId}`);
-            showToast('Proxy unblocked', 'success');
-            loadBlacklist(projectId);
-        } catch (e) {
-            showToast('Failed: ' + e.message, 'error');
-        }
-    }
-
-    function openBlockModal(projectId, projectName) {
-        blProjectId = projectId;
-        document.getElementById('blockModalInfo').textContent = 'Block a proxy for ' + projectName;
-        document.getElementById('blockProxySearch').value = '';
-        document.getElementById('blockProxyId').value = '';
-        document.getElementById('blockDomain').value = '';
-        document.getElementById('blockReason').value = '';
-        openModal('blockProxyModal');
-    }
-
-    let blockSearchTimeout = null;
-    async function searchBlockProxies() {
-        const query = document.getElementById('blockProxySearch').value.trim();
-        const dropdown = document.getElementById('blockProxyResults');
-        document.getElementById('blockProxyId').value = '';
-        if (query.length < 2) { dropdown.style.display = 'none'; return; }
-        clearTimeout(blockSearchTimeout);
-        blockSearchTimeout = setTimeout(async () => {
-            try {
-                const data = await apiCall('GET', '/api/v1/ips?per_page=20');
-                const proxies = (data.data || []).filter(p =>
-                    `${p.host}:${p.port}`.toLowerCase().includes(query.toLowerCase())
-                );
-                if (proxies.length === 0) {
-                    dropdown.innerHTML = '<div style="padding:8px 12px;font-size:13px;color:var(--text-muted)">No proxies found</div>';
-                } else {
-                    dropdown.innerHTML = proxies.map(p =>
-                        `<div style="padding:8px 12px;font-size:13px;cursor:pointer;color:var(--text-secondary);transition:background 0.1s" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''" onclick="selectBlockProxy('${p.id}', '${esc(p.host)}:${p.port}')">${esc(p.host)}:${p.port} <span style="color:var(--text-muted);font-size:11px">${esc(p.protocol)}</span></div>`
-                    ).join('');
-                }
-                dropdown.style.display = 'block';
-            } catch (e) { dropdown.style.display = 'none'; }
-        }, 200);
-    }
-
-    function selectBlockProxy(id, label) {
-        document.getElementById('blockProxySearch').value = label;
-        document.getElementById('blockProxyId').value = id;
-        document.getElementById('blockProxyResults').style.display = 'none';
-    }
-
-    async function doBlockProxy() {
-        if (!blProjectId) return;
-        const proxyId = document.getElementById('blockProxyId').value;
-        if (!proxyId) { showToast('Please select a proxy', 'error'); return; }
-        const btn = document.querySelector('#blockProxyModal .btn-primary');
-        btnLoading(btn);
-        const body = { proxy_id: proxyId };
-        const domain = document.getElementById('blockDomain').value.trim();
-        const reason = document.getElementById('blockReason').value.trim();
-        if (domain) body.target_domain = domain;
-        if (reason) body.reason = reason;
-        try {
-            await apiCall('POST', `/api/v1/projects/${blProjectId}/blacklist`, body);
-            btnReset(btn);
-            showToast('Proxy blocked', 'success');
-            closeModal('blockProxyModal');
-            loadBlacklist(blProjectId);
-        } catch (e) {
-            btnReset(btn);
-            showToast('Failed: ' + e.message, 'error');
-        }
-    }
-
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('#blockProxySearch') && !e.target.closest('#blockProxyResults')) {
-            var el = document.getElementById('blockProxyResults');
-            if (el) el.style.display = 'none';
-        }
-    });
 
     loadProjects();
 </script>

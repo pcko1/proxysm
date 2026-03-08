@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -690,6 +692,12 @@
             color: var(--text-secondary);
             line-height: 1.6;
         }
+        /* Override highlight.js background to match our theme */
+        .code-block.hljs,
+        .code-block code.hljs {
+            background: var(--bg-primary);
+            padding: 0;
+        }
 
         /* ===== EMPTY STATE ===== */
         .empty-state {
@@ -1079,12 +1087,17 @@
             }
         }
 
-        // Auto-add copy buttons to code blocks (including dynamically added ones)
+        // Auto-add copy buttons and syntax highlighting to code blocks
         function addCopyButtons() {
             document.querySelectorAll('.code-block').forEach(function(block) {
                 if (block.dataset.copyReady) return;
                 block.dataset.copyReady = '1';
                 block.style.position = 'relative';
+                // Apply syntax highlighting if block has a language class
+                var code = block.querySelector('code[class*="language-"]') || block;
+                if (code.className && /language-/.test(code.className) && typeof hljs !== 'undefined') {
+                    hljs.highlightElement(code);
+                }
                 var btn = document.createElement('button');
                 btn.className = 'copy-btn';
                 btn.textContent = 'Copy';

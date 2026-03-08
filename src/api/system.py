@@ -27,7 +27,5 @@ async def system_info(_: None = Depends(admin_auth)):
         "metrics_1hour_retention_days": settings.metrics_1hour_retention_days,
         "metrics_rollup_interval": settings.metrics_rollup_interval,
         "bandwidth_flush_interval": settings.bandwidth_flush_interval,
-        "blacklist_eval_interval": settings.blacklist_eval_interval,
-        "blacklist_cooldown_check_interval": settings.blacklist_cooldown_check_interval,
         "rate_limit_window_seconds": settings.rate_limit_window_seconds,
     }

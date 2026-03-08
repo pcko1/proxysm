@@ -102,6 +102,23 @@ async def bulk_import_proxies(
 
     proxy_entries = []
 
+    # Fetch from URL if provided
+    if body.url:
+        import httpx
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(body.url)
+            resp.raise_for_status()
+            url_text = resp.text
+        parsed = parse_proxy_list(url_text)
+        for p in parsed:
+            proxy_entries.append({
+                "host": p.host,
+                "port": p.port,
+                "protocol": p.protocol,
+                "username": p.username,
+                "password": p.password,
+            })
+
     # Parse raw text if provided
     if body.proxies:
         parsed = parse_proxy_list(body.proxies)

@@ -36,6 +36,7 @@ def _build_project_response(project: Project, pools: list[Pool]) -> ProjectRespo
         id=project.id,
         name=project.name,
         slug=project.slug,
+        api_key=project.api_key_plain,
         pools=[PoolResponse.model_validate(p) for p in pools],
         created_at=project.created_at,
     )
@@ -88,7 +89,7 @@ async def create_project(
     key_hash = hashlib.sha256(api_key.encode()).hexdigest()
     slug = _make_slug(body.name)
 
-    project = Project(name=body.name, slug=slug, api_key_hash=key_hash)
+    project = Project(name=body.name, slug=slug, api_key_hash=key_hash, api_key_plain=api_key)
     db.add(project)
     try:
         await db.flush()
@@ -216,6 +217,7 @@ async def rotate_api_key(
     api_key = secrets.token_urlsafe(32)
     key_hash = hashlib.sha256(api_key.encode()).hexdigest()
     project.api_key_hash = key_hash
+    project.api_key_plain = api_key
     await db.flush()
 
     pools = await _get_project_pools(db, project_id)

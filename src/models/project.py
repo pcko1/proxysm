@@ -15,6 +15,7 @@ class Project(Base, UUIDMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     api_key_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    api_key_plain: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Phase 2: Quotas
     rate_limit_rpm: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

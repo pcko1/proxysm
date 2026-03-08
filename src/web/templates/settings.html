@@ -208,10 +208,6 @@
             <span class="settings-label">Bandwidth Flush Interval</span>
             <span class="settings-value" id="setBwFlush">-</span>
         </div>
-        <div class="settings-row">
-            <span class="settings-label">Blacklist Eval Interval</span>
-            <span class="settings-value" id="setBlEval">-</span>
-        </div>
     </div>
 
     <!-- Alert Rules -->
@@ -255,7 +251,6 @@
             <label for="alertActionType">Action Type</label>
             <select id="alertActionType">
                 <option value="webhook">Webhook</option>
-                <option value="auto_blacklist">Auto Blacklist</option>
             </select>
         </div>
         <div class="form-group">
@@ -291,7 +286,6 @@
             document.getElementById('set1hourRetention').textContent = (data.metrics_1hour_retention_days || 90) + ' days';
             document.getElementById('setRollupInterval').textContent = (data.metrics_rollup_interval || 300) + 's';
             document.getElementById('setBwFlush').textContent = (data.bandwidth_flush_interval || 30) + 's';
-            document.getElementById('setBlEval').textContent = (data.blacklist_eval_interval || 30) + 's';
         } catch (e) {
             // Fallback: fill with defaults if system/info not available
             document.getElementById('setHcInterval').textContent = '60s';
@@ -304,7 +298,6 @@
             document.getElementById('set1hourRetention').textContent = '90 days';
             document.getElementById('setRollupInterval').textContent = '300s';
             document.getElementById('setBwFlush').textContent = '30s';
-            document.getElementById('setBlEval').textContent = '30s';
         }
     }
 
@@ -364,7 +357,6 @@
     function formatActionType(t) {
         const map = {
             'webhook': 'Webhook',
-            'auto_blacklist': 'Auto Blacklist',
         };
         return map[t] || t;
     }
