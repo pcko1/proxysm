@@ -615,12 +615,13 @@
             if (data.length === 0) { container.innerHTML = ''; empty.style.display = 'block'; return; }
             empty.style.display = 'none';
 
+            const maxBarHeight = 80;
             container.innerHTML = data.map(pool => {
                 const maxCount = Math.max(...pool.buckets.map(b => b.count), 1);
                 const barsHtml = pool.buckets.map(b => {
-                    const pct = (b.count / maxCount * 100);
+                    const h = Math.round((b.count / maxCount) * maxBarHeight);
                     return `<div class="hist-bar-wrap">
-                        <div class="hist-bar" style="height:${Math.max(pct, b.count > 0 ? 2 : 0)}%">
+                        <div class="hist-bar" style="height:${Math.max(h, b.count > 0 ? 2 : 0)}px">
                             ${b.count > 0 ? `<span class="hist-bar-count">${b.count}</span>` : ''}
                         </div>
                     </div>`;
