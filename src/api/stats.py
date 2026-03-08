@@ -248,6 +248,268 @@ async def get_pool_latency_histogram(
     return {"data": data}
 
 
+@router.get("/top-domains")
+async def get_top_domains(
+    project_id: uuid.UUID | None = Query(None),
+    hours: int = Query(24, ge=1, le=168),
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """Top target domains by request count with success rate and median latency."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    filters = "WHERE rl.created_at >= :cutoff AND rl.target_domain IS NOT NULL"
+    params: dict = {"cutoff": cutoff, "limit": limit}
+    if project_id:
+        filters += " AND rl.project_id = :project_id"
+        params["project_id"] = project_id
+
+    sql = text(f"""
+        SELECT
+            rl.target_domain,
+            COUNT(*) AS total_requests,
+            COUNT(*) FILTER (WHERE rl.status_code >= 200 AND rl.status_code < 400) AS successful,
+            COUNT(*) FILTER (WHERE rl.status_code >= 400 OR rl.status_code IS NULL) AS failed,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY rl.response_time_ms)
+                FILTER (WHERE rl.response_time_ms IS NOT NULL) AS median_latency_ms
+        FROM request_log rl
+        {filters}
+        GROUP BY rl.target_domain
+        ORDER BY total_requests DESC
+        LIMIT :limit
+    """)
+    rows = await db.execute(sql, params)
+    return {"data": [
+        {
+            "domain": row.target_domain,
+            "total_requests": row.total_requests,
+            "success_rate": round(row.successful / row.total_requests * 100, 1) if row.total_requests > 0 else 0,
+            "failed": row.failed,
+            "median_latency_ms": round(row.median_latency_ms, 1) if row.median_latency_ms else None,
+        }
+        for row in rows
+    ]}
+
+
+@router.get("/error-breakdown")
+async def get_error_breakdown(
+    project_id: uuid.UUID | None = Query(None),
+    hours: int = Query(24, ge=1, le=168),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """Breakdown of error types: proxy_error, 4xx, 5xx, timeout, other."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    filters = "WHERE rl.created_at >= :cutoff"
+    params: dict = {"cutoff": cutoff}
+    if project_id:
+        filters += " AND rl.project_id = :project_id"
+        params["project_id"] = project_id
+
+    sql = text(f"""
+        SELECT
+            COUNT(*) FILTER (WHERE rl.error_type = 'proxy_error') AS proxy_errors,
+            COUNT(*) FILTER (WHERE rl.error_type = 'timeout') AS timeouts,
+            COUNT(*) FILTER (WHERE rl.error_type IS NULL AND rl.status_code >= 400 AND rl.status_code < 500) AS client_4xx,
+            COUNT(*) FILTER (WHERE rl.error_type IS NULL AND rl.status_code >= 500) AS server_5xx,
+            COUNT(*) FILTER (WHERE rl.error_type IS NOT NULL AND rl.error_type NOT IN ('proxy_error', 'timeout')) AS other_errors,
+            COUNT(*) FILTER (WHERE rl.status_code >= 200 AND rl.status_code < 400 AND rl.error_type IS NULL) AS successful,
+            COUNT(*) AS total
+        FROM request_log rl
+        {filters}
+    """)
+    row = (await db.execute(sql, params)).one()
+    return {
+        "proxy_errors": row.proxy_errors,
+        "timeouts": row.timeouts,
+        "client_4xx": row.client_4xx,
+        "server_5xx": row.server_5xx,
+        "other_errors": row.other_errors,
+        "successful": row.successful,
+        "total": row.total,
+    }
+
+
+@router.get("/proxy-distribution")
+async def get_proxy_distribution(
+    project_id: uuid.UUID | None = Query(None),
+    hours: int = Query(24, ge=1, le=168),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """Request distribution across proxies — reveals rotation imbalance."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    filters = "WHERE rl.created_at >= :cutoff"
+    params: dict = {"cutoff": cutoff}
+    if project_id:
+        filters += " AND rl.project_id = :project_id"
+        params["project_id"] = project_id
+
+    sql = text(f"""
+        SELECT
+            rl.proxy_id,
+            CONCAT(pr.host, ':', pr.port) AS proxy_addr,
+            COUNT(*) AS request_count,
+            COUNT(*) FILTER (WHERE rl.status_code >= 200 AND rl.status_code < 400) AS successful
+        FROM request_log rl
+        JOIN proxies pr ON pr.id = rl.proxy_id
+        {filters}
+        GROUP BY rl.proxy_id, pr.host, pr.port
+        ORDER BY request_count DESC
+    """)
+    rows = await db.execute(sql, params)
+    data = []
+    for row in rows:
+        data.append({
+            "proxy_id": str(row.proxy_id),
+            "proxy_addr": row.proxy_addr,
+            "request_count": row.request_count,
+            "success_rate": round(row.successful / row.request_count * 100, 1) if row.request_count > 0 else 0,
+        })
+    return {"data": data}
+
+
+@router.get("/proxy-ranking")
+async def get_proxy_ranking(
+    hours: int = Query(24, ge=1, le=168),
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """Bottom proxies ranked by success rate (worst first)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    sql = text("""
+        SELECT
+            rl.proxy_id,
+            CONCAT(pr.host, ':', pr.port) AS proxy_addr,
+            pr.last_health_status AS status,
+            COUNT(*) AS total_requests,
+            COUNT(*) FILTER (WHERE rl.status_code >= 200 AND rl.status_code < 400) AS successful,
+            COUNT(*) FILTER (WHERE rl.status_code >= 400 OR rl.status_code IS NULL OR rl.error_type IS NOT NULL) AS failed,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY rl.response_time_ms)
+                FILTER (WHERE rl.response_time_ms IS NOT NULL) AS median_latency_ms
+        FROM request_log rl
+        JOIN proxies pr ON pr.id = rl.proxy_id
+        WHERE rl.created_at >= :cutoff
+        GROUP BY rl.proxy_id, pr.host, pr.port, pr.last_health_status
+        HAVING COUNT(*) >= 3
+        ORDER BY (COUNT(*) FILTER (WHERE rl.status_code >= 200 AND rl.status_code < 400))::float / COUNT(*) ASC
+        LIMIT :limit
+    """)
+    rows = await db.execute(sql, {"cutoff": cutoff, "limit": limit})
+    return {"data": [
+        {
+            "proxy_id": str(row.proxy_id),
+            "proxy_addr": row.proxy_addr,
+            "status": row.status,
+            "total_requests": row.total_requests,
+            "success_rate": round(row.successful / row.total_requests * 100, 1) if row.total_requests > 0 else 0,
+            "failed": row.failed,
+            "median_latency_ms": round(row.median_latency_ms, 1) if row.median_latency_ms else None,
+        }
+        for row in rows
+    ]}
+
+
+@router.get("/latency-trend")
+async def get_latency_trend(
+    hours: int = Query(24, ge=1, le=168),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """P50 and P95 latency over time (hourly buckets)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    sql = text("""
+        SELECT
+            date_trunc('hour', rl.created_at) AS period,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY rl.response_time_ms) AS p50,
+            percentile_cont(0.95) WITHIN GROUP (ORDER BY rl.response_time_ms) AS p95,
+            COUNT(*) AS sample_count
+        FROM request_log rl
+        WHERE rl.created_at >= :cutoff AND rl.response_time_ms IS NOT NULL
+        GROUP BY period
+        ORDER BY period
+    """)
+    rows = await db.execute(sql, {"cutoff": cutoff})
+    return {"data": [
+        {
+            "period": row.period.isoformat(),
+            "p50": round(row.p50, 1) if row.p50 else None,
+            "p95": round(row.p95, 1) if row.p95 else None,
+            "sample_count": row.sample_count,
+        }
+        for row in rows
+    ]}
+
+
+@router.get("/bandwidth-trend")
+async def get_bandwidth_trend(
+    project_id: uuid.UUID | None = Query(None),
+    hours: int = Query(24, ge=1, le=168),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """Bandwidth (bytes sent/received) over time (hourly buckets)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    filters = "WHERE m.period_granularity = '1hour' AND m.period_start >= :cutoff"
+    params: dict = {"cutoff": cutoff}
+
+    if project_id:
+        filters += " AND m.entity_type = 'project' AND m.entity_id = :project_id"
+        params["project_id"] = project_id
+    else:
+        filters += " AND m.entity_type = 'project'"
+
+    sql = text(f"""
+        SELECT
+            m.period_start,
+            COALESCE(SUM(m.bytes_sent), 0) AS bytes_sent,
+            COALESCE(SUM(m.bytes_received), 0) AS bytes_received
+        FROM metrics_rollup m
+        {filters}
+        GROUP BY m.period_start
+        ORDER BY m.period_start
+    """)
+    rows = await db.execute(sql, params)
+    return {"data": [
+        {
+            "period": row.period_start.isoformat(),
+            "bytes_sent": int(row.bytes_sent),
+            "bytes_received": int(row.bytes_received),
+        }
+        for row in rows
+    ]}
+
+
+@router.get("/throughput")
+async def get_throughput(
+    project_id: uuid.UUID | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """Current throughput: requests in the last 5 minutes."""
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+    filters = "WHERE rl.created_at >= :cutoff"
+    params: dict = {"cutoff": cutoff}
+    if project_id:
+        filters += " AND rl.project_id = :project_id"
+        params["project_id"] = project_id
+
+    sql = text(f"""
+        SELECT COUNT(*) AS total,
+               COUNT(*) FILTER (WHERE rl.status_code >= 200 AND rl.status_code < 400) AS successful
+        FROM request_log rl
+        {filters}
+    """)
+    row = (await db.execute(sql, params)).one()
+    rpm = round(row.total / 5, 1)
+    return {
+        "requests_5min": row.total,
+        "requests_per_minute": rpm,
+        "success_rate": round(row.successful / row.total * 100, 1) if row.total > 0 else 0,
+    }
+
+
 async def _entity_stats(
     db: AsyncSession,
     entity_type: str,

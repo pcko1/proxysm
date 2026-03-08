@@ -180,6 +180,42 @@
     }
     .hist-labels { display: flex; gap: 4px; margin-top: 4px; }
     .hist-labels span { flex: 1; text-align: center; font-size: 9px; color: var(--text-muted); }
+    /* Line chart */
+    .line-chart-wrap { position: relative; height: 140px; }
+    .line-chart-svg { width: 100%; height: 100%; }
+    .line-chart-svg text { font-size: 9px; fill: var(--text-muted); }
+    .line-chart-svg .grid-line { stroke: var(--border); stroke-width: 0.5; }
+    .line-chart-svg .data-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .line-chart-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 11px; color: var(--text-muted); }
+    .line-chart-legend-item { display: flex; align-items: center; gap: 5px; }
+    .line-chart-legend-dot { width: 12px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+    /* Error breakdown bars */
+    .err-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .err-bar-label { font-size: 12px; color: var(--text-secondary); width: 90px; flex-shrink: 0; text-align: right; }
+    .err-bar-track { flex: 1; height: 18px; background: var(--bg-primary); border-radius: 4px; overflow: hidden; }
+    .err-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; display: flex; align-items: center; padding-left: 6px; font-size: 10px; font-weight: 600; color: #fff; min-width: fit-content; }
+    .err-bar-count { font-size: 12px; color: var(--text-muted); width: 40px; text-align: right; flex-shrink: 0; font-weight: 600; }
+    /* Throughput badge */
+    .throughput-badge {
+        display: inline-flex; align-items: baseline; gap: 6px; font-size: 14px; color: var(--text-muted);
+        margin-left: auto;
+    }
+    .throughput-num { font-size: 20px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.5px; }
+    /* Rotation distribution */
+    .rotation-bars { display: flex; align-items: flex-end; gap: 1px; height: 60px; }
+    .rotation-bar {
+        flex: 1; min-width: 0; background: var(--accent); border-radius: 1px 1px 0 0;
+        transition: height 0.4s ease; position: relative; cursor: default;
+    }
+    .rotation-bar:hover { opacity: 0.7; }
+    .rotation-bar .rot-tip {
+        display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+        background: var(--bg-tertiary); border: 1px solid var(--border-light); border-radius: 6px;
+        padding: 4px 8px; font-size: 10px; white-space: nowrap; color: var(--text-primary);
+        pointer-events: none; z-index: 10; margin-bottom: 4px;
+    }
+    .rotation-bar:hover .rot-tip { display: block; }
+    .rotation-summary { display: flex; gap: 20px; margin-top: 8px; font-size: 11px; color: var(--text-muted); }
     @media (max-width: 900px) {
         .stat-cards { grid-template-columns: repeat(2, 1fr); }
         .dashboard-grid { grid-template-columns: 1fr; }
@@ -201,10 +237,13 @@
     </div>
 </div>
 
-<!-- Tab Switcher -->
-<div class="dash-tabs">
-    <button class="dash-tab active" onclick="switchTab('proxies')">Proxies</button>
-    <button class="dash-tab" onclick="switchTab('projects')">Projects</button>
+<!-- Tab Switcher + Back Button -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+    <div class="dash-tabs" style="margin-bottom:0">
+        <button class="dash-tab active" onclick="switchTab('proxies')">Proxies</button>
+        <button class="dash-tab" onclick="switchTab('projects'); if(selectedProjectId) deselectProject();">Projects</button>
+    </div>
+
 </div>
 
 <!-- SECTION 1: PROXIES -->
@@ -286,6 +325,32 @@
     </div>
 </div>
 
+<!-- Response Time Trend (P50/P95) -->
+<div class="dash-card" style="margin-bottom:20px">
+    <h3><span>Response Time Trend</span></h3>
+    <div class="line-chart-wrap" id="latencyTrendChart"></div>
+    <div class="line-chart-legend">
+        <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--accent)"></span>P50 (Median)</div>
+        <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--yellow)"></span>P95</div>
+    </div>
+</div>
+
+<!-- Proxy Uptime Ranking -->
+<div class="dash-card" style="margin-bottom:20px">
+    <h3><span>Worst Performing Proxies</span></h3>
+    <div id="proxyRankingContainer">
+        <table class="metrics-table">
+            <thead><tr><th>Proxy</th><th>Status</th><th>Requests</th><th>Success Rate</th><th>Failed</th><th>Median Latency</th></tr></thead>
+            <tbody id="proxyRankingBody"></tbody>
+        </table>
+    </div>
+    <div class="empty-state" id="proxyRankingEmpty" style="display:none;padding:30px 16px">
+        <div class="empty-state-icon" style="font-size:28px">&#9989;</div>
+        <h3>All Good</h3>
+        <p>No underperforming proxies.</p>
+    </div>
+</div>
+
 </div><!-- /section-proxies -->
 
 <!-- SECTION 2: PROJECTS -->
@@ -309,12 +374,13 @@
 
 <!-- Project Detail (shown when a project is selected) -->
 <div id="projectDetail" style="display:none">
-    <div class="dash-card" style="margin-bottom:20px">
-        <h3>
-            <span id="projectDetailTitle">Project Details</span>
-            <button class="btn btn-outline btn-sm" onclick="deselectProject()">Back to All</button>
-        </h3>
+    <h2 style="font-size:22px;font-weight:700;color:var(--text-primary);margin-bottom:20px;letter-spacing:-0.3px;display:flex;align-items:center;gap:10px">
+        <span onclick="deselectProject()" style="cursor:pointer;color:var(--text-muted);font-size:20px;transition:color 0.15s" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">&larr;</span>
+        <span id="projectDetailTitle"></span>
+        <span class="throughput-badge"><span class="throughput-num" id="throughputNum">-</span> req/min</span>
+    </h2>
 
+    <div class="dash-card" style="margin-bottom:20px">
         <!-- Status Code Breakdown -->
         <h4 style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Status Codes</h4>
         <div id="statusCodeContainer"></div>
@@ -326,6 +392,58 @@
             <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--accent)"></span>3xx</div>
             <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--yellow)"></span>4xx</div>
             <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--red)"></span>5xx</div>
+        </div>
+    </div>
+
+    <!-- Error Rate Trend + Error Type Breakdown -->
+    <div class="dashboard-grid">
+        <div class="dash-card">
+            <h3><span>Error Rate Trend</span></h3>
+            <div class="line-chart-wrap" id="errorRateTrendChart"></div>
+            <div class="line-chart-legend">
+                <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--red)"></span>Error Rate %</div>
+            </div>
+        </div>
+        <div class="dash-card">
+            <h3><span>Error Breakdown</span></h3>
+            <div id="errorBreakdownContainer"></div>
+            <div class="empty-state" id="errorBreakdownEmpty" style="display:none;padding:20px 16px">
+                <p style="color:var(--text-muted);font-size:13px">No errors recorded.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Domains + Proxy Rotation -->
+    <div class="dashboard-grid">
+        <div class="dash-card">
+            <h3><span>Top Target Domains</span></h3>
+            <div id="topDomainsContainer">
+                <table class="metrics-table">
+                    <thead><tr><th>Domain</th><th>Requests</th><th>Success</th><th>Median Latency</th></tr></thead>
+                    <tbody id="topDomainsBody"></tbody>
+                </table>
+            </div>
+            <div class="empty-state" id="topDomainsEmpty" style="display:none;padding:20px 16px">
+                <p style="color:var(--text-muted);font-size:13px">No domain data yet.</p>
+            </div>
+        </div>
+        <div class="dash-card">
+            <h3><span>Proxy Rotation Distribution</span></h3>
+            <div class="rotation-bars" id="rotationBarsContainer"></div>
+            <div class="rotation-summary" id="rotationSummary"></div>
+            <div class="empty-state" id="rotationEmpty" style="display:none;padding:20px 16px">
+                <p style="color:var(--text-muted);font-size:13px">No rotation data yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bandwidth Over Time -->
+    <div class="dash-card" style="margin-bottom:20px">
+        <h3><span>Bandwidth Over Time</span></h3>
+        <div class="line-chart-wrap" id="bandwidthTrendChart"></div>
+        <div class="line-chart-legend">
+            <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--accent)"></span>Received</div>
+            <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--green)"></span>Sent</div>
         </div>
     </div>
 
@@ -383,6 +501,29 @@
     function switchTab(tab) {
         document.querySelectorAll('.dash-tab').forEach(btn => btn.classList.toggle('active', btn.textContent.toLowerCase() === tab));
         document.querySelectorAll('.dash-section').forEach(sec => sec.classList.toggle('active', sec.id === 'section-' + tab));
+        if (!selectedProjectId || tab !== 'projects') {
+            history.replaceState(null, '', '#' + tab);
+        }
+    }
+
+    function updateHash() {
+        if (selectedProjectId) {
+            const proj = projectsCache.find(p => p.id === selectedProjectId);
+            const slug = proj ? proj.slug : selectedProjectId;
+            history.replaceState(null, '', '#projects/' + slug);
+        } else {
+            const tab = document.querySelector('.dash-tab.active');
+            history.replaceState(null, '', '#' + (tab ? tab.textContent.toLowerCase() : 'proxies'));
+        }
+    }
+
+    function parseHash() {
+        const hash = location.hash.replace('#', '');
+        if (hash.startsWith('projects/')) {
+            const slug = hash.substring('projects/'.length);
+            return { tab: 'projects', projectSlug: slug };
+        }
+        return { tab: ['proxies', 'projects'].includes(hash) ? hash : 'proxies', projectSlug: null };
     }
 
     function formatNum(n) {
@@ -569,6 +710,8 @@
         document.getElementById('projectStatsEmpty').style.display = 'none';
         document.getElementById('projectDetail').style.display = 'block';
         document.getElementById('projectDetailTitle').textContent = name;
+        switchTab('projects');
+        updateHash();
         loadProjectDetail();
     }
 
@@ -577,14 +720,15 @@
         selectedProjectName = null;
         document.getElementById('projectDetail').style.display = 'none';
         document.getElementById('projectStatsContainer').parentElement.style.display = '';
+        updateHash();
         loadProjectStats();
     }
 
     async function loadProjectStats() {
         try {
             const projResp = await apiCall('GET', '/api/v1/projects?per_page=100');
-            const projects = projResp.data || [];
-            projectsCache = projects;
+            projectsCache = projResp.data || [];
+            const projects = projectsCache;
             const tbody = document.getElementById('projectStatsBody');
             const container = document.getElementById('projectStatsContainer');
             const empty = document.getElementById('projectStatsEmpty');
@@ -610,20 +754,23 @@
                 </tr>`;
             }).join('');
 
-            // Auto-select if only one project
-            if (projects.length === 1 && !selectedProjectId) {
-                selectProject(projects[0].id, projects[0].name);
-            }
+            // No auto-select — user picks a project explicitly
         } catch (e) { console.error('Failed to load project stats', e); }
     }
 
     async function loadProjectDetail() {
         if (!selectedProjectId) return;
         await Promise.all([
+            loadThroughput(),
+            loadStatusCodes(),
+            loadErrorRateTrend(),
+            loadErrorBreakdown(),
+            loadTopDomains(),
+            loadProxyDistribution(),
+            loadBandwidthTrend(),
             loadPoolUtilization(),
             loadPoolMetrics(),
             loadLatencyHistogram(),
-            loadStatusCodes(),
         ]);
     }
 
@@ -742,6 +889,241 @@
         } catch (e) { console.error('Failed to load status codes', e); }
     }
 
+    // === LINE CHART RENDERER ===
+
+    function drawLineChart(containerId, datasets, labels) {
+        // datasets: [{ values: [num], color: 'var(--red)', label: 'P50' }]
+        // labels: [string] — x-axis labels
+        const container = document.getElementById(containerId);
+        if (!datasets.length || !datasets[0].values.length) {
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--text-muted);font-size:13px">No data yet</div>';
+            return;
+        }
+
+        const W = 600, H = 130, padL = 45, padR = 10, padT = 10, padB = 22;
+        const chartW = W - padL - padR, chartH = H - padT - padB;
+        const allVals = datasets.flatMap(d => d.values.filter(v => v !== null));
+        const maxVal = Math.max(...allVals, 1);
+        const minVal = Math.min(...allVals, 0);
+        const range = maxVal - minVal || 1;
+        const n = datasets[0].values.length;
+
+        function x(i) { return padL + (i / Math.max(n - 1, 1)) * chartW; }
+        function y(v) { return padT + chartH - ((v - minVal) / range) * chartH; }
+
+        // Grid lines
+        let svg = `<svg class="line-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
+        const gridSteps = 4;
+        for (let i = 0; i <= gridSteps; i++) {
+            const gy = padT + (i / gridSteps) * chartH;
+            const val = maxVal - (i / gridSteps) * range;
+            svg += `<line class="grid-line" x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}"/>`;
+            let label = val >= 1000 ? (val/1000).toFixed(1) + 'k' : Math.round(val);
+            svg += `<text x="${padL - 4}" y="${gy + 3}" text-anchor="end">${label}</text>`;
+        }
+
+        // X-axis labels
+        const labelInterval = Math.max(1, Math.ceil(n / 6));
+        for (let i = 0; i < n; i++) {
+            if (i % labelInterval === 0 || i === n - 1) {
+                svg += `<text x="${x(i)}" y="${H - 2}" text-anchor="middle">${labels[i] || ''}</text>`;
+            }
+        }
+
+        // Data lines
+        datasets.forEach(ds => {
+            let points = [];
+            ds.values.forEach((v, i) => {
+                if (v !== null) points.push(`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+            });
+            if (points.length > 1) {
+                svg += `<polyline class="data-line" stroke="${ds.color}" points="${points.join(' ')}"/>`;
+            }
+            // Dots at data points
+            ds.values.forEach((v, i) => {
+                if (v !== null) {
+                    svg += `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.5" fill="${ds.color}" opacity="0.7"/>`;
+                }
+            });
+        });
+
+        svg += '</svg>';
+        container.innerHTML = svg;
+    }
+
+    // === PROXIES TAB: NEW CHARTS ===
+
+    async function loadLatencyTrend() {
+        try {
+            const resp = await apiCall('GET', '/api/v1/stats/latency-trend');
+            const data = resp.data || [];
+            const labels = data.map(d => {
+                const dt = new Date(d.period);
+                return dt.getHours().toString().padStart(2, '0') + ':00';
+            });
+            drawLineChart('latencyTrendChart', [
+                { values: data.map(d => d.p50), color: 'var(--accent)' },
+                { values: data.map(d => d.p95), color: 'var(--yellow)' },
+            ], labels);
+        } catch (e) { console.error('Failed to load latency trend', e); }
+    }
+
+    async function loadProxyRanking() {
+        try {
+            const resp = await apiCall('GET', '/api/v1/stats/proxy-ranking');
+            const data = resp.data || [];
+            const tbody = document.getElementById('proxyRankingBody');
+            const container = document.getElementById('proxyRankingContainer');
+            const empty = document.getElementById('proxyRankingEmpty');
+            if (data.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
+            container.style.display = ''; empty.style.display = 'none';
+            tbody.innerHTML = data.map(p => {
+                const rateStyle = p.success_rate < 80 ? 'color:var(--red);font-weight:600' : p.success_rate < 95 ? 'color:var(--yellow);font-weight:600' : '';
+                const latency = p.median_latency_ms !== null ? p.median_latency_ms.toFixed(0) + ' ms' : '-';
+                return `<tr>
+                    <td><span class="mono" style="color:var(--text-primary)">${esc(p.proxy_addr)}</span></td>
+                    <td>${statusBadge(p.status)}</td>
+                    <td class="mono">${p.total_requests}</td>
+                    <td class="mono" style="${rateStyle}">${p.success_rate}%</td>
+                    <td class="mono">${p.failed}</td>
+                    <td class="mono">${latency}</td>
+                </tr>`;
+            }).join('');
+        } catch (e) { console.error('Failed to load proxy ranking', e); }
+    }
+
+    // === PROJECTS TAB: NEW CHARTS ===
+
+    async function loadThroughput() {
+        if (!selectedProjectId) return;
+        try {
+            const resp = await apiCall('GET', `/api/v1/stats/throughput?project_id=${selectedProjectId}`);
+            document.getElementById('throughputNum').textContent = resp.requests_per_minute || '0';
+        } catch (e) { console.error('Failed to load throughput', e); }
+    }
+
+    async function loadErrorRateTrend() {
+        if (!selectedProjectId) return;
+        try {
+            const resp = await apiCall('GET', `/api/v1/stats/timeseries?granularity=1hour&hours=24&entity_type=project&entity_id=${selectedProjectId}`);
+            const data = resp.data || [];
+            const labels = data.map(d => {
+                const dt = new Date(d.period_start);
+                return dt.getHours().toString().padStart(2, '0') + ':00';
+            });
+            const errorRates = data.map(d => d.total_requests > 0 ? (d.failed_requests / d.total_requests * 100) : null);
+            drawLineChart('errorRateTrendChart', [
+                { values: errorRates, color: 'var(--red)' },
+            ], labels);
+        } catch (e) { console.error('Failed to load error rate trend', e); }
+    }
+
+    async function loadErrorBreakdown() {
+        if (!selectedProjectId) return;
+        try {
+            const resp = await apiCall('GET', `/api/v1/stats/error-breakdown?project_id=${selectedProjectId}`);
+            const container = document.getElementById('errorBreakdownContainer');
+            const empty = document.getElementById('errorBreakdownEmpty');
+            const totalErrors = resp.proxy_errors + resp.timeouts + resp.client_4xx + resp.server_5xx + resp.other_errors;
+            if (totalErrors === 0) { container.innerHTML = ''; empty.style.display = 'block'; return; }
+            empty.style.display = 'none';
+
+            const bars = [
+                { label: 'Proxy Error', count: resp.proxy_errors, color: 'var(--red)' },
+                { label: 'Timeout', count: resp.timeouts, color: 'var(--yellow)' },
+                { label: '4xx Client', count: resp.client_4xx, color: 'var(--accent)' },
+                { label: '5xx Server', count: resp.server_5xx, color: '#e74c3c' },
+                { label: 'Other', count: resp.other_errors, color: 'var(--text-muted)' },
+            ].filter(b => b.count > 0);
+
+            const maxCount = Math.max(...bars.map(b => b.count), 1);
+            container.innerHTML = bars.map(b => {
+                const pct = (b.count / maxCount * 100);
+                return `<div class="err-bar-row">
+                    <span class="err-bar-label">${b.label}</span>
+                    <div class="err-bar-track">
+                        <div class="err-bar-fill" style="width:${Math.max(pct, 2)}%;background:${b.color}"></div>
+                    </div>
+                    <span class="err-bar-count">${b.count}</span>
+                </div>`;
+            }).join('');
+        } catch (e) { console.error('Failed to load error breakdown', e); }
+    }
+
+    async function loadTopDomains() {
+        if (!selectedProjectId) return;
+        try {
+            const resp = await apiCall('GET', `/api/v1/stats/top-domains?project_id=${selectedProjectId}`);
+            const data = resp.data || [];
+            const tbody = document.getElementById('topDomainsBody');
+            const container = document.getElementById('topDomainsContainer');
+            const empty = document.getElementById('topDomainsEmpty');
+            if (data.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
+            container.style.display = ''; empty.style.display = 'none';
+            tbody.innerHTML = data.map(d => {
+                const rateStyle = d.success_rate < 90 ? 'color:var(--red);font-weight:600' : d.success_rate < 99 ? 'color:var(--yellow)' : 'color:var(--green)';
+                const latency = d.median_latency_ms !== null ? d.median_latency_ms.toFixed(0) + ' ms' : '-';
+                return `<tr>
+                    <td class="mono" style="color:var(--text-primary)">${esc(d.domain)}</td>
+                    <td class="mono">${formatNum(d.total_requests)}</td>
+                    <td class="mono" style="${rateStyle}">${d.success_rate}%</td>
+                    <td class="mono">${latency}</td>
+                </tr>`;
+            }).join('');
+        } catch (e) { console.error('Failed to load top domains', e); }
+    }
+
+    async function loadProxyDistribution() {
+        if (!selectedProjectId) return;
+        try {
+            const resp = await apiCall('GET', `/api/v1/stats/proxy-distribution?project_id=${selectedProjectId}`);
+            const data = resp.data || [];
+            const container = document.getElementById('rotationBarsContainer');
+            const summary = document.getElementById('rotationSummary');
+            const empty = document.getElementById('rotationEmpty');
+            if (data.length === 0) { container.innerHTML = ''; summary.innerHTML = ''; empty.style.display = 'block'; return; }
+            empty.style.display = 'none';
+
+            const maxReq = Math.max(...data.map(d => d.request_count), 1);
+            const totalReq = data.reduce((s, d) => s + d.request_count, 0);
+            const avgReq = totalReq / data.length;
+            const stdDev = Math.sqrt(data.reduce((s, d) => s + Math.pow(d.request_count - avgReq, 2), 0) / data.length);
+            const cv = avgReq > 0 ? (stdDev / avgReq * 100).toFixed(0) : 0;
+            const evenness = cv < 20 ? 'Excellent' : cv < 40 ? 'Good' : cv < 60 ? 'Fair' : 'Poor';
+            const evennessColor = cv < 20 ? 'var(--green)' : cv < 40 ? 'var(--accent)' : cv < 60 ? 'var(--yellow)' : 'var(--red)';
+
+            container.innerHTML = data.map(d => {
+                const h = Math.max(Math.round(d.request_count / maxReq * 60), d.request_count > 0 ? 2 : 0);
+                const color = d.success_rate < 80 ? 'var(--red)' : d.success_rate < 95 ? 'var(--yellow)' : 'var(--accent)';
+                return `<div class="rotation-bar" style="height:${h}px;background:${color}">
+                    <span class="rot-tip">${esc(d.proxy_addr)}<br>${d.request_count} req (${d.success_rate}%)</span>
+                </div>`;
+            }).join('');
+
+            summary.innerHTML = `
+                <span>Proxies used: <strong>${data.length}</strong></span>
+                <span>Avg: <strong>${Math.round(avgReq)} req</strong></span>
+                <span>Distribution: <strong style="color:${evennessColor}">${evenness}</strong></span>
+            `;
+        } catch (e) { console.error('Failed to load proxy distribution', e); }
+    }
+
+    async function loadBandwidthTrend() {
+        if (!selectedProjectId) return;
+        try {
+            const resp = await apiCall('GET', `/api/v1/stats/bandwidth-trend?project_id=${selectedProjectId}`);
+            const data = resp.data || [];
+            const labels = data.map(d => {
+                const dt = new Date(d.period);
+                return dt.getHours().toString().padStart(2, '0') + ':00';
+            });
+            drawLineChart('bandwidthTrendChart', [
+                { values: data.map(d => d.bytes_received), color: 'var(--accent)' },
+                { values: data.map(d => d.bytes_sent), color: 'var(--green)' },
+            ], labels);
+        } catch (e) { console.error('Failed to load bandwidth trend', e); }
+    }
+
     // === MAIN ===
 
     async function loadStats() {
@@ -749,6 +1131,8 @@
             loadOverview(),
             loadTimeseries(),
             loadFailingProxies(),
+            loadLatencyTrend(),
+            loadProxyRanking(),
             selectedProjectId ? loadProjectDetail() : loadProjectStats(),
         ]);
     }
@@ -758,7 +1142,23 @@
         refreshTimer = setInterval(loadStats, 15000);
     }
 
-    loadStats();
+    // Restore state from URL hash
+    const initialState = parseHash();
+    switchTab(initialState.tab);
+    if (initialState.projectSlug) {
+        // Load projects first to find by slug, then select
+        apiCall('GET', '/api/v1/projects?per_page=100').then(resp => {
+            projectsCache = resp.data || [];
+            const proj = projectsCache.find(p => p.slug === initialState.projectSlug);
+            if (proj) {
+                selectProject(proj.id, proj.name);
+            } else {
+                loadStats();
+            }
+        }).catch(() => loadStats());
+    } else {
+        loadStats();
+    }
     startAutoRefresh();
 
     document.addEventListener('visibilitychange', function() {
