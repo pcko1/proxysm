@@ -131,9 +131,55 @@
         animation: livePulse 2s infinite;
     }
     @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    /* Activity table */
-    .activity-card { margin-bottom: 20px; }
-    .activity-card table { min-width: 500px; }
+    /* Tab switcher */
+    .dash-tabs {
+        display: flex; gap: 4px; margin-bottom: 24px;
+        background: var(--bg-secondary); border: 1px solid var(--border);
+        border-radius: 10px; padding: 4px; width: fit-content;
+    }
+    .dash-tab {
+        padding: 8px 20px; border-radius: 8px; border: none;
+        background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 600;
+        cursor: pointer; transition: all var(--transition-fast); font-family: inherit;
+    }
+    .dash-tab:hover { color: var(--text-secondary); background: var(--bg-hover); }
+    .dash-tab.active { background: var(--accent); color: #fff; }
+    .dash-section { display: none; }
+    .dash-section.active { display: block; }
+    /* Status code bars */
+    .status-bar-track {
+        flex: 1; height: 12px; background: var(--bg-primary);
+        border-radius: 4px; overflow: hidden; display: flex;
+    }
+    .status-bar-2xx { background: var(--green); }
+    .status-bar-3xx { background: var(--accent); }
+    .status-bar-4xx { background: var(--yellow); }
+    .status-bar-5xx { background: var(--red); }
+    /* Pool metrics table */
+    .metrics-table { width: 100%; }
+    .metrics-table td, .metrics-table th { padding: 8px 12px; }
+    .metrics-table thead th { background: var(--bg-primary); font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+    /* Status code legend */
+    .sc-legend { display: flex; gap: 16px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
+    .sc-legend-item { display: flex; align-items: center; gap: 5px; }
+    .sc-legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+    /* Latency histogram */
+    .hist-pool { margin-bottom: 20px; }
+    .hist-pool-name { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+    .hist-bars { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
+    .hist-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .hist-bar {
+        width: 100%; border-radius: 3px 3px 0 0; background: var(--accent);
+        transition: height 0.4s ease; min-height: 0; position: relative;
+    }
+    .hist-bar:hover { opacity: 0.8; }
+    .hist-bar-count {
+        font-size: 10px; color: var(--text-muted); text-align: center;
+        position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+        margin-bottom: 2px; white-space: nowrap;
+    }
+    .hist-labels { display: flex; gap: 4px; margin-top: 4px; }
+    .hist-labels span { flex: 1; text-align: center; font-size: 9px; color: var(--text-muted); }
     @media (max-width: 900px) {
         .stat-cards { grid-template-columns: repeat(2, 1fr); }
         .dashboard-grid { grid-template-columns: 1fr; }
@@ -146,6 +192,7 @@
     }
 </style>
 
+<!-- Page Header -->
 <div class="page-header">
     <h1>Dashboard</h1>
     <div class="page-header-actions">
@@ -154,24 +201,31 @@
     </div>
 </div>
 
-<!-- Stat Cards -->
+<!-- Tab Switcher -->
+<div class="dash-tabs">
+    <button class="dash-tab active" onclick="switchTab('proxies')">Proxies</button>
+    <button class="dash-tab" onclick="switchTab('pools')">Pools</button>
+    <button class="dash-tab" onclick="switchTab('projects')">Projects</button>
+</div>
+
+<!-- SECTION 1: PROXIES -->
+<div class="dash-section active" id="section-proxies">
 <div class="stat-cards">
     <div class="stat-card">
         <div class="stat-label">Total Proxies</div>
         <div class="stat-number" id="statProxies">-</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Pools</div>
-        <div class="stat-number" id="statPools">-</div>
+        <div class="stat-label">Healthy</div>
+        <div class="stat-number" id="statHealthy" style="color:var(--green)">-</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Projects</div>
-        <div class="stat-number" id="statProjects">-</div>
+        <div class="stat-label">Degraded</div>
+        <div class="stat-number" id="statDegraded" style="color:var(--yellow)">-</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Requests (24h)</div>
-        <div class="stat-number" id="statRequests">-</div>
-        <div class="stat-sub" id="statRequestsSub"></div>
+        <div class="stat-label">Dead</div>
+        <div class="stat-number" id="statDead" style="color:var(--red)">-</div>
     </div>
 </div>
 
@@ -217,23 +271,27 @@
     </div>
 </div>
 
-<div class="dashboard-grid">
-    <!-- Top Failing Proxies -->
-    <div class="dash-card">
-        <h3><span>Top Failing Proxies</span></h3>
-        <div id="failingProxiesContainer">
-            <table>
-                <thead><tr><th>Proxy</th><th>Status</th><th>Latency</th></tr></thead>
-                <tbody id="failingProxiesBody"></tbody>
-            </table>
-        </div>
-        <div class="empty-state" id="failingEmpty" style="display:none;padding:30px 16px">
-            <div class="empty-state-icon" style="font-size:28px">&#9989;</div>
-            <h3>All Clear</h3>
-            <p>No proxies with issues.</p>
-        </div>
+<!-- Top Failing Proxies (full width) -->
+<div class="dash-card" style="margin-bottom:20px">
+    <h3><span>Top Failing Proxies</span></h3>
+    <div id="failingProxiesContainer">
+        <table>
+            <thead><tr><th>Proxy</th><th>Status</th><th>Latency</th></tr></thead>
+            <tbody id="failingProxiesBody"></tbody>
+        </table>
     </div>
+    <div class="empty-state" id="failingEmpty" style="display:none;padding:30px 16px">
+        <div class="empty-state-icon" style="font-size:28px">&#9989;</div>
+        <h3>All Clear</h3>
+        <p>No proxies with issues.</p>
+    </div>
+</div>
 
+</div><!-- /section-proxies -->
+
+<!-- SECTION 2: POOLS -->
+<div class="dash-section" id="section-pools">
+<div class="dashboard-grid">
     <!-- Pool Utilization -->
     <div class="dash-card">
         <h3><span>Pool Utilization</span></h3>
@@ -244,31 +302,84 @@
             <p>Create pools to see utilization.</p>
         </div>
     </div>
+
+    <!-- Pool Metrics -->
+    <div class="dash-card">
+        <h3><span>Pool Performance</span></h3>
+        <div id="poolMetricsContainer">
+            <table class="metrics-table">
+                <thead><tr><th>Pool</th><th>Requests</th><th>Error Rate</th><th>Median Latency</th></tr></thead>
+                <tbody id="poolMetricsBody"></tbody>
+            </table>
+        </div>
+        <div class="empty-state" id="poolMetricsEmpty" style="display:none;padding:30px 16px">
+            <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
+            <h3>No Data</h3>
+            <p>Pool metrics will appear once traffic flows.</p>
+        </div>
+    </div>
 </div>
 
-<!-- Recent Activity -->
-<div class="dash-card activity-card">
-    <h3><span>Recent Activity</span></h3>
-    <div id="activityTableContainer">
-        <table>
-            <thead>
-                <tr><th>Time</th><th>Requests</th><th>Success</th><th>Failed</th><th>Avg Latency</th></tr>
-            </thead>
-            <tbody id="activityTableBody"></tbody>
-        </table>
-    </div>
-    <div class="empty-state" id="activityEmpty" style="display:none;padding:30px 16px">
-        <div class="empty-state-icon" style="font-size:28px">&#128200;</div>
-        <h3>No Activity Yet</h3>
-        <p>Requests will appear here once traffic starts flowing.</p>
+<!-- Latency Histogram -->
+<div class="dash-card" style="margin-bottom:20px">
+    <h3><span>Latency Distribution</span></h3>
+    <div id="latencyHistContainer"></div>
+    <div class="empty-state" id="latencyHistEmpty" style="display:none;padding:30px 16px">
+        <div class="empty-state-icon" style="font-size:28px">&#128202;</div>
+        <h3>No Data</h3>
+        <p>Latency data will appear once traffic flows.</p>
     </div>
 </div>
+
+</div><!-- /section-pools -->
+
+<!-- SECTION 3: PROJECTS -->
+<div class="dash-section" id="section-projects">
+
+<!-- Per-project stats table -->
+<div class="dash-card" style="margin-bottom:20px">
+    <h3><span>Project Overview</span></h3>
+    <div id="projectStatsContainer">
+        <table class="metrics-table">
+            <thead><tr><th>Project</th><th>Requests (24h)</th><th>Bandwidth</th><th>Median Latency</th><th>Error Rate</th></tr></thead>
+            <tbody id="projectStatsBody"></tbody>
+        </table>
+    </div>
+    <div class="empty-state" id="projectStatsEmpty" style="display:none;padding:30px 16px">
+        <div class="empty-state-icon" style="font-size:28px">&#128200;</div>
+        <h3>No Projects</h3>
+        <p>Create projects to see stats.</p>
+    </div>
+</div>
+
+<!-- Status Code Breakdown -->
+<div class="dash-card">
+    <h3><span>Status Code Breakdown</span></h3>
+    <div id="statusCodeContainer"></div>
+    <div class="empty-state" id="statusCodeEmpty" style="display:none;padding:30px 16px">
+        <div class="empty-state-icon" style="font-size:28px">&#128200;</div>
+        <h3>No Data</h3>
+        <p>Status codes will appear once requests flow.</p>
+    </div>
+    <div class="sc-legend" id="statusCodeLegend" style="display:none">
+        <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--green)"></span>2xx</div>
+        <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--accent)"></span>3xx</div>
+        <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--yellow)"></span>4xx</div>
+        <div class="sc-legend-item"><span class="sc-legend-dot" style="background:var(--red)"></span>5xx</div>
+    </div>
+</div>
+</div><!-- /section-projects -->
 {% endblock %}
 
 {% block scripts %}
 <script>
     let currentGranularity = '1hour';
     let refreshTimer = null;
+
+    function switchTab(tab) {
+        document.querySelectorAll('.dash-tab').forEach(btn => btn.classList.toggle('active', btn.textContent.toLowerCase() === tab));
+        document.querySelectorAll('.dash-section').forEach(sec => sec.classList.toggle('active', sec.id === 'section-' + tab));
+    }
 
     function formatNum(n) {
         if (n === null || n === undefined) return '-';
@@ -395,35 +506,6 @@
         labelsContainer.innerHTML = labelsHtml;
     }
 
-    function populateActivityTable(data) {
-        const tbody = document.getElementById('activityTableBody');
-        const container = document.getElementById('activityTableContainer');
-        const empty = document.getElementById('activityEmpty');
-
-        if (!data || data.length === 0) {
-            container.style.display = 'none';
-            empty.style.display = 'block';
-            return;
-        }
-        container.style.display = '';
-        empty.style.display = 'none';
-
-        tbody.innerHTML = data.slice(-15).reverse().map(point => {
-            const dt = new Date(point.period_start);
-            const time = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-            const date = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const latency = point.avg_response_time_ms !== null ? point.avg_response_time_ms.toFixed(0) + ' ms' : '-';
-            const failStyle = point.failed_requests > 0 ? 'color:var(--red);font-weight:600' : '';
-            return `<tr>
-                <td><span class="mono">${date} ${time}</span></td>
-                <td><span class="mono">${formatNum(point.total_requests)}</span></td>
-                <td><span class="mono" style="color:var(--green)">${formatNum(point.successful_requests)}</span></td>
-                <td><span class="mono" style="${failStyle}">${formatNum(point.failed_requests)}</span></td>
-                <td><span class="mono">${latency}</span></td>
-            </tr>`;
-        }).join('');
-    }
-
     function setGranularity(g) {
         currentGranularity = g;
         document.querySelectorAll('#granBtns button').forEach(btn => btn.classList.toggle('active', btn.dataset.g === g));
@@ -434,12 +516,9 @@
         try {
             const d = await apiCall('GET', '/api/v1/stats/overview');
             document.getElementById('statProxies').textContent = formatNum(d.total_proxies);
-            document.getElementById('statPools').textContent = formatNum(d.total_pools);
-            document.getElementById('statProjects').textContent = formatNum(d.total_projects);
-            document.getElementById('statRequests').textContent = formatNum(d.total_requests_24h);
-            const rate = d.total_requests_24h > 0 ? Math.round(d.successful_requests_24h / d.total_requests_24h * 100) : 0;
-            document.getElementById('statRequestsSub').textContent = d.total_requests_24h > 0
-                ? `${rate}% success | ${formatBytes(d.bytes_sent_24h + d.bytes_received_24h)} transferred` : '';
+            document.getElementById('statHealthy').textContent = formatNum(d.healthy_proxies);
+            document.getElementById('statDegraded').textContent = formatNum(d.degraded_proxies);
+            document.getElementById('statDead').textContent = formatNum(d.dead_proxies);
             drawHealthRing(d.healthy_proxies, d.degraded_proxies, d.dead_proxies, d.unknown_proxies);
         } catch (e) { console.error('Failed to load overview', e); }
     }
@@ -450,11 +529,9 @@
             const resp = await apiCall('GET', `/api/v1/stats/timeseries?granularity=${currentGranularity}&hours=${hours}`);
             const data = resp.data || [];
             drawTimeseries(data, currentGranularity);
-            populateActivityTable(data);
         } catch (e) {
             console.error('Failed to load timeseries', e);
             drawTimeseries([], currentGranularity);
-            populateActivityTable([]);
         }
     }
 
@@ -507,8 +584,129 @@
         } catch (e) { console.error('Failed to load failing proxies', e); }
     }
 
+    async function loadPoolMetrics() {
+        try {
+            const resp = await apiCall('GET', '/api/v1/stats/pool-metrics');
+            const data = resp.data || [];
+            const tbody = document.getElementById('poolMetricsBody');
+            const container = document.getElementById('poolMetricsContainer');
+            const empty = document.getElementById('poolMetricsEmpty');
+            if (data.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
+            container.style.display = ''; empty.style.display = 'none';
+            tbody.innerHTML = data.map(p => {
+                const errStyle = p.error_rate > 5 ? 'color:var(--red);font-weight:600' : '';
+                const latency = p.median_latency_ms !== null ? p.median_latency_ms.toFixed(0) + ' ms' : '-';
+                return `<tr>
+                    <td>${esc(p.pool_name)}</td>
+                    <td class="mono">${formatNum(p.total_requests)}</td>
+                    <td class="mono" style="${errStyle}">${p.error_rate}%</td>
+                    <td class="mono">${latency}</td>
+                </tr>`;
+            }).join('');
+        } catch (e) { console.error('Failed to load pool metrics', e); }
+    }
+
+    async function loadLatencyHistogram() {
+        try {
+            const resp = await apiCall('GET', '/api/v1/stats/pool-latency-histogram');
+            const data = resp.data || [];
+            const container = document.getElementById('latencyHistContainer');
+            const empty = document.getElementById('latencyHistEmpty');
+            if (data.length === 0) { container.innerHTML = ''; empty.style.display = 'block'; return; }
+            empty.style.display = 'none';
+
+            container.innerHTML = data.map(pool => {
+                const maxCount = Math.max(...pool.buckets.map(b => b.count), 1);
+                const barsHtml = pool.buckets.map(b => {
+                    const pct = (b.count / maxCount * 100);
+                    return `<div class="hist-bar-wrap">
+                        <div class="hist-bar" style="height:${Math.max(pct, b.count > 0 ? 2 : 0)}%">
+                            ${b.count > 0 ? `<span class="hist-bar-count">${b.count}</span>` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+                const labelsHtml = pool.buckets.map(b => `<span>${b.label}</span>`).join('');
+                return `<div class="hist-pool">
+                    <div class="hist-pool-name">${esc(pool.pool_name)}</div>
+                    <div class="hist-bars">${barsHtml}</div>
+                    <div class="hist-labels">${labelsHtml}</div>
+                </div>`;
+            }).join('');
+        } catch (e) { console.error('Failed to load latency histogram', e); }
+    }
+
+    async function loadProjectStats() {
+        try {
+            // Load projects list
+            const projResp = await apiCall('GET', '/api/v1/projects?per_page=100');
+            const projects = projResp.data || [];
+            const tbody = document.getElementById('projectStatsBody');
+            const container = document.getElementById('projectStatsContainer');
+            const empty = document.getElementById('projectStatsEmpty');
+            if (projects.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
+            container.style.display = ''; empty.style.display = 'none';
+
+            // Load per-project stats
+            const statsPromises = projects.map(p => apiCall('GET', `/api/v1/projects/${p.id}/stats`).catch(() => null));
+            const stats = await Promise.all(statsPromises);
+
+            tbody.innerHTML = projects.map((p, i) => {
+                const s = stats[i];
+                if (!s) return `<tr><td>${esc(p.name)}</td><td colspan="4" class="mono">-</td></tr>`;
+                const bw = formatBytes((s.bytes_sent || 0) + (s.bytes_received || 0));
+                const latency = s.median_response_time_ms !== null ? s.median_response_time_ms.toFixed(0) + ' ms' : (s.avg_response_time_ms !== null ? s.avg_response_time_ms.toFixed(0) + ' ms' : '-');
+                const errStyle = s.error_rate > 5 ? 'color:var(--red);font-weight:600' : '';
+                return `<tr>
+                    <td>${esc(p.name)}</td>
+                    <td class="mono">${formatNum(s.total_requests)}</td>
+                    <td class="mono">${bw}</td>
+                    <td class="mono">${latency}</td>
+                    <td class="mono" style="${errStyle}">${s.error_rate}%</td>
+                </tr>`;
+            }).join('');
+        } catch (e) { console.error('Failed to load project stats', e); }
+    }
+
+    async function loadStatusCodes() {
+        try {
+            const resp = await apiCall('GET', '/api/v1/stats/status-codes');
+            const data = resp.data || [];
+            const container = document.getElementById('statusCodeContainer');
+            const empty = document.getElementById('statusCodeEmpty');
+            const legend = document.getElementById('statusCodeLegend');
+            if (data.length === 0) { container.innerHTML = ''; empty.style.display = 'block'; legend.style.display = 'none'; return; }
+            empty.style.display = 'none'; legend.style.display = 'flex';
+
+            container.innerHTML = data.map(p => {
+                const pct2 = p.total > 0 ? (p.status_2xx / p.total * 100) : 0;
+                const pct3 = p.total > 0 ? (p.status_3xx / p.total * 100) : 0;
+                const pct4 = p.total > 0 ? (p.status_4xx / p.total * 100) : 0;
+                const pct5 = p.total > 0 ? (p.status_5xx / p.total * 100) : 0;
+                return `<div class="pool-bar-row">
+                    <span class="pool-bar-name" title="${esc(p.project_name)}">${esc(p.project_name)}</span>
+                    <div class="status-bar-track">
+                        <div class="status-bar-2xx" style="width:${pct2}%"></div>
+                        <div class="status-bar-3xx" style="width:${pct3}%"></div>
+                        <div class="status-bar-4xx" style="width:${pct4}%"></div>
+                        <div class="status-bar-5xx" style="width:${pct5}%"></div>
+                    </div>
+                    <span class="pool-bar-pct">${formatNum(p.total)}</span>
+                </div>`;
+            }).join('');
+        } catch (e) { console.error('Failed to load status codes', e); }
+    }
+
     async function loadStats() {
-        await Promise.all([loadOverview(), loadTimeseries(), loadPoolUtilization(), loadFailingProxies()]);
+        await Promise.all([
+            loadOverview(),
+            loadTimeseries(),
+            loadPoolUtilization(),
+            loadFailingProxies(),
+            loadPoolMetrics(),
+            loadLatencyHistogram(),
+            loadProjectStats(),
+            loadStatusCodes(),
+        ]);
     }
 
     function startAutoRefresh() {

@@ -57,6 +57,17 @@ async def get_overview_stats(
     )
     m = metrics_row.one()
 
+    # Median latency from request_log (more resilient to outliers)
+    median_row = await db.execute(
+        text("""
+            SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY response_time_ms) AS median
+            FROM request_log
+            WHERE created_at >= :cutoff AND response_time_ms IS NOT NULL
+        """),
+        {"cutoff": cutoff},
+    )
+    median_val = median_row.scalar()
+
     return OverviewStats(
         total_proxies=total_proxies,
         healthy_proxies=status_map.get("healthy", 0),
@@ -71,6 +82,7 @@ async def get_overview_stats(
         bytes_sent_24h=int(m[3]),
         bytes_received_24h=int(m[4]),
         avg_response_time_ms=round(m[5], 2) if m[5] is not None else None,
+        median_response_time_ms=round(median_val, 2) if median_val is not None else None,
     )
 
 
@@ -139,13 +151,20 @@ async def get_pool_metrics(
             COALESCE(SUM(m.total_requests), 0) AS total_requests,
             COALESCE(SUM(m.successful_requests), 0) AS successful_requests,
             COALESCE(SUM(m.failed_requests), 0) AS failed_requests,
-            AVG(m.avg_response_time_ms) AS avg_response_time_ms
+            AVG(m.avg_response_time_ms) AS avg_response_time_ms,
+            rl_stats.median_ms
         FROM metrics_rollup m
         JOIN pools p ON p.id = m.entity_id
+        LEFT JOIN LATERAL (
+            SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY rl.response_time_ms) AS median_ms
+            FROM request_log rl
+            JOIN pool_proxies pp ON pp.proxy_id = rl.proxy_id AND pp.pool_id = m.entity_id
+            WHERE rl.created_at >= :cutoff AND rl.response_time_ms IS NOT NULL
+        ) rl_stats ON true
         WHERE m.entity_type = 'pool'
           AND m.period_granularity = '5min'
           AND m.period_start >= :cutoff
-        GROUP BY m.entity_id, p.name
+        GROUP BY m.entity_id, p.name, rl_stats.median_ms
         ORDER BY total_requests DESC
     """)
 
@@ -161,6 +180,54 @@ async def get_pool_metrics(
             "total_requests": total,
             "error_rate": error_rate,
             "avg_latency_ms": round(row.avg_response_time_ms, 1) if row.avg_response_time_ms else None,
+            "median_latency_ms": round(row.median_ms, 1) if row.median_ms else None,
+        })
+    return {"data": data}
+
+
+@router.get("/pool-latency-histogram")
+async def get_pool_latency_histogram(
+    hours: int = Query(24, ge=1, le=168),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """Latency distribution histogram per pool from request_log."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    sql = text("""
+        SELECT
+            pp.pool_id,
+            p.name AS pool_name,
+            COUNT(*) FILTER (WHERE rl.response_time_ms < 100) AS bucket_0_100,
+            COUNT(*) FILTER (WHERE rl.response_time_ms >= 100 AND rl.response_time_ms < 300) AS bucket_100_300,
+            COUNT(*) FILTER (WHERE rl.response_time_ms >= 300 AND rl.response_time_ms < 500) AS bucket_300_500,
+            COUNT(*) FILTER (WHERE rl.response_time_ms >= 500 AND rl.response_time_ms < 1000) AS bucket_500_1000,
+            COUNT(*) FILTER (WHERE rl.response_time_ms >= 1000 AND rl.response_time_ms < 3000) AS bucket_1000_3000,
+            COUNT(*) FILTER (WHERE rl.response_time_ms >= 3000) AS bucket_3000_plus,
+            COUNT(*) AS total
+        FROM request_log rl
+        JOIN pool_proxies pp ON pp.proxy_id = rl.proxy_id
+        JOIN pools p ON p.id = pp.pool_id
+        WHERE rl.created_at >= :cutoff AND rl.response_time_ms IS NOT NULL
+        GROUP BY pp.pool_id, p.name
+        ORDER BY total DESC
+    """)
+
+    rows = await db.execute(sql, {"cutoff": cutoff})
+    data = []
+    for row in rows:
+        data.append({
+            "pool_id": str(row.pool_id),
+            "pool_name": row.pool_name,
+            "buckets": [
+                {"label": "<100ms", "count": row.bucket_0_100},
+                {"label": "100-300ms", "count": row.bucket_100_300},
+                {"label": "300-500ms", "count": row.bucket_300_500},
+                {"label": "500ms-1s", "count": row.bucket_500_1000},
+                {"label": "1-3s", "count": row.bucket_1000_3000},
+                {"label": "3s+", "count": row.bucket_3000_plus},
+            ],
+            "total": row.total,
         })
     return {"data": data}
 
@@ -191,12 +258,32 @@ async def _entity_stats(
     failed = int(row[2])
     error_rate = (failed / total * 100) if total > 0 else 0.0
 
+    # Median latency from request_log
+    median_result = await db.execute(
+        text("""
+            SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY response_time_ms) AS median
+            FROM request_log
+            WHERE proxy_id IN (
+                SELECT proxy_id FROM pool_proxies WHERE pool_id = :eid
+                UNION SELECT id FROM proxies WHERE id = :eid
+            )
+            AND response_time_ms IS NOT NULL
+        """) if entity_type in ("pool", "proxy") else text("""
+            SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY response_time_ms) AS median
+            FROM request_log
+            WHERE project_id = :eid AND response_time_ms IS NOT NULL
+        """),
+        {"eid": entity_id},
+    )
+    median_val = median_result.scalar()
+
     return EntityStats(
         total_requests=total,
         successful_requests=int(row[1]),
         failed_requests=failed,
         error_rate=round(error_rate, 2),
         avg_response_time_ms=round(row[5], 2) if row[5] is not None else None,
+        median_response_time_ms=round(median_val, 2) if median_val is not None else None,
         p95_response_time_ms=round(row[6], 2) if row[6] is not None else None,
         bytes_sent=int(row[3]),
         bytes_received=int(row[4]),

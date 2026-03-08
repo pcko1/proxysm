@@ -17,6 +17,7 @@ class OverviewStats(BaseModel):
     bytes_sent_24h: int = 0
     bytes_received_24h: int = 0
     avg_response_time_ms: float | None = None
+    median_response_time_ms: float | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -27,6 +28,7 @@ class EntityStats(BaseModel):
     failed_requests: int = 0
     error_rate: float = 0.0
     avg_response_time_ms: float | None = None
+    median_response_time_ms: float | None = None
     p95_response_time_ms: float | None = None
     bytes_sent: int = 0
     bytes_received: int = 0
