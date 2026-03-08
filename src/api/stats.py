@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import admin_auth
@@ -11,7 +11,7 @@ from src.models.metrics import MetricsRollup
 from src.models.pool import Pool
 from src.models.project import Project
 from src.models.proxy import Proxy
-from src.schemas.stats import EntityStats, OverviewStats, TimeseriesPoint, TimeseriesResponse
+from src.schemas.stats import EntityStats, OverviewStats, StatusCodeBreakdown, TimeseriesPoint, TimeseriesResponse
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -72,6 +72,55 @@ async def get_overview_stats(
         bytes_received_24h=int(m[4]),
         avg_response_time_ms=round(m[5], 2) if m[5] is not None else None,
     )
+
+
+@router.get("/status-codes")
+async def get_status_codes(
+    project_id: uuid.UUID | None = Query(None),
+    hours: int = Query(24, ge=1, le=168),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """Status code breakdown per project from request_log."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    filters = "WHERE rl.created_at >= :cutoff"
+    params: dict = {"cutoff": cutoff}
+    if project_id:
+        filters += " AND rl.project_id = :project_id"
+        params["project_id"] = project_id
+
+    sql = text(f"""
+        SELECT
+            rl.project_id,
+            p.name AS project_name,
+            COUNT(*) FILTER (WHERE rl.status_code >= 200 AND rl.status_code < 300) AS status_2xx,
+            COUNT(*) FILTER (WHERE rl.status_code >= 300 AND rl.status_code < 400) AS status_3xx,
+            COUNT(*) FILTER (WHERE rl.status_code >= 400 AND rl.status_code < 500) AS status_4xx,
+            COUNT(*) FILTER (WHERE rl.status_code >= 500 OR rl.status_code IS NULL) AS status_5xx,
+            COUNT(*) AS total
+        FROM request_log rl
+        JOIN projects p ON p.id = rl.project_id
+        {filters}
+        GROUP BY rl.project_id, p.name
+        ORDER BY total DESC
+    """)
+
+    rows = await db.execute(sql, params)
+    return {
+        "data": [
+            StatusCodeBreakdown(
+                project_id=str(row.project_id),
+                project_name=row.project_name,
+                status_2xx=row.status_2xx,
+                status_3xx=row.status_3xx,
+                status_4xx=row.status_4xx,
+                status_5xx=row.status_5xx,
+                total=row.total,
+            )
+            for row in rows
+        ]
+    }
 
 
 async def _entity_stats(

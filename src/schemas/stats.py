@@ -47,3 +47,15 @@ class TimeseriesPoint(BaseModel):
 class TimeseriesResponse(BaseModel):
     granularity: str
     data: list[TimeseriesPoint]
+
+
+class StatusCodeBreakdown(BaseModel):
+    project_id: str
+    project_name: str
+    status_2xx: int = 0
+    status_3xx: int = 0
+    status_4xx: int = 0
+    status_5xx: int = 0
+    total: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
