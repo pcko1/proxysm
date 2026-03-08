@@ -123,6 +123,48 @@ async def get_status_codes(
     }
 
 
+@router.get("/pool-metrics")
+async def get_pool_metrics(
+    hours: int = Query(24, ge=1, le=168),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """Aggregate metrics per pool from metrics_rollup (24h window)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    sql = text("""
+        SELECT
+            m.entity_id AS pool_id,
+            p.name AS pool_name,
+            COALESCE(SUM(m.total_requests), 0) AS total_requests,
+            COALESCE(SUM(m.successful_requests), 0) AS successful_requests,
+            COALESCE(SUM(m.failed_requests), 0) AS failed_requests,
+            AVG(m.avg_response_time_ms) AS avg_response_time_ms
+        FROM metrics_rollup m
+        JOIN pools p ON p.id = m.entity_id
+        WHERE m.entity_type = 'pool'
+          AND m.period_granularity = '5min'
+          AND m.period_start >= :cutoff
+        GROUP BY m.entity_id, p.name
+        ORDER BY total_requests DESC
+    """)
+
+    rows = await db.execute(sql, {"cutoff": cutoff})
+    data = []
+    for row in rows:
+        total = row.total_requests
+        failed = row.failed_requests
+        error_rate = round((failed / total * 100), 1) if total > 0 else 0.0
+        data.append({
+            "pool_id": str(row.pool_id),
+            "pool_name": row.pool_name,
+            "total_requests": total,
+            "error_rate": error_rate,
+            "avg_latency_ms": round(row.avg_response_time_ms, 1) if row.avg_response_time_ms else None,
+        })
+    return {"data": data}
+
+
 async def _entity_stats(
     db: AsyncSession,
     entity_type: str,
