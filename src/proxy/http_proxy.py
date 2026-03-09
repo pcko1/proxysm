@@ -122,7 +122,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         creds = await _parse_proxy_auth(headers_raw)
         if creds is None:
             writer.write(b"HTTP/1.1 407 Proxy Authentication Required\r\n"
-                         b"Proxy-Authenticate: Basic realm=\"ProxyManager\"\r\n"
+                         b"Proxy-Authenticate: Basic realm=\"Proxism\"\r\n"
                          b"Content-Length: 0\r\n\r\n")
             await writer.drain()
             return
@@ -131,7 +131,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         auth_result = await _authenticate(slug, api_key)
         if auth_result is None:
             writer.write(b"HTTP/1.1 407 Proxy Authentication Required\r\n"
-                         b"Proxy-Authenticate: Basic realm=\"ProxyManager\"\r\n"
+                         b"Proxy-Authenticate: Basic realm=\"Proxism\"\r\n"
                          b"Content-Length: 0\r\n\r\n")
             await writer.drain()
             return
