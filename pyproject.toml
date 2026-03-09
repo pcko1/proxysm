@@ -1,5 +1,5 @@
 [project]
-name = "proxism"
+name = "proxysm"
 version = "0.1.0"
 description = "Self-hosted proxy management platform with intelligent rotation"
 requires-python = ">=3.11"

@@ -20,7 +20,7 @@ structlog.configure(
 log = structlog.get_logger()
 
 app = FastAPI(
-    title="Proxism",
+    title="Proxysm",
     version="0.1.0",
     description="Self-hosted proxy management platform",
     docs_url="/docs",
@@ -30,7 +30,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup() -> None:
-    log.info("starting_proxism", version="0.1.0")
+    log.info("starting_proxysm", version="0.1.0")
     await get_redis()
 
     # Import and start background health checker
@@ -46,7 +46,7 @@ async def startup() -> None:
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
-    log.info("shutting_down_proxism")
+    log.info("shutting_down_proxysm")
 
     from src.proxy.servers import stop_proxy_servers
 
