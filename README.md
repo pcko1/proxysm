@@ -1,4 +1,4 @@
-<h1 align="center">Proxysm</h1>
+<h1 align="center">Proxysm: your proxy prism</h1>
 
 <div align="center">
 
