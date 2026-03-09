@@ -28,4 +28,5 @@ async def system_info(_: None = Depends(admin_auth)):
         "metrics_rollup_interval": settings.metrics_rollup_interval,
         "bandwidth_flush_interval": settings.bandwidth_flush_interval,
         "rate_limit_window_seconds": settings.rate_limit_window_seconds,
+        "prometheus_enabled": settings.prometheus_enabled,
     }

@@ -31,6 +31,15 @@ from src.database import async_session_factory
 from src.models.proxy import Proxy
 from src.redis import get_redis
 
+_prom = None
+
+def _get_prom():
+    global _prom
+    if _prom is None and settings.prometheus_enabled:
+        import src.prometheus as p
+        _prom = p
+    return _prom
+
 log = structlog.get_logger()
 
 _scheduler: AsyncIOScheduler | None = None
@@ -191,6 +200,19 @@ async def check_all_proxies() -> None:
 
         await session.commit()
 
+    # Update Prometheus gauges
+    prom = _get_prom()
+    if prom:
+        # Count proxies by health status
+        status_counts = {"healthy": 0, "degraded": 0, "dead": 0, "unknown": 0}
+        for proxy in proxies:
+            s = proxy.last_health_status or "unknown"
+            if s in status_counts:
+                status_counts[s] += 1
+        for status, count in status_counts.items():
+            prom.PROXIES_TOTAL.labels(status=status).set(count)
+        prom.PROXIES_ACTIVE.set(len(proxies))
+
     log.info("health_check_complete", checked=len(proxies_to_check))
 
 
@@ -245,6 +267,11 @@ async def check_single_proxy(proxy: Proxy) -> tuple[str, float, str | None]:
         external_ip = _parse_external_ip(body)
 
         # --- SUCCESS PATH ---
+        prom = _get_prom()
+        if prom:
+            prom.HEALTH_CHECKS_TOTAL.labels(result="success").inc()
+            prom.HEALTH_CHECK_DURATION.observe(elapsed_ms / 1000)
+
         redis = await get_redis()
 
         # Reset failure counter, increment success counter
@@ -286,10 +313,17 @@ async def check_single_proxy(proxy: Proxy) -> tuple[str, float, str | None]:
                         avg=proxy.avg_latency_ms,
                     )
 
+        if prom and new_status != prev_status:
+            prom.HEALTH_CHECK_TRANSITIONS.labels(from_status=prev_status, to_status=new_status).inc()
+
         return new_status, latency, external_ip
 
     except Exception:
         # --- FAILURE PATH ---
+        prom = _get_prom()
+        if prom:
+            prom.HEALTH_CHECKS_TOTAL.labels(result="failure").inc()
+
         redis = await get_redis()
 
         # Reset success counter, increment failure counter
@@ -320,6 +354,9 @@ async def check_single_proxy(proxy: Proxy) -> tuple[str, float, str | None]:
             await redis.set(_dead_backoff_key(proxy_id), str(new_backoff), ex=3600)
         else:
             new_status = "degraded"
+
+        if prom and new_status != prev_status:
+            prom.HEALTH_CHECK_TRANSITIONS.labels(from_status=prev_status, to_status=new_status).inc()
 
         return new_status, 0.0, None
 

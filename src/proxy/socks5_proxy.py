@@ -16,6 +16,15 @@ from src.redis import get_redis
 from src.rotation.engine import PoolExhaustedError, RotationEngine
 from sqlalchemy import select
 
+_prom = None
+
+def _get_prom():
+    global _prom
+    if _prom is None and settings.prometheus_enabled:
+        import src.prometheus as p
+        _prom = p
+    return _prom
+
 log = structlog.get_logger()
 
 # Auth cache: key -> (api_key_hash, pool_id, pool_strategy, expiry_ts)
@@ -102,6 +111,10 @@ def _build_socks5_reply(rep: int, bind_addr: bytes = b"\x00\x00\x00\x00", bind_p
 async def handle_socks5_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     """Handle an incoming SOCKS5 proxy connection (RFC 1928 / 1929)."""
     peername = writer.get_extra_info("peername")
+    prom = _get_prom()
+    if prom:
+        prom.PROXY_CONNECTIONS_TOTAL.labels(protocol="socks5").inc()
+        prom.PROXY_ACTIVE_CONNECTIONS.labels(protocol="socks5").inc()
     try:
         # 1. Greeting: version + number of auth methods + methods
         greeting = await asyncio.wait_for(reader.readexactly(2), timeout=30)
@@ -132,10 +145,14 @@ async def handle_socks5_client(reader: asyncio.StreamReader, writer: asyncio.Str
         # Map username -> slug, password -> api_key
         auth_result = await _authenticate(username, password)
         if auth_result is None:
+            if prom:
+                prom.AUTH_ATTEMPTS_TOTAL.labels(result="failure").inc()
             # Auth failure
             writer.write(b"\x01\x01")  # version 1, status failure
             await writer.drain()
             return
+        if prom:
+            prom.AUTH_ATTEMPTS_TOTAL.labels(result="success").inc()
         writer.write(b"\x01\x00")  # version 1, status success
         await writer.drain()
         pool_id, strategy = auth_result
@@ -170,7 +187,11 @@ async def handle_socks5_client(reader: asyncio.StreamReader, writer: asyncio.Str
         engine = RotationEngine(redis)
         try:
             upstream = await engine.get_next_proxy(pool_id, strategy)
+            if prom:
+                prom.ROTATION_TOTAL.labels(pool_id=pool_id, strategy=strategy).inc()
         except PoolExhaustedError:
+            if prom:
+                prom.ROTATION_EXHAUSTED.labels(pool_id=pool_id).inc()
             writer.write(_build_socks5_reply(REP_GENERAL_FAILURE))
             await writer.drain()
             return
@@ -226,6 +247,10 @@ async def handle_socks5_client(reader: asyncio.StreamReader, writer: asyncio.Str
         writer.write(_build_socks5_reply(REP_SUCCESS))
         await writer.drain()
 
+        if prom:
+            prom.PROXY_REQUESTS_TOTAL.labels(project_id="", pool_id=pool_id, protocol="socks5").inc()
+            prom.PROXY_REQUESTS_SUCCESS.labels(project_id="", pool_id=pool_id).inc()
+
         # 8. Bidirectional relay
         await asyncio.gather(
             _relay(reader, up_writer),
@@ -237,6 +262,8 @@ async def handle_socks5_client(reader: asyncio.StreamReader, writer: asyncio.Str
     except Exception:
         log.exception("socks5_proxy_error", peer=str(peername))
     finally:
+        if prom:
+            prom.PROXY_ACTIVE_CONNECTIONS.labels(protocol="socks5").dec()
         try:
             writer.close()
             await writer.wait_closed()

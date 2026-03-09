@@ -28,6 +28,16 @@ app = FastAPI(
 )
 
 
+# Prometheus metrics (conditional on config flag)
+if settings.prometheus_enabled:
+    from src.prometheus import APP_INFO, PrometheusMiddleware, metrics_endpoint
+
+    APP_INFO.info({"version": "0.1.0", "app": "proxysm"})
+    app.add_middleware(PrometheusMiddleware)
+    app.add_route("/metrics", metrics_endpoint, methods=["GET"])
+    log.info("prometheus_enabled", endpoint="/metrics")
+
+
 @app.on_event("startup")
 async def startup() -> None:
     log.info("starting_proxysm", version="0.1.0")

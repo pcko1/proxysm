@@ -183,6 +183,10 @@
             <span class="settings-label">SOCKS5 Proxy Port</span>
             <span class="settings-value" id="setSocksPort">-</span>
         </div>
+        <div class="settings-row">
+            <span class="settings-label">Prometheus Metrics</span>
+            <span class="settings-value" id="setPrometheus">-</span>
+        </div>
     </div>
 
     <!-- Retention Policy -->
@@ -281,6 +285,7 @@
             document.getElementById('setHcConcurrency').textContent = data.health_check_concurrency || 200;
             document.getElementById('setHttpPort').textContent = data.proxy_http_port || 9080;
             document.getElementById('setSocksPort').textContent = data.proxy_socks5_port || 9081;
+            document.getElementById('setPrometheus').textContent = data.prometheus_enabled ? 'Enabled (/metrics)' : 'Disabled';
             document.getElementById('setLogRetention').textContent = (data.request_log_retention_days || 7) + ' days';
             document.getElementById('set5minRetention').textContent = (data.metrics_5min_retention_days || 7) + ' days';
             document.getElementById('set1hourRetention').textContent = (data.metrics_1hour_retention_days || 90) + ' days';
@@ -293,6 +298,7 @@
             document.getElementById('setHcConcurrency').textContent = '200';
             document.getElementById('setHttpPort').textContent = '9080';
             document.getElementById('setSocksPort').textContent = '9081';
+            document.getElementById('setPrometheus').textContent = 'Disabled';
             document.getElementById('setLogRetention').textContent = '7 days';
             document.getElementById('set5minRetention').textContent = '7 days';
             document.getElementById('set1hourRetention').textContent = '90 days';

@@ -18,6 +18,16 @@ from src.rotation.engine import PoolExhaustedError, RotationEngine
 from src.services.request_logger import RequestLogger
 from sqlalchemy import select
 
+# Prometheus (lazy — only imported when enabled)
+_prom = None
+
+def _get_prom():
+    global _prom
+    if _prom is None and settings.prometheus_enabled:
+        import src.prometheus as p
+        _prom = p
+    return _prom
+
 log = structlog.get_logger()
 
 _request_logger = RequestLogger()
@@ -104,6 +114,10 @@ async def _relay(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     """Handle an incoming HTTP proxy connection."""
     peername = writer.get_extra_info("peername")
+    prom = _get_prom()
+    if prom:
+        prom.PROXY_CONNECTIONS_TOTAL.labels(protocol="http").inc()
+        prom.PROXY_ACTIVE_CONNECTIONS.labels(protocol="http").inc()
     try:
         # Read request line
         request_line = await asyncio.wait_for(reader.readline(), timeout=30)
@@ -130,12 +144,16 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         slug, api_key = creds
         auth_result = await _authenticate(slug, api_key)
         if auth_result is None:
+            if prom:
+                prom.AUTH_ATTEMPTS_TOTAL.labels(result="failure").inc()
             writer.write(b"HTTP/1.1 407 Proxy Authentication Required\r\n"
                          b"Proxy-Authenticate: Basic realm=\"Proxysm\"\r\n"
                          b"Content-Length: 0\r\n\r\n")
             await writer.drain()
             return
 
+        if prom:
+            prom.AUTH_ATTEMPTS_TOTAL.labels(result="success").inc()
         project_id, pool_id, strategy = auth_result
 
         # Get upstream proxy
@@ -143,7 +161,11 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         engine = RotationEngine(redis)
         try:
             upstream = await engine.get_next_proxy(pool_id, strategy)
+            if prom:
+                prom.ROTATION_TOTAL.labels(pool_id=pool_id, strategy=strategy).inc()
         except PoolExhaustedError:
+            if prom:
+                prom.ROTATION_EXHAUSTED.labels(pool_id=pool_id).inc()
             writer.write(b"HTTP/1.1 503 Service Unavailable\r\n"
                          b"Content-Length: 0\r\n\r\n")
             await writer.drain()
@@ -166,6 +188,12 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                 status_code=200, response_time_ms=elapsed,
                 bytes_sent=0, bytes_received=0, target_domain=domain,
             )
+            if prom:
+                prom.PROXY_REQUESTS_TOTAL.labels(project_id=project_id, pool_id=pool_id, protocol="https").inc()
+                prom.PROXY_REQUESTS_SUCCESS.labels(project_id=project_id, pool_id=pool_id).inc()
+                prom.PROXY_REQUEST_DURATION.labels(project_id=project_id, pool_id=pool_id).observe(elapsed / 1000)
+                prom.PROXY_RESPONSE_STATUS.labels(project_id=project_id, status_code="200").inc()
+                prom.PROXY_REQUESTS_BY_DOMAIN.labels(domain=domain).inc()
         else:
             await _handle_http(reader, writer, request_line, headers_raw, upstream, project_id, pool_id)
 
@@ -174,6 +202,8 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
     except Exception:
         log.exception("http_proxy_error", peer=str(peername))
     finally:
+        if prom:
+            prom.PROXY_ACTIVE_CONNECTIONS.labels(protocol="http").dec()
         try:
             writer.close()
             await writer.wait_closed()
@@ -343,6 +373,19 @@ async def _handle_http(
                         bytes_received=len(resp_body),
                         target_domain=target_domain,
                     )
+                    prom = _get_prom()
+                    if prom:
+                        sent = len(body) if body else 0
+                        prom.PROXY_REQUESTS_TOTAL.labels(project_id=project_id, pool_id=pool_id, protocol="http").inc()
+                        prom.PROXY_REQUEST_DURATION.labels(project_id=project_id, pool_id=pool_id).observe(elapsed / 1000)
+                        prom.PROXY_RESPONSE_STATUS.labels(project_id=project_id, status_code=str(resp.status)).inc()
+                        prom.PROXY_BYTES_SENT.labels(project_id=project_id, pool_id=pool_id).inc(sent)
+                        prom.PROXY_BYTES_RECEIVED.labels(project_id=project_id, pool_id=pool_id).inc(len(resp_body))
+                        prom.PROXY_REQUESTS_BY_DOMAIN.labels(domain=target_domain).inc()
+                        if resp.status < 400:
+                            prom.PROXY_REQUESTS_SUCCESS.labels(project_id=project_id, pool_id=pool_id).inc()
+                        else:
+                            prom.PROXY_REQUESTS_FAILED.labels(project_id=project_id, pool_id=pool_id, error_type="http_error").inc()
     except Exception:
         elapsed = int((time.monotonic() - t0) * 1000)
         if project_id:
@@ -352,6 +395,12 @@ async def _handle_http(
                 bytes_sent=0, bytes_received=0,
                 target_domain=target_domain, error_type="proxy_error",
             )
+            prom = _get_prom()
+            if prom:
+                prom.PROXY_REQUESTS_TOTAL.labels(project_id=project_id, pool_id=pool_id, protocol="http").inc()
+                prom.PROXY_REQUESTS_FAILED.labels(project_id=project_id, pool_id=pool_id, error_type="proxy_error").inc()
+                prom.PROXY_REQUEST_DURATION.labels(project_id=project_id, pool_id=pool_id).observe(elapsed / 1000)
+                prom.PROXY_REQUESTS_BY_DOMAIN.labels(domain=target_domain).inc()
         try:
             client_writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n")
             await client_writer.drain()
