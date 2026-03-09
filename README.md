@@ -1,29 +1,39 @@
-# Proxysm
+<h1 align="center">Proxysm</h1>
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)](https://redis.io)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com)
-[![Grafana](https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white)](https://grafana.com)
-[![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-red)](#license)
+<div align="center">
 
-**Proxy + Prism** — one request in, multiple providers out.
+<a href="https://www.python.org"><img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+"/></a>
+<a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI"/></a>
+<a href="https://www.postgresql.org"><img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL"/></a>
+<a href="https://redis.io"><img src="https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white" alt="Redis"/></a>
+<a href="https://www.docker.com"><img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" alt="Docker"/></a>
+<a href="https://grafana.com"><img src="https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white" alt="Grafana"/></a>
+<a href="#license"><img src="https://img.shields.io/badge/license-All%20Rights%20Reserved-red" alt="License"/></a>
 
-Self-hosted proxy management platform with intelligent rotation, health monitoring, and real-time analytics. Proxysm sits between your applications and upstream proxy providers, splitting traffic across them like a prism splits light — giving you a single endpoint that handles rotation, failover, and observability across all your proxies.
+<br>
+
+<i>Proxy + Prism: one request in, multiple providers out.<br>
+Like a prism splits light, Proxysm splits your traffic across upstream proxy providers.</i>
+
+<br>
+
+Self-hosted proxy management platform with intelligent rotation, health monitoring, and real-time analytics.<br>
+A single endpoint that handles rotation, failover, and observability across all your proxies.
+
+</div>
 
 ## Features
 
-- **Proxy Rotation** — Round-robin, random, weighted random, and least-connections strategies
-- **Health Monitoring** — Adaptive 3-state health model (healthy / degraded / dead) with automatic failover
-- **HTTP & SOCKS5** — Dual-protocol proxy servers with transparent upstream forwarding
-- **Project Isolation** — Separate API keys, rate limits, and bandwidth quotas per project
-- **Pool Management** — Group proxies into pools with per-pool rotation strategies
-- **Real-time Dashboard** — Built-in web UI with live stats, charts, and proxy management
-- **Prometheus Metrics** — Optional `/metrics` endpoint with 28 metric families
-- **Grafana Dashboard** — Pre-built 35-panel dashboard, auto-provisioned via Docker
-- **Alerting** — Configurable webhook alerts for error rates, pool health, and bandwidth
-- **Bulk Import** — Import proxy lists from URLs or raw text in any common format
+- **Proxy Rotation** - Round-robin, random, weighted random, and least-connections strategies
+- **Health Monitoring** - Adaptive 3-state health model (healthy / degraded / dead) with automatic failover
+- **HTTP & SOCKS5** - Dual-protocol proxy servers with transparent upstream forwarding
+- **Project Isolation** - Separate API keys, rate limits, and bandwidth quotas per project
+- **Pool Management** - Group proxies into pools with per-pool rotation strategies
+- **Real-time Dashboard** - Built-in web UI with live stats, charts, and proxy management
+- **Prometheus Metrics** - Optional `/metrics` endpoint with 28 metric families
+- **Grafana Dashboard** - Pre-built 35-panel dashboard, auto-provisioned via Docker
+- **Alerting** - Configurable webhook alerts for error rates, pool health, and bandwidth
+- **Bulk Import** - Import proxy lists from URLs or raw text in any common format
 
 ## Quick Start
 
@@ -163,17 +173,17 @@ This adds:
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Prometheus | `http://localhost:9090` | — |
+| Prometheus | `http://localhost:9090` | - |
 | Grafana | `http://localhost:3000` | `admin` / value of `GRAFANA_PASSWORD` |
 
 The Grafana dashboard is auto-provisioned with 35 panels across 6 sections:
 
-- **Overview** — Request rate, active connections, error rate, latency, bandwidth, proxy health
-- **Proxy Traffic** — Requests by project/protocol, status codes, error types, latency percentiles, top domains
-- **Bandwidth** — Sent/received over time, bandwidth by project
-- **Health Checks** — Success/failure rate, check latency, status transitions
-- **Pools & Rotation** — Pool sizes, healthy proxies, rotations by strategy, pool exhaustions
-- **Management API** — API request rate by endpoint, API latency, in-flight requests
+- **Overview** - Request rate, active connections, error rate, latency, bandwidth, proxy health
+- **Proxy Traffic** - Requests by project/protocol, status codes, error types, latency percentiles, top domains
+- **Bandwidth** - Sent/received over time, bandwidth by project
+- **Health Checks** - Success/failure rate, check latency, status transitions
+- **Pools & Rotation** - Pool sizes, healthy proxies, rotations by strategy, pool exhaustions
+- **Management API** - API request rate by endpoint, API latency, in-flight requests
 
 ### External Prometheus
 
@@ -204,12 +214,12 @@ Manage alerts via the Settings page or the `/api/v1/alerts` endpoint.
 
 ## Tech Stack
 
-- **Runtime** — Python 3.12, FastAPI, uvicorn, uvloop
-- **Database** — PostgreSQL 16 with time-partitioned tables
-- **Cache** — Redis 7 for rotation state, health cache, and bandwidth counters
-- **Proxy** — asyncio TCP servers for HTTP and SOCKS5 protocols
-- **Monitoring** — prometheus-client, Grafana with auto-provisioned dashboards
-- **Scheduling** — APScheduler for health checks, metrics rollup, and partition management
+- **Runtime** - Python 3.12, FastAPI, uvicorn, uvloop
+- **Database** - PostgreSQL 16 with time-partitioned tables
+- **Cache** - Redis 7 for rotation state, health cache, and bandwidth counters
+- **Proxy** - asyncio TCP servers for HTTP and SOCKS5 protocols
+- **Monitoring** - prometheus-client, Grafana with auto-provisioned dashboards
+- **Scheduling** - APScheduler for health checks, metrics rollup, and partition management
 
 ## Development
 
