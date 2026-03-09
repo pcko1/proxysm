@@ -49,6 +49,11 @@ async def projects_page(request: Request):
     return templates.TemplateResponse("projects.html", _ctx(request))
 
 
+@router.get("/api-docs", response_class=HTMLResponse)
+async def api_docs_page(request: Request):
+    return templates.TemplateResponse("api-docs.html", _ctx(request))
+
+
 @router.get("/setup", response_class=HTMLResponse)
 async def setup_page(request: Request):
     return templates.TemplateResponse("setup.html", _ctx(request))
