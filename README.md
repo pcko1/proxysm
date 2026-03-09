@@ -1,8 +1,8 @@
 # Proxysm
 
-Self-hosted proxy management platform with intelligent rotation, health monitoring, and real-time analytics.
+**Proxy + Prism** — one request in, multiple providers out.
 
-Proxysm sits between your applications and upstream proxy providers, giving you a single endpoint that handles rotation, failover, and observability across all your proxies.
+Self-hosted proxy management platform with intelligent rotation, health monitoring, and real-time analytics. Proxysm sits between your applications and upstream proxy providers, splitting traffic across them like a prism splits light — giving you a single endpoint that handles rotation, failover, and observability across all your proxies.
 
 ## Features
 
