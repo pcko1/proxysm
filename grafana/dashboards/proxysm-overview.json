@@ -253,7 +253,7 @@
           },
           {
             "matcher": { "id": "byName", "options": "unknown" },
-            "properties": [{ "id": "color", "value": { "fixedColor": "dark-gray", "mode": "fixed" } }]
+            "properties": [{ "id": "color", "value": { "fixedColor": "#808080", "mode": "fixed" } }]
           }
         ]
       },
