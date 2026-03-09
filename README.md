@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/proxysm-logo.png" alt="Proxysm Logo" width="200"/>
+<img src="assets/proxysm-logo-small.png" alt="Proxysm Logo" width="200"/>
 
 <h1>Proxysm: your proxy prism</h1>
 
