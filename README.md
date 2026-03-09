@@ -1,6 +1,8 @@
-<h1 align="center">Proxysm: your proxy prism</h1>
-
 <div align="center">
+
+<img src="assets/proxysm-logo.png" alt="Proxysm Logo" width="200"/>
+
+<h1>Proxysm: your proxy prism</h1>
 
 <a href="https://www.python.org"><img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+"/></a>
 <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI"/></a>
