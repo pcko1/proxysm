@@ -8,7 +8,7 @@
 <a href="https://redis.io"><img src="https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white" alt="Redis"/></a>
 <a href="https://www.docker.com"><img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" alt="Docker"/></a>
 <a href="https://grafana.com"><img src="https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white" alt="Grafana"/></a>
-<a href="#license"><img src="https://img.shields.io/badge/license-All%20Rights%20Reserved-red" alt="License"/></a>
+<a href="#license"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"/></a>
 
 <br>
 
@@ -239,4 +239,4 @@ pytest
 
 ## License
 
-All rights reserved.
+This project is licensed under the [MIT License](LICENSE).
