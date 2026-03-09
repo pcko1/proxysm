@@ -48,6 +48,14 @@ docker compose up -d
 
 Open `http://localhost:8080` to access the dashboard.
 
+## AI-Assisted Setup
+
+Have an AI agent set up and walk you through the entire project. Copy and paste this into [Claude Code](https://claude.ai/claude-code) or any AI coding assistant:
+
+```
+git clone https://github.com/pcko1/proxysm.git && cd proxysm && claude -p "You are setting up Proxysm, a self-hosted proxy management platform (Python/FastAPI, PostgreSQL 16, Redis 7, Docker). Repo: https://github.com/pcko1/proxysm.git — Ports: 8080 (Web UI + API), 9080 (HTTP proxy), 9081 (SOCKS5 proxy). Step 1: Copy .env.example to .env, then show me the key variables (PM_ADMIN_PASSWORD, PM_SECRET_KEY, DB_PASSWORD) and ask me to confirm before continuing. For now set temporary values to get running. Step 2: Ensure Docker and Docker Compose are installed, run docker compose up -d, wait for all 3 containers (app, db, redis) to be healthy via docker compose ps. If any fail, check logs and fix. Confirm http://localhost:8080 loads. Step 3: Walk me through each UI page — Dashboard (stats overview), Proxies (add single or bulk import), Pools (group proxies with rotation strategies), Projects (isolated endpoints with slug+key auth), API Docs (interactive REST reference), Settings (alerts, Prometheus, system info). Step 4: End-to-end test — help me add a proxy, create a pool with round_robin strategy, create a project, assign the pool, then test with: curl -x http://SLUG:KEY@localhost:9080 https://httpbin.org/ip and curl --proxy socks5://SLUG:KEY@localhost:9081 https://httpbin.org/ip — verify stats appear on the dashboard. Step 5 (optional): If I want monitoring, set PROMETHEUS_ENABLED=true in .env, run docker compose --profile monitoring up -d, confirm Grafana at http://localhost:3000 (admin/GRAFANA_PASSWORD) loads the auto-provisioned 35-panel dashboard. Step 6: Give me a brief architecture summary — rotation strategies (round_robin, random, weighted_random, least_connections), health model (3-state: healthy/degraded/dead with adaptive check intervals), project isolation (separate keys, rate limits, bandwidth quotas), and key source files in src/. IMPORTANT: After setup is complete, make it absolutely clear that I MUST change all passwords and secrets in .env to my own secure values. Do NOT let me keep the defaults or any values you generated. This is a hard blocker — the final step is always: Change your passwords in .env now, do not use defaults or AI-generated values in production. Rules: ask before destructive commands, show logs on failure, keep explanations concise."
+```
+
 ## Architecture
 
 ```
