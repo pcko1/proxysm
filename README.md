@@ -91,8 +91,7 @@ You are setting up Proxysm, a self-hosted proxy management platform built with P
 
 ## Configuration
 
-> [!NOTE]
-> All configuration is via environment variables. No config files to manage.
+All configuration is via environment variables. Copy `.env.example` and edit as needed:
 
 ```bash
 cp .env.example .env
@@ -177,8 +176,7 @@ The web UI at `http://localhost:8080/dashboard` provides real-time stats includi
 
 ### Prometheus + Grafana
 
-> [!TIP]
-> Enable the full monitoring stack with a single flag:
+Enable the full monitoring stack with a single flag:
 
 ```bash
 # Set in .env
@@ -228,9 +226,6 @@ Configure webhook alerts for critical conditions:
 | `pool_below_min_healthy` | Pool drops below minimum healthy proxy count |
 | `bandwidth_exceeded` | Bandwidth usage exceeds configured limit |
 | `all_proxies_dead` | Every proxy in a pool becomes unreachable |
-
-> [!WARNING]
-> Make sure to configure at least one alert rule for `all_proxies_dead` to be notified when a pool loses all healthy proxies.
 
 Manage alerts via the Settings page or the `/api/v1/alerts` endpoint.
 
