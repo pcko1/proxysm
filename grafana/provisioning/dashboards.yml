@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: Proxysm
+    orgId: 1
+    folder: Proxysm
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
