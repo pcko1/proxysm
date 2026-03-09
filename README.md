@@ -5,13 +5,14 @@
 <h1>Proxysm: your proxy prism</h1>
 
 <a href="https://www.python.org"><img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+"/></a>
+<a href="https://www.docker.com"><img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" alt="Docker"/></a>
+<a href="https://github.com/pcko1/proxysm/actions/workflows/tests.yml"><img src="https://github.com/pcko1/proxysm/actions/workflows/tests.yml/badge.svg" alt="Tests"/></a>
+<a href="#license"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"/></a>
+<br>
 <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI"/></a>
 <a href="https://www.postgresql.org"><img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL"/></a>
 <a href="https://redis.io"><img src="https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white" alt="Redis"/></a>
-<a href="https://www.docker.com"><img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" alt="Docker"/></a>
 <a href="https://grafana.com"><img src="https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white" alt="Grafana"/></a>
-<a href="https://github.com/pcko1/proxysm/actions/workflows/tests.yml"><img src="https://github.com/pcko1/proxysm/actions/workflows/tests.yml/badge.svg" alt="Tests"/></a>
-<a href="#license"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"/></a>
 
 <br>
 
