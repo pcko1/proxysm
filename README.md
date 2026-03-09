@@ -237,22 +237,6 @@ Manage alerts via the Settings page or the `/api/v1/alerts` endpoint.
 - **Monitoring** - prometheus-client, Grafana with auto-provisioned dashboards
 - **Scheduling** - APScheduler for health checks, metrics rollup, and partition management
 
-## Development
-
-```bash
-# Install dependencies
-pip install -e ".[dev]"
-
-# Run linter
-ruff check src/
-
-# Run type checker
-mypy src/
-
-# Run tests
-pytest
-```
-
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
