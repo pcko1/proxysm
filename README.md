@@ -1,5 +1,13 @@
 # Proxysm
 
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)](https://redis.io)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com)
+[![Grafana](https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white)](https://grafana.com)
+[![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-red)](#license)
+
 **Proxy + Prism** — one request in, multiple providers out.
 
 Self-hosted proxy management platform with intelligent rotation, health monitoring, and real-time analytics. Proxysm sits between your applications and upstream proxy providers, splitting traffic across them like a prism splits light — giving you a single endpoint that handles rotation, failover, and observability across all your proxies.
