@@ -14,35 +14,39 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
-            --bg-primary: #09090b;
-            --bg-secondary: #111113;
-            --bg-tertiary: #18181b;
-            --bg-hover: #1e1e22;
-            --bg-active: #252529;
-            --border: rgba(255,255,255,0.06);
-            --border-light: rgba(255,255,255,0.10);
-            --border-focus: rgba(59,130,246,0.5);
-            --text-primary: #fafafa;
-            --text-secondary: #a1a1aa;
-            --text-muted: #63636e;
-            --accent: #3b82f6;
-            --accent-hover: #60a5fa;
-            --accent-subtle: rgba(59,130,246,0.08);
-            --accent-glow: rgba(59,130,246,0.15);
-            --green: #22c55e;
-            --green-bg: rgba(34,197,94,0.08);
-            --green-border: rgba(34,197,94,0.2);
-            --red: #ef4444;
+            --bg-primary: #07070B;
+            --bg-secondary: #0D0D12;
+            --bg-tertiary: #141419;
+            --bg-hover: #1B1B22;
+            --bg-active: #22222A;
+            --border: rgba(255,255,255,0.05);
+            --border-light: rgba(255,255,255,0.08);
+            --border-focus: rgba(99,102,241,0.5);
+            --text-primary: #EDEDF0;
+            --text-secondary: #9898A6;
+            --text-muted: #5A5A68;
+            --accent: #6366F1;
+            --accent-hover: #818CF8;
+            --accent-subtle: rgba(99,102,241,0.08);
+            --accent-glow: rgba(99,102,241,0.20);
+            --green: #10B981;
+            --green-bg: rgba(16,185,129,0.08);
+            --green-border: rgba(16,185,129,0.2);
+            --red: #EF4444;
             --red-bg: rgba(239,68,68,0.08);
             --red-border: rgba(239,68,68,0.2);
-            --yellow: #eab308;
-            --yellow-bg: rgba(234,179,8,0.08);
-            --yellow-border: rgba(234,179,8,0.2);
-            --purple: #a78bfa;
+            --yellow: #F59E0B;
+            --yellow-bg: rgba(245,158,11,0.08);
+            --yellow-border: rgba(245,158,11,0.2);
+            --purple: #A78BFA;
             --purple-bg: rgba(167,139,250,0.08);
-            --transition-fast: 0.12s ease;
-            --transition-base: 0.2s ease;
+            --transition-fast: 0.15s ease-out;
+            --transition-base: 0.2s ease-out;
             --transition-slow: 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
         }
 
         /* Custom scrollbar */
@@ -65,10 +69,15 @@
 
         a { color: var(--accent); text-decoration: none; transition: color var(--transition-fast); }
         a:hover { color: var(--accent-hover); }
+        a:focus-visible, .stat-pill:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
 
         /* ===== NAVBAR ===== */
         .navbar {
-            background: rgba(17,17,19,0.8);
+            background: rgba(13,13,18,0.85);
             border-bottom: 1px solid var(--border);
             padding: 0 24px;
             display: flex;
@@ -77,8 +86,8 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            backdrop-filter: blur(16px) saturate(180%);
-            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
         }
         .navbar-brand {
             font-size: 15px;
@@ -92,17 +101,9 @@
             text-decoration: none;
             flex-shrink: 0;
         }
-        .navbar-brand:hover { color: var(--text-primary); }
-        .navbar-brand::before {
-            content: '';
-            display: inline-block;
-            width: 22px;
-            height: 22px;
-            background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
-            border-radius: 6px;
-            flex-shrink: 0;
-        }
-        .navbar-links { display: flex; gap: 1px; }
+        .navbar-brand:hover { color: var(--text-primary); opacity: 0.9; }
+        .navbar-brand svg { flex-shrink: 0; filter: drop-shadow(0 0 8px var(--accent-glow)); }
+        .navbar-links { display: flex; gap: 2px; align-items: center; }
         .navbar-links a {
             color: var(--text-muted);
             padding: 7px 14px;
@@ -115,7 +116,18 @@
         .navbar-links a:hover { color: var(--text-secondary); background: var(--bg-hover); }
         .navbar-links a.active {
             color: var(--text-primary);
-            background: var(--bg-tertiary);
+            background: transparent;
+        }
+        .navbar-links a.active::after {
+            content: '';
+            position: absolute;
+            bottom: -17px;
+            left: 14px;
+            right: 14px;
+            height: 2px;
+            background: var(--accent);
+            border-radius: 1px 1px 0 0;
+            box-shadow: 0 0 8px var(--accent-glow);
         }
 
         .nav-settings-cog {
@@ -129,7 +141,7 @@
             flex-shrink: 0;
         }
         .nav-settings-cog:hover { color: var(--text-secondary); background: var(--bg-hover); }
-        .nav-settings-cog.active { color: var(--text-primary); background: var(--bg-tertiary); }
+        .nav-settings-cog.active { color: var(--accent); background: transparent; }
 
         .nav-setup-btn {
             margin-right: 8px;
@@ -222,10 +234,11 @@
             background: var(--accent);
             color: #fff;
             border-color: rgba(255,255,255,0.1);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
         .btn-primary:hover {
             background: var(--accent-hover);
-            box-shadow: 0 0 20px var(--accent-glow);
+            box-shadow: 0 0 20px var(--accent-glow), 0 1px 3px rgba(0,0,0,0.3);
         }
 
         .btn-secondary {
@@ -706,10 +719,9 @@
             color: var(--text-muted);
         }
         .empty-state-icon {
-            font-size: 40px;
             margin-bottom: 14px;
-            opacity: 0.4;
-            filter: grayscale(0.3);
+            color: var(--text-muted);
+            opacity: 0.5;
         }
         .empty-state h3 {
             font-size: 15px;
@@ -746,6 +758,18 @@
             border-top: 1px solid var(--border);
         }
 
+        /* ===== SKELETON LOADING ===== */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 6px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
         /* ===== STAT PILLS ===== */
         .stat-pill {
             display: inline-flex;
@@ -756,10 +780,13 @@
             border: 1px solid var(--border);
             border-radius: 20px;
             font-size: 12px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
             font-weight: 500;
             color: var(--text-muted);
         }
         .stat-pill .stat-value { color: var(--text-primary); font-weight: 600; }
+        .stat-pill:hover { border-color: var(--border-light); background: var(--bg-hover); }
 
         /* ===== RESPONSIVE: TABLET ===== */
         @media (max-width: 900px) {
@@ -780,9 +807,9 @@
                 top: 56px;
                 left: 0;
                 right: 0;
-                background: rgba(17,17,19,0.95);
-                backdrop-filter: blur(16px);
-                -webkit-backdrop-filter: blur(16px);
+                background: rgba(13,13,18,0.95);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
                 border-bottom: 1px solid var(--border);
                 flex-direction: column;
                 padding: 8px;
@@ -803,7 +830,7 @@
 </head>
 <body>
     <nav class="navbar">
-        <a href="/dashboard" class="navbar-brand">Proxysm</a>
+        <a href="/dashboard" class="navbar-brand"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="prism-grad" x1="0" y1="0" x2="24" y2="24"><stop offset="0%" stop-color="#818CF8"/><stop offset="100%" stop-color="#6366F1"/></linearGradient></defs><path d="M12 2L2 19h20L12 2z" fill="url(#prism-grad)" opacity="0.9"/><path d="M12 2L8 19h8L12 2z" fill="#A5B4FC" opacity="0.4"/></svg>Proxysm</a>
         <div class="navbar-links" id="navLinks">
             <a href="/dashboard" id="nav-dashboard">Dashboard</a>
             <a href="/proxies" id="nav-proxies">Proxies</a>
@@ -813,7 +840,7 @@
         <a href="/settings" class="nav-settings-cog" id="nav-settings" title="Settings">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </a>
-        <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button>
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
     </nav>
 
     <div class="toast-container" id="toastContainer"></div>
@@ -834,7 +861,7 @@
     <!-- Confirm dialog -->
     <div class="modal-overlay confirm-modal" id="confirmModal">
         <div class="modal">
-            <div class="confirm-icon" id="confirmIcon">&#9888;&#65039;</div>
+            <div class="confirm-icon" id="confirmIcon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
             <h2 id="confirmTitle">Are you sure?</h2>
             <p class="confirm-message" id="confirmMessage"></p>
             <div class="modal-actions">
