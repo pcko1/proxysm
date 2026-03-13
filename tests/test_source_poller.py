@@ -18,6 +18,7 @@ def mock_source():
     source.type = "url"
     source.url = "https://example.com/proxies.txt"
     source.provider = "TestProvider"
+    source.protocol = "http"
     source.is_active = True
     source.consecutive_failures = 0
     source.last_polled_at = None

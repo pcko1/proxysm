@@ -23,6 +23,7 @@ def upgrade() -> None:
         sa.Column("type", sa.String(10), nullable=False),
         sa.Column("url", sa.Text(), nullable=True),
         sa.Column("provider", sa.String(255), nullable=True),
+        sa.Column("protocol", sa.String(10), server_default="http", nullable=False),
         sa.Column("is_active", sa.Boolean(), server_default="true", nullable=False),
         sa.Column("last_polled_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_status_code", sa.Integer(), nullable=True),

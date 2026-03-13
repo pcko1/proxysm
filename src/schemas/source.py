@@ -10,12 +10,14 @@ class SourceCreate(BaseModel):
     type: Literal["url", "file", "manual"]
     url: str | None = None
     provider: str | None = None
+    protocol: Literal["http", "https", "socks5"] = "http"
 
 
 class SourceUpdate(BaseModel):
     name: str | None = None
     url: str | None = None
     provider: str | None = None
+    protocol: Literal["http", "https", "socks5"] | None = None
     is_active: bool | None = None
 
 
@@ -25,6 +27,7 @@ class SourceResponse(BaseModel):
     type: str
     url: str | None = None
     provider: str | None = None
+    protocol: str = "http"
     is_active: bool
     last_polled_at: datetime | None = None
     last_status_code: int | None = None

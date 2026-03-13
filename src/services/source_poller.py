@@ -123,7 +123,7 @@ async def _sync_proxies(source: ProxySource, parsed: list) -> None:
         # Step 1 — Build lookup sets
         feed_set = {}
         for p in parsed:
-            key = (p.host, p.port, p.protocol)
+            key = (p.host, p.port, source.protocol)
             feed_set[key] = p
 
         db_stmt = select(Proxy).where(Proxy.source_id == source.id)
@@ -153,7 +153,7 @@ async def _sync_proxies(source: ProxySource, parsed: list) -> None:
                     source_id=source.id,
                     host=p.host,
                     port=p.port,
-                    protocol=p.protocol,
+                    protocol=source.protocol,
                     provider=source.provider,
                     username=p.username,
                     password_encrypted=p.password,

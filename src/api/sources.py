@@ -74,6 +74,7 @@ async def create_source(
         type=body.type,
         url=body.url,
         provider=body.provider,
+        protocol=body.protocol,
     )
     db.add(source)
     await db.flush()

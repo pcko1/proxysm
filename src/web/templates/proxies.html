@@ -46,18 +46,18 @@
 <div class="table-card" id="sourcesPanel" style="margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none" onclick="toggleSources()">
         <span style="font-weight:600;font-size:14px" id="sourcesHeader">Sources (0)</span>
-        <span id="sourcesToggle" style="font-size:12px;color:var(--text-muted)">&#9660;</span>
+        <span id="sourcesToggle" style="font-size:12px;color:var(--text-muted)">&#9650;</span>
     </div>
-    <div id="sourcesContent" style="display:none">
+    <div id="sourcesContent">
         <table>
             <thead>
                 <tr>
                     <th>Name</th>
                     <th>Type</th>
                     <th>Provider</th>
-                    <th>URL</th>
+                    <th>Date Added</th>
                     <th>Last Polled</th>
-                    <th>Status</th>
+                    <th>Count</th>
                     <th></th>
                 </tr>
             </thead>
@@ -89,6 +89,14 @@
             <input type="text" id="sourceUrl" placeholder="https://provider.com/api/proxies">
         </div>
         <div class="form-group">
+            <label for="sourceProtocol">Protocol</label>
+            <select id="sourceProtocol">
+                <option value="http" selected>HTTP</option>
+                <option value="https">HTTPS</option>
+                <option value="socks5">SOCKS5</option>
+            </select>
+        </div>
+        <div class="form-group">
             <label for="sourceProvider">Provider</label>
             <input type="text" id="sourceProvider" placeholder="e.g. BrightData">
         </div>
@@ -111,13 +119,35 @@
     </div>
 </div>
 
+<!-- Pool Conflict Modal -->
+<div class="modal-overlay" id="poolConflictModal">
+    <div class="modal" style="max-width:420px">
+        <h2>Pool Already Exists</h2>
+        <p id="poolConflictMsg"></p>
+        <p style="color:var(--text-secondary);font-size:13px;margin-top:8px"><strong>Merge</strong> adds new proxies alongside existing ones.<br><strong>Overwrite</strong> removes existing proxies first.</p>
+        <div class="modal-actions">
+            <button class="btn btn-outline" id="poolConflictCancel">Cancel</button>
+            <button class="btn btn-primary" id="poolConflictMerge">Merge</button>
+            <button class="btn btn-danger" id="poolConflictOverwrite">Overwrite</button>
+        </div>
+    </div>
+</div>
+
 <!-- Import Modal -->
 <div class="modal-overlay" id="importModal">
     <div class="modal" style="max-width:520px">
         <h2>Import Proxies</h2>
         <div class="form-group">
             <label for="importProvider">Provider <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional label)</span></label>
-            <input type="text" id="importProvider" placeholder="e.g. BrightData, IPRoyal...">
+            <input type="text" id="importProvider" placeholder="e.g. BrightData, IPRoyal..." oninput="updatePoolPlaceholder()">
+        </div>
+        <div class="form-group">
+            <label for="importProtocol">Protocol</label>
+            <select id="importProtocol">
+                <option value="http" selected>HTTP</option>
+                <option value="https">HTTPS</option>
+                <option value="socks5">SOCKS5</option>
+            </select>
         </div>
         <div class="form-group">
             <label for="importText">Proxy list (one per line)</label>
@@ -144,7 +174,7 @@
         <div id="importPoolFields" style="display:none">
             <div class="form-group">
                 <label for="importPoolName">Pool Name</label>
-                <input type="text" id="importPoolName" placeholder="e.g. papaproxy-us-01">
+                <input type="text" id="importPoolName" placeholder="my-provider-001">
             </div>
             <div class="form-group">
                 <label for="importPoolStrategy">Rotation Strategy</label>
@@ -284,7 +314,8 @@
         if (!text && !importUrl) { btnReset(importBtn); showToast('Please paste proxies, upload a file, or enter a URL', 'error'); return; }
 
         try {
-            const payload = { provider: provider };
+            const protocol = document.getElementById('importProtocol').value;
+            const payload = { provider: provider, protocol: protocol };
             if (text) payload.proxies = text;
             if (importUrl) payload.url = importUrl;
             if (fileInput.files.length > 0) payload.filename = fileInput.files[0].name;
@@ -297,10 +328,46 @@
                 const strategy = document.getElementById('importPoolStrategy').value;
                 if (!poolName) { btnReset(importBtn); showToast('Please enter a pool name', 'error'); return; }
 
-                const pool = await apiCall('POST', '/api/v1/pools', {
-                    name: poolName,
-                    rotation_strategy: strategy,
-                });
+                // Check if pool already exists
+                let existingPool = null;
+                try {
+                    const poolsData = await apiCall('GET', '/api/v1/pools?per_page=100');
+                    existingPool = (poolsData.data || []).find(p => p.name === poolName);
+                } catch {}
+
+                let pool;
+                let poolAction = 'created';
+                if (existingPool) {
+                    const action = await new Promise(resolve => {
+                        openModal('poolConflictModal');
+                        document.getElementById('poolConflictMsg').textContent = `A pool named "${poolName}" already exists with ${existingPool.proxy_count || 0} proxies.`;
+                        document.getElementById('poolConflictMerge').onclick = () => { closeModal('poolConflictModal'); resolve('merge'); };
+                        document.getElementById('poolConflictOverwrite').onclick = () => { closeModal('poolConflictModal'); resolve('overwrite'); };
+                        document.getElementById('poolConflictCancel').onclick = () => { closeModal('poolConflictModal'); resolve('cancel'); };
+                    });
+                    if (action === 'cancel') { btnReset(importBtn); return; }
+                    if (action === 'overwrite') {
+                        // Remove all existing proxies from pool
+                        try {
+                            const poolProxies = await apiCall('GET', `/api/v1/pools/${existingPool.id}`);
+                            // Fetch proxies in the pool to remove them
+                            const poolIps = await apiCall('GET', `/api/v1/ips?per_page=100&pool_id=${existingPool.id}`);
+                            const existingIds = (poolIps.data || []).map(p => p.id);
+                            if (existingIds.length > 0) {
+                                await apiCall('DELETE', `/api/v1/pools/${existingPool.id}/ips`, { proxy_ids: existingIds });
+                            }
+                        } catch {}
+                        poolAction = 'overwritten';
+                    } else {
+                        poolAction = 'merged';
+                    }
+                    pool = existingPool;
+                } else {
+                    pool = await apiCall('POST', '/api/v1/pools', {
+                        name: poolName,
+                        rotation_strategy: strategy,
+                    });
+                }
 
                 const filterParam = provider ? `&provider=${encodeURIComponent(provider)}` : '';
                 const proxyData = await apiCall('GET', `/api/v1/ips?per_page=100${filterParam}`);
@@ -308,7 +375,7 @@
                 if (proxyIds.length > 0) {
                     await apiCall('POST', `/api/v1/pools/${pool.id}/ips`, { proxy_ids: proxyIds });
                 }
-                poolMsg = `, pool "${poolName}" created with ${proxyIds.length} proxies`;
+                poolMsg = `, pool "${poolName}" ${poolAction} with ${proxyIds.length} proxies`;
             }
 
             btnReset(importBtn);
@@ -359,7 +426,7 @@
     document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
 
     // --- Sources Panel ---
-    let sourcesExpanded = false;
+    let sourcesExpanded = true;
     let deleteSourceId = null;
 
     function toggleSources() {
@@ -375,6 +442,30 @@
         return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text-muted)" title="Not polled yet"></span>';
     }
 
+    function copySourceName(text, el) {
+        navigator.clipboard.writeText(text).then(() => {
+            const orig = el.textContent;
+            el.textContent = 'Copied!';
+            el.style.color = 'var(--green)';
+            setTimeout(() => { el.textContent = orig; el.style.color = ''; }, 1500);
+            showToast('Source name copied', 'success');
+        });
+    }
+
+    function timeAgo(dateStr) {
+        const now = Date.now();
+        const then = new Date(dateStr).getTime();
+        const diff = Math.floor((now - then) / 1000);
+        if (diff < 60) return diff + 's ago';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+        return Math.floor(diff / 86400) + 'd ago';
+    }
+
+    function truncate(str, max) {
+        return str.length > max ? str.slice(0, max) + '…' : str;
+    }
+
     function renderSources(sources) {
         document.getElementById('sourcesHeader').textContent = `Sources (${sources.length})`;
         const tbody = document.getElementById('sourcesTableBody');
@@ -383,18 +474,21 @@
             return;
         }
         tbody.innerHTML = sources.map(s => {
-            const urlDisplay = s.url ? `<span class="mono cell-truncate" style="max-width:200px;display:inline-block" title="${esc(s.url)}">${esc(s.url)}</span>` : '-';
-            const polled = s.last_polled_at ? new Date(s.last_polled_at).toLocaleString() : '-';
-            const pollBtn = s.type === 'url' ? `<button class="btn btn-outline btn-sm" onclick="pollSource('${s.id}')" title="Poll Now">&#8635;</button>` : '';
+            const displayName = truncate(s.name, 30);
+            const typeDisplay = s.type === 'url' && s.url
+                ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none" title="${esc(s.url)}">${esc(s.type)} 🔗</a>`
+                : esc(s.type);
+            const polled = s.last_polled_at ? timeAgo(s.last_polled_at) : '-';
+            const pollBtn = s.type === 'url' ? `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();pollSource('${s.id}')" title="Poll Now" style="padding:1px 5px;font-size:11px;margin-left:6px">&#8635;</button>` : '';
+            const dateAdded = s.created_at ? new Date(s.created_at).toISOString().slice(0, 10) : '-';
             return `<tr>
-                <td>${esc(s.name)}</td>
-                <td>${protoTag(s.type)}</td>
+                <td><code class="mono" style="cursor:pointer" title="${esc(s.name)}&#10;Click to copy" onclick="copySourceName('${esc(s.name)}', this)">${esc(displayName)}</code></td>
+                <td>${typeDisplay}</td>
                 <td>${esc(s.provider || '-')}</td>
-                <td>${urlDisplay}</td>
-                <td><span class="mono">${polled}</span></td>
+                <td><span class="mono">${dateAdded}</span></td>
+                <td><span class="mono">${polled}</span>${pollBtn}</td>
                 <td>${sourceStatusDot(s)} <span class="mono" style="font-size:12px">${s.proxy_count}</span></td>
                 <td class="actions">
-                    ${pollBtn}
                     <button class="btn btn-danger btn-sm" onclick="promptDeleteSource('${s.id}', '${esc(s.name)}', ${s.proxy_count})">Delete</button>
                 </td>
             </tr>`;
@@ -414,11 +508,12 @@
         const name = document.getElementById('sourceName').value.trim();
         const type = document.getElementById('sourceType').value;
         const url = document.getElementById('sourceUrl').value.trim() || null;
+        const protocol = document.getElementById('sourceProtocol').value;
         const provider = document.getElementById('sourceProvider').value.trim() || null;
         if (!name) { showToast('Please enter a name', 'error'); return; }
         if (type === 'url' && !url) { showToast('Please enter a URL for URL sources', 'error'); return; }
         try {
-            await apiCall('POST', '/api/v1/sources', { name, type, url, provider });
+            await apiCall('POST', '/api/v1/sources', { name, type, url, provider, protocol });
             showToast('Source created', 'success');
             closeModal('addSourceModal');
             document.getElementById('sourceName').value = '';
@@ -460,6 +555,12 @@
         } catch (e) {
             showToast('Poll failed: ' + e.message, 'error');
         }
+    }
+
+    function updatePoolPlaceholder() {
+        const provider = document.getElementById('importProvider').value.trim();
+        const poolInput = document.getElementById('importPoolName');
+        poolInput.placeholder = provider ? provider.toLowerCase().replace(/\s+/g, '-') + '-001' : 'my-provider-001';
     }
 
     loadSources();

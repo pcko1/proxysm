@@ -35,6 +35,7 @@ class ProxyResponse(BaseModel):
 
 class ProxyBulkImport(BaseModel):
     provider: str | None = None
+    protocol: Literal["http", "https", "socks5"] = "http"
     proxies: str | None = None
     proxy_list: list[ProxyCreate] | None = None
     url: str | None = None

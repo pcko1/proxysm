@@ -617,6 +617,37 @@ async def get_timeseries(
     return TimeseriesResponse(granularity=granularity, data=data)
 
 
+@router.get("/provider-health")
+async def get_provider_health(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(admin_auth),
+):
+    """Health breakdown per provider — total, healthy, degraded, dead counts."""
+    rows = await db.execute(
+        select(
+            Proxy.provider,
+            func.count(Proxy.id).label("total"),
+            func.count(Proxy.id).filter(Proxy.last_health_status == "healthy").label("healthy"),
+            func.count(Proxy.id).filter(Proxy.last_health_status == "degraded").label("degraded"),
+            func.count(Proxy.id).filter(Proxy.last_health_status == "dead").label("dead"),
+            func.count(Proxy.id).filter(Proxy.last_health_status == "unknown").label("unknown"),
+            func.count(Proxy.id).filter(Proxy.is_active == True).label("active"),  # noqa: E712
+        ).group_by(Proxy.provider).order_by(func.count(Proxy.id).desc())
+    )
+    return {"data": [
+        {
+            "provider": row.provider or "Unknown",
+            "total": row.total,
+            "healthy": row.healthy,
+            "degraded": row.degraded,
+            "dead": row.dead,
+            "unknown": row.unknown,
+            "active": row.active,
+        }
+        for row in rows
+    ]}
+
+
 # Entity-specific stat endpoints under their respective prefixes
 # These are mounted at /api/v1 so they become /api/v1/ips/{id}/stats etc.
 

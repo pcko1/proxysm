@@ -22,6 +22,7 @@ class ProxySource(Base, UUIDMixin, TimestampMixin):
     type: Mapped[str] = mapped_column(String(10), nullable=False)
     url: Mapped[str | None] = mapped_column(Text, nullable=True)
     provider: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    protocol: Mapped[str] = mapped_column(String(10), default="http", server_default="http")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     last_polled_at: Mapped[None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)

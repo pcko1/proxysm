@@ -316,19 +316,19 @@
     </div>
 </div>
 
-<!-- Top Failing Proxies (full width) -->
+<!-- Provider Health Overview -->
 <div class="dash-card" style="margin-bottom:20px">
-    <h3><span>Top Failing Proxies</span></h3>
-    <div id="failingProxiesContainer">
-        <table>
-            <thead><tr><th>Proxy</th><th>Status</th><th>Latency</th></tr></thead>
-            <tbody id="failingProxiesBody"></tbody>
+    <h3><span>Provider Health Overview</span></h3>
+    <div id="providerHealthContainer">
+        <table class="metrics-table">
+            <thead><tr><th>Provider</th><th>Total</th><th>Healthy</th><th>Degraded</th><th>Dead</th><th>Active</th></tr></thead>
+            <tbody id="providerHealthBody"></tbody>
         </table>
     </div>
-    <div class="empty-state" id="failingEmpty" style="display:none;padding:30px 16px">
-        <div class="empty-state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-        <h3>All Clear</h3>
-        <p>No proxies with issues.</p>
+    <div class="empty-state" id="providerHealthEmpty" style="display:none;padding:30px 16px">
+        <div class="empty-state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+        <h3>No Providers</h3>
+        <p>Import proxies to see provider health.</p>
     </div>
 </div>
 
@@ -342,19 +342,19 @@
     </div>
 </div>
 
-<!-- Proxy Uptime Ranking -->
+<!-- Pool Utilization -->
 <div class="dash-card" style="margin-bottom:20px">
-    <h3><span>Worst Performing Proxies</span></h3>
-    <div id="proxyRankingContainer">
+    <h3><span>Pool Utilization</span></h3>
+    <div id="poolUtilContainer">
         <table class="metrics-table">
-            <thead><tr><th>Proxy</th><th>Status</th><th>Requests</th><th>Success Rate</th><th>Failed</th><th>Median Latency</th></tr></thead>
-            <tbody id="proxyRankingBody"></tbody>
+            <thead><tr><th>Pool</th><th>Proxies</th><th>Healthy</th><th>Requests (24h)</th><th>Error Rate</th><th>Median Latency</th></tr></thead>
+            <tbody id="poolUtilBody"></tbody>
         </table>
     </div>
-    <div class="empty-state" id="proxyRankingEmpty" style="display:none;padding:30px 16px">
-        <div class="empty-state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-        <h3>All Good</h3>
-        <p>No underperforming proxies.</p>
+    <div class="empty-state" id="poolUtilEmpty" style="display:none;padding:30px 16px">
+        <div class="empty-state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+        <h3>No Pools</h3>
+        <p>Create pools and assign proxies to see utilization.</p>
     </div>
 </div>
 
@@ -686,25 +686,28 @@
         }
     }
 
-    async function loadFailingProxies() {
+    async function loadProviderHealth() {
         try {
-            const proxyData = await apiCall('GET', '/api/v1/ips?per_page=100');
-            const proxies = proxyData.data || [];
-            const tbody = document.getElementById('failingProxiesBody');
-            const container = document.getElementById('failingProxiesContainer');
-            const empty = document.getElementById('failingEmpty');
-            const failing = proxies.filter(p => p.last_health_status === 'dead' || p.last_health_status === 'degraded').slice(0, 5);
-            if (failing.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
-            container.style.display = 'block'; empty.style.display = 'none';
-            tbody.innerHTML = failing.map(p => {
-                const latency = p.avg_latency_ms ? p.avg_latency_ms.toFixed(0) + ' ms' : '-';
+            const resp = await apiCall('GET', '/api/v1/stats/provider-health');
+            const data = resp.data || [];
+            const tbody = document.getElementById('providerHealthBody');
+            const container = document.getElementById('providerHealthContainer');
+            const empty = document.getElementById('providerHealthEmpty');
+            if (data.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
+            container.style.display = ''; empty.style.display = 'none';
+            tbody.innerHTML = data.map(p => {
+                const healthPct = p.total > 0 ? Math.round(p.healthy / p.total * 100) : 0;
+                const pctStyle = healthPct >= 80 ? 'color:var(--green)' : healthPct >= 50 ? 'color:var(--yellow)' : 'color:var(--red)';
                 return `<tr>
-                    <td><span class="mono" style="color:var(--text-primary)">${esc(p.host)}:${p.port}</span></td>
-                    <td>${statusBadge(p.last_health_status)}</td>
-                    <td class="mono">${latency}</td>
+                    <td style="color:var(--text-primary);font-weight:500">${esc(p.provider)}</td>
+                    <td class="mono">${p.total}</td>
+                    <td class="mono" style="color:var(--green)">${p.healthy}</td>
+                    <td class="mono" style="color:var(--yellow)">${p.degraded}</td>
+                    <td class="mono" style="color:var(--red)">${p.dead}</td>
+                    <td class="mono" style="${pctStyle}">${p.active}/${p.total}</td>
                 </tr>`;
             }).join('');
-        } catch (e) { console.error('Failed to load failing proxies', e); }
+        } catch (e) { console.error('Failed to load provider health', e); }
     }
 
     // === PROJECTS TAB ===
@@ -1036,28 +1039,38 @@
         } catch (e) { console.error('Failed to load latency trend', e); }
     }
 
-    async function loadProxyRanking() {
+    async function loadPoolUtilization() {
         try {
-            const resp = await apiCall('GET', '/api/v1/stats/proxy-ranking');
-            const data = resp.data || [];
-            const tbody = document.getElementById('proxyRankingBody');
-            const container = document.getElementById('proxyRankingContainer');
-            const empty = document.getElementById('proxyRankingEmpty');
-            if (data.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
+            const [poolsResp, metricsResp] = await Promise.all([
+                apiCall('GET', '/api/v1/pools?per_page=100'),
+                apiCall('GET', '/api/v1/stats/pool-metrics').catch(() => ({ data: [] })),
+            ]);
+            const pools = poolsResp.data || [];
+            const metrics = metricsResp.data || [];
+            const metricsMap = {};
+            metrics.forEach(m => { metricsMap[m.pool_id] = m; });
+
+            const tbody = document.getElementById('poolUtilBody');
+            const container = document.getElementById('poolUtilContainer');
+            const empty = document.getElementById('poolUtilEmpty');
+            if (pools.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
             container.style.display = ''; empty.style.display = 'none';
-            tbody.innerHTML = data.map(p => {
-                const rateStyle = p.success_rate < 80 ? 'color:var(--red);font-weight:600' : p.success_rate < 95 ? 'color:var(--yellow);font-weight:600' : '';
-                const latency = p.median_latency_ms !== null ? p.median_latency_ms.toFixed(0) + ' ms' : '-';
+            tbody.innerHTML = pools.map(p => {
+                const m = metricsMap[p.id] || {};
+                const healthPct = p.proxy_count > 0 ? Math.round((p.healthy_count || 0) / p.proxy_count * 100) : 0;
+                const healthStyle = healthPct >= 80 ? 'color:var(--green)' : healthPct >= 50 ? 'color:var(--yellow)' : 'color:var(--red)';
+                const errStyle = (m.error_rate || 0) > 5 ? 'color:var(--red);font-weight:600' : '';
+                const latency = m.median_latency_ms != null ? Math.round(m.median_latency_ms) + ' ms' : '-';
                 return `<tr>
-                    <td><span class="mono" style="color:var(--text-primary)">${esc(p.proxy_addr)}</span></td>
-                    <td>${statusBadge(p.status)}</td>
-                    <td class="mono">${p.total_requests}</td>
-                    <td class="mono" style="${rateStyle}">${p.success_rate}%</td>
-                    <td class="mono">${p.failed}</td>
+                    <td style="color:var(--text-primary);font-weight:500">${esc(p.name)}</td>
+                    <td class="mono">${p.proxy_count}</td>
+                    <td class="mono" style="${healthStyle}">${p.healthy_count || 0} (${healthPct}%)</td>
+                    <td class="mono">${formatNum(m.total_requests || 0)}</td>
+                    <td class="mono" style="${errStyle}">${m.error_rate || 0}%</td>
                     <td class="mono">${latency}</td>
                 </tr>`;
             }).join('');
-        } catch (e) { console.error('Failed to load proxy ranking', e); }
+        } catch (e) { console.error('Failed to load pool utilization', e); }
     }
 
     // === PROJECTS TAB: NEW CHARTS ===
@@ -1200,9 +1213,9 @@
         await Promise.all([
             loadOverview(),
             loadTimeseries(),
-            loadFailingProxies(),
+            loadProviderHealth(),
             loadLatencyTrend(),
-            loadProxyRanking(),
+            loadPoolUtilization(),
             selectedProjectId ? loadProjectDetail() : loadProjectStats(),
         ]);
     }

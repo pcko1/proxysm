@@ -133,6 +133,7 @@ async def bulk_import_proxies(
         type=source_type,
         url=body.url,
         provider=body.provider,
+        protocol=body.protocol,
     )
     db.add(source)
     await db.flush()
@@ -151,7 +152,7 @@ async def bulk_import_proxies(
             proxy_entries.append({
                 "host": p.host,
                 "port": p.port,
-                "protocol": p.protocol,
+                "protocol": body.protocol,
                 "username": p.username,
                 "password": p.password,
             })
@@ -163,7 +164,7 @@ async def bulk_import_proxies(
             proxy_entries.append({
                 "host": p.host,
                 "port": p.port,
-                "protocol": p.protocol,
+                "protocol": body.protocol,
                 "username": p.username,
                 "password": p.password,
             })
@@ -174,7 +175,7 @@ async def bulk_import_proxies(
             proxy_entries.append({
                 "host": p.host,
                 "port": p.port,
-                "protocol": p.protocol,
+                "protocol": body.protocol,
                 "username": p.username,
                 "password": p.password,
             })
