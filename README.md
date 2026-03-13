@@ -30,7 +30,7 @@ A single endpoint that handles rotation, failover, and observability across all 
 
 </div>
 
-## Agentic Setup
+## Agentic Setup (Recommended)
 
 > [!TIP]
 > Copy the prompt below into any AI coding agent (Claude Code, Cursor, Copilot, etc.) and it will clone, configure, and walk you through the entire project step by step.
@@ -42,7 +42,9 @@ You are setting up Proxysm, a self-hosted proxy management platform built with P
 > [!CAUTION]
 > Never use default or AI-generated passwords in production. After setup, change all secrets in `.env` (`PM_ADMIN_PASSWORD`, `PM_SECRET_KEY`, `DB_PASSWORD`, `GRAFANA_PASSWORD`) to your own secure values.
 
-## Quick Start
+## Quick Start (Manual)
+
+If you prefer to set things up yourself instead of using the agentic setup above:
 
 ```bash
 git clone https://github.com/pcko1/proxysm.git
