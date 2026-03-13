@@ -30,7 +30,7 @@ A single endpoint that handles rotation, failover, and observability across all 
 
 </div>
 
-## Agentic Setup (Recommended)
+## Agentic Setup (🌟 Recommended)
 
 > [!TIP]
 > Copy the prompt below into any AI coding agent (Claude Code, Cursor, Copilot, etc.) and it will clone, configure, and walk you through the entire project step by step.
