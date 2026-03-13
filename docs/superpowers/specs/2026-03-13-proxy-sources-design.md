@@ -114,7 +114,7 @@ If a proxy exists in both feed and DB but username/password changed, update `use
 
 ### New router: `src/api/sources.py`
 
-Prefix: `/sources`, tags: `["sources"]`. All endpoints require `admin_auth`.
+Prefix: `/sources`, tags: `["sources"]`. Mounted under `/api/v1` like all other routers (full path: `/api/v1/sources`). All endpoints require `admin_auth`.
 
 | Endpoint               | Method | Description                                          |
 |------------------------|--------|------------------------------------------------------|
@@ -124,6 +124,10 @@ Prefix: `/sources`, tags: `["sources"]`. All endpoints require `admin_auth`.
 | `/sources/{id}`        | PATCH  | Update source (name, url, provider, is_active)       |
 | `/sources/{id}`        | DELETE | Delete source + cascade-deletes all its proxies      |
 | `/sources/{id}/poll`   | POST   | Trigger an immediate poll for a URL source           |
+
+### Modifications to single proxy create (`POST /ips`)
+
+Since `source_id` is non-nullable, `POST /ips` must also create a source. It auto-creates a `ProxySource(type="manual", name="manual-TIMESTAMP")` for each single-proxy creation. The `source_id` is set on the new proxy automatically.
 
 ### Modifications to existing bulk import (`POST /ips/bulk`)
 
