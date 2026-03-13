@@ -26,7 +26,7 @@ A single endpoint that handles rotation, failover, and observability across all 
 
 <br>
 
-<video src="assets/proxysm-showcase.mp4" width="100%" autoplay loop muted playsinline></video>
+https://github.com/pcko1/proxysm/raw/main/assets/proxysm-showcase.mp4
 
 </div>
 
