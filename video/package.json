@@ -11,8 +11,13 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@remotion/animation-utils": "^4.0.435",
     "@remotion/bundler": "^4.0.435",
     "@remotion/cli": "^4.0.435",
+    "@remotion/noise": "^4.0.435",
+    "@remotion/paths": "^4.0.435",
+    "@remotion/shapes": "^4.0.435",
+    "@remotion/transitions": "^4.0.435",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "remotion": "^4.0.435"
