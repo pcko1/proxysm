@@ -39,8 +39,8 @@ Only URL sources are polled. File and manual sources are static records of how p
 ### Source naming conventions
 
 - **URL sources**: user-defined name
-- **File sources**: `{filename}-{YYYY-MM-DD-HH:mm}` (e.g. `proxies.txt-2026-03-13-14:30`)
-- **Manual sources**: `manual-{YYYY-MM-DD-HH:mm}`
+- **File sources**: `{filename}-{YYYY-MM-DD-HH:mm:ss}` (e.g. `proxies.txt-2026-03-13-14:30:05`)
+- **Manual sources**: `manual-{YYYY-MM-DD-HH:mm:ss}`
 
 Each import creates a distinct source so individual batches can be traced and deleted.
 
@@ -86,9 +86,13 @@ When a URL source returns 200, we compare the parsed list against existing proxi
 - `feed_set`: set of `(host, port, protocol)` tuples from the parsed response
 - `db_proxies`: all proxies where `source_id = this source`
 
+### Cross-source duplicates
+
+A proxy `(host, port, protocol)` can only exist once in the DB (unique constraint). If two sources contain the same proxy, it belongs to whichever source imported it first. Subsequent sources skip the duplicate during import. The sync logic only manages proxies owned by the current source (`source_id = this source`), so deactivation/re-activation from one source never affects another source's proxies.
+
 ### Step 2 — Add new proxies
 
-For each entry in `feed_set` not in DB: create a new `Proxy` with `source_id` and `provider` from the source.
+For each entry in `feed_set` not already in the `proxies` table (by `host, port, protocol`): create a new `Proxy` with `source_id` and `provider` from the source. Skip duplicates that already exist under a different source.
 
 ### Step 3 — Handle disappeared proxies
 
@@ -104,7 +108,7 @@ For each entry in `feed_set` that IS in DB but has `is_active = False`:
 
 ### Step 5 — Update credentials
 
-If a proxy exists in both feed and DB but username/password changed, update them.
+If a proxy exists in both feed and DB but username/password changed, update `username` and `password_encrypted` columns.
 
 ## API
 
@@ -126,7 +130,7 @@ Prefix: `/sources`, tags: `["sources"]`. All endpoints require `admin_auth`.
 - When `url` is provided: create a `ProxySource(type="url")`, assign `source_id` to imported proxies
 - When `proxies` (raw text) is provided: create a `ProxySource(type="manual", name="manual-TIMESTAMP")`
 - When `proxy_list` (structured JSON) is provided: also `type="manual", name="manual-TIMESTAMP"`
-- File upload: `ProxySource(type="file", name="filename-TIMESTAMP")`
+- File upload: the frontend currently reads the file client-side and sends its content as the `proxies` text field. To distinguish file from manual imports, the bulk import request should include an optional `filename` field. When present, create `ProxySource(type="file", name="filename-TIMESTAMP")`. When absent, treat as manual.
 
 ## UI — Sources Panel on Proxies Page
 
