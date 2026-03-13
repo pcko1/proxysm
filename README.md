@@ -70,8 +70,6 @@ curl -x http://PROJECT_SLUG:API_KEY@localhost:9080 https://httpbin.org/ip
 curl --proxy socks5://PROJECT_SLUG:API_KEY@localhost:9081 https://httpbin.org/ip
 ```
 
-Full API docs at `http://localhost:8080/api-docs`.
-
 ## Features
 
 - **Proxy Rotation** - Round-robin, random, weighted random, and least-connections strategies
