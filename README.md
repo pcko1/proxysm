@@ -24,6 +24,10 @@ Like a prism splits light, Proxysm splits your traffic across upstream proxy pro
 Self-hosted proxy management platform with intelligent rotation, health monitoring, and real-time analytics.<br>
 A single endpoint that handles rotation, failover, and observability across all your proxies.
 
+<br>
+
+<video src="assets/proxysm-showcase.mp4" width="100%" autoplay loop muted playsinline></video>
+
 </div>
 
 ## Features
