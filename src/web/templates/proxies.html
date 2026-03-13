@@ -42,6 +42,75 @@
     </div>
 </div>
 
+<!-- Sources Panel -->
+<div class="table-card" id="sourcesPanel" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none" onclick="toggleSources()">
+        <span style="font-weight:600;font-size:14px" id="sourcesHeader">Sources (0)</span>
+        <span id="sourcesToggle" style="font-size:12px;color:var(--text-muted)">&#9660;</span>
+    </div>
+    <div id="sourcesContent" style="display:none">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Provider</th>
+                    <th>URL</th>
+                    <th>Last Polled</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="sourcesTableBody"></tbody>
+        </table>
+        <div style="padding:12px 16px;border-top:1px solid var(--border)">
+            <button class="btn btn-outline btn-sm" onclick="openModal('addSourceModal')">Add Source</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Source Modal -->
+<div class="modal-overlay" id="addSourceModal">
+    <div class="modal" style="max-width:460px">
+        <h2>Add Source</h2>
+        <div class="form-group">
+            <label for="sourceName">Name</label>
+            <input type="text" id="sourceName" placeholder="e.g. my-proxy-feed">
+        </div>
+        <div class="form-group">
+            <label for="sourceType">Type</label>
+            <select id="sourceType" onchange="document.getElementById('sourceUrlGroup').style.display = this.value === 'url' ? 'block' : 'none'">
+                <option value="url" selected>URL (auto-polled)</option>
+                <option value="manual">Manual</option>
+            </select>
+        </div>
+        <div class="form-group" id="sourceUrlGroup">
+            <label for="sourceUrl">URL</label>
+            <input type="text" id="sourceUrl" placeholder="https://provider.com/api/proxies">
+        </div>
+        <div class="form-group">
+            <label for="sourceProvider">Provider</label>
+            <input type="text" id="sourceProvider" placeholder="e.g. BrightData">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('addSourceModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createSource()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Source Confirmation Modal -->
+<div class="modal-overlay" id="deleteSourceModal">
+    <div class="modal" style="max-width:420px">
+        <h2>Delete Source</h2>
+        <p id="deleteSourceMsg">This will permanently delete this source and all its proxies. Are you sure?</p>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('deleteSourceModal')">Cancel</button>
+            <button class="btn btn-danger" id="deleteSourceConfirmBtn" onclick="confirmDeleteSource()">Delete</button>
+        </div>
+    </div>
+</div>
+
 <!-- Import Modal -->
 <div class="modal-overlay" id="importModal">
     <div class="modal" style="max-width:520px">
@@ -218,6 +287,7 @@
             const payload = { provider: provider };
             if (text) payload.proxies = text;
             if (importUrl) payload.url = importUrl;
+            if (fileInput.files.length > 0) payload.filename = fileInput.files[0].name;
             const result = await apiCall('POST', '/api/v1/ips/bulk', payload);
 
             let poolMsg = '';
@@ -255,6 +325,7 @@
             document.getElementById('importPoolName').value = '';
 
             loadProxies();
+            loadSources();
         } catch (e) {
             btnReset(importBtn);
             showToast('Import failed: ' + e.message, 'error');
@@ -287,6 +358,111 @@
 
     document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
 
+    // --- Sources Panel ---
+    let sourcesExpanded = false;
+    let deleteSourceId = null;
+
+    function toggleSources() {
+        sourcesExpanded = !sourcesExpanded;
+        document.getElementById('sourcesContent').style.display = sourcesExpanded ? '' : 'none';
+        document.getElementById('sourcesToggle').innerHTML = sourcesExpanded ? '&#9650;' : '&#9660;';
+    }
+
+    function sourceStatusDot(source) {
+        if (source.type !== 'url') return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text-muted)" title="Static"></span>';
+        if (source.consecutive_failures > 0) return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--danger)" title="Failing"></span>';
+        if (source.last_polled_at) return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--success)" title="OK"></span>';
+        return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text-muted)" title="Not polled yet"></span>';
+    }
+
+    function renderSources(sources) {
+        document.getElementById('sourcesHeader').textContent = `Sources (${sources.length})`;
+        const tbody = document.getElementById('sourcesTableBody');
+        if (sources.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px">No sources yet</td></tr>';
+            return;
+        }
+        tbody.innerHTML = sources.map(s => {
+            const urlDisplay = s.url ? `<span class="mono cell-truncate" style="max-width:200px;display:inline-block" title="${esc(s.url)}">${esc(s.url)}</span>` : '-';
+            const polled = s.last_polled_at ? new Date(s.last_polled_at).toLocaleString() : '-';
+            const pollBtn = s.type === 'url' ? `<button class="btn btn-outline btn-sm" onclick="pollSource('${s.id}')" title="Poll Now">&#8635;</button>` : '';
+            return `<tr>
+                <td>${esc(s.name)}</td>
+                <td>${protoTag(s.type)}</td>
+                <td>${esc(s.provider || '-')}</td>
+                <td>${urlDisplay}</td>
+                <td><span class="mono">${polled}</span></td>
+                <td>${sourceStatusDot(s)} <span class="mono" style="font-size:12px">${s.proxy_count}</span></td>
+                <td class="actions">
+                    ${pollBtn}
+                    <button class="btn btn-danger btn-sm" onclick="promptDeleteSource('${s.id}', '${esc(s.name)}', ${s.proxy_count})">Delete</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function loadSources() {
+        try {
+            const data = await apiCall('GET', '/api/v1/sources?per_page=100');
+            renderSources(data.data || []);
+        } catch (e) {
+            console.error('Failed to load sources', e);
+        }
+    }
+
+    async function createSource() {
+        const name = document.getElementById('sourceName').value.trim();
+        const type = document.getElementById('sourceType').value;
+        const url = document.getElementById('sourceUrl').value.trim() || null;
+        const provider = document.getElementById('sourceProvider').value.trim() || null;
+        if (!name) { showToast('Please enter a name', 'error'); return; }
+        if (type === 'url' && !url) { showToast('Please enter a URL for URL sources', 'error'); return; }
+        try {
+            await apiCall('POST', '/api/v1/sources', { name, type, url, provider });
+            showToast('Source created', 'success');
+            closeModal('addSourceModal');
+            document.getElementById('sourceName').value = '';
+            document.getElementById('sourceUrl').value = '';
+            document.getElementById('sourceProvider').value = '';
+            loadSources();
+        } catch (e) {
+            showToast('Failed to create source: ' + e.message, 'error');
+        }
+    }
+
+    function promptDeleteSource(id, name, proxyCount) {
+        deleteSourceId = id;
+        document.getElementById('deleteSourceMsg').textContent = `This will permanently delete source "${name}" and all ${proxyCount} proxies imported from it. Are you sure?`;
+        openModal('deleteSourceModal');
+    }
+
+    async function confirmDeleteSource() {
+        if (!deleteSourceId) return;
+        try {
+            await apiCall('DELETE', `/api/v1/sources/${deleteSourceId}`);
+            showToast('Source and its proxies deleted', 'success');
+            closeModal('deleteSourceModal');
+            deleteSourceId = null;
+            loadSources();
+            loadProxies();
+        } catch (e) {
+            showToast('Delete failed: ' + e.message, 'error');
+        }
+    }
+
+    async function pollSource(id) {
+        try {
+            showToast('Polling source...', 'success');
+            await apiCall('POST', `/api/v1/sources/${id}/poll`);
+            showToast('Poll complete', 'success');
+            loadSources();
+            loadProxies();
+        } catch (e) {
+            showToast('Poll failed: ' + e.message, 'error');
+        }
+    }
+
+    loadSources();
     loadProxies();
 </script>
 {% endblock %}

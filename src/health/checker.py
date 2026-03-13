@@ -88,10 +88,12 @@ async def start_health_checker() -> None:
     from src.services.metrics import start_metrics_service
     from src.services.bandwidth import start_bandwidth_service
     from src.services.partitions import start_partition_service
+    from src.services.source_poller import start_source_poller
 
     start_metrics_service(_scheduler)
     start_bandwidth_service(_scheduler)
     start_partition_service(_scheduler)
+    start_source_poller(_scheduler)
 
     _scheduler.start()
     log.info("health_checker_started", interval=settings.health_check_interval)

@@ -2,6 +2,7 @@ from src.models.base import Base
 from src.models.proxy import Proxy
 from src.models.pool import Pool
 from src.models.project import Project
+from src.models.source import ProxySource
 from src.models.associations import PoolProxy, ProjectPool
 from src.models.request_log import RequestLog
 from src.models.health_log import HealthCheckLog
@@ -13,6 +14,7 @@ __all__ = [
     "Proxy",
     "Pool",
     "Project",
+    "ProxySource",
     "PoolProxy",
     "ProjectPool",
     "RequestLog",

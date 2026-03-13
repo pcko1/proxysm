@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Phase 2: Rate limiting
     rate_limit_window_seconds: int = 60
 
+    # Source polling
+    source_poll_interval: int = 3600
+
     # Prometheus metrics
     prometheus_enabled: bool = False
     prometheus_port: int = 0  # 0 = serve on main HTTP port at /metrics

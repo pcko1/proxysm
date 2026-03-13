@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -8,11 +9,18 @@ from src.api.deps import admin_auth
 from src.database import get_db
 from src.models.associations import PoolProxy
 from src.models.proxy import Proxy
+from src.models.source import ProxySource
 from src.redis import get_redis
 from src.rotation.engine import RotationEngine
 from src.schemas.common import PaginatedResponse, PaginationMeta
 from src.schemas.proxy import ProxyBulkImport, ProxyCreate, ProxyResponse, ProxyUpdate
 from src.services.import_parser import parse_proxy_list
+
+
+def _make_source_name(prefix: str) -> str:
+    """Generate a timestamped source name."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H:%M:%S")
+    return f"{prefix}-{ts}"
 
 router = APIRouter(prefix="/ips", tags=["proxies"])
 
@@ -78,7 +86,16 @@ async def create_proxy(
     db: AsyncSession = Depends(get_db),
     _: None = Depends(admin_auth),
 ):
+    source = ProxySource(
+        name=_make_source_name("manual"),
+        type="manual",
+        provider=body.provider,
+    )
+    db.add(source)
+    await db.flush()
+
     proxy = Proxy(
+        source_id=source.id,
         host=body.host,
         port=body.port,
         protocol=body.protocol,
@@ -99,6 +116,26 @@ async def bulk_import_proxies(
 ):
     created = 0
     skipped = 0
+
+    # Determine source type and name
+    if body.url:
+        source_type = "url"
+        source_name = body.url
+    elif body.filename:
+        source_type = "file"
+        source_name = _make_source_name(body.filename)
+    else:
+        source_type = "manual"
+        source_name = _make_source_name("manual")
+
+    source = ProxySource(
+        name=source_name,
+        type=source_type,
+        url=body.url,
+        provider=body.provider,
+    )
+    db.add(source)
+    await db.flush()
 
     proxy_entries = []
 
@@ -156,6 +193,7 @@ async def bulk_import_proxies(
             continue
 
         proxy = Proxy(
+            source_id=source.id,
             host=entry["host"],
             port=entry["port"],
             protocol=entry["protocol"],
@@ -168,7 +206,7 @@ async def bulk_import_proxies(
 
     await db.flush()
 
-    return {"created": created, "skipped": skipped}
+    return {"created": created, "skipped": skipped, "source_id": str(source.id)}
 
 
 @router.get("/{proxy_id}", response_model=ProxyResponse)

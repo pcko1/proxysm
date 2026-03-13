@@ -20,6 +20,7 @@ class ProxyUpdate(BaseModel):
 
 class ProxyResponse(BaseModel):
     id: uuid.UUID
+    source_id: uuid.UUID
     host: str
     port: int
     protocol: str
@@ -37,3 +38,4 @@ class ProxyBulkImport(BaseModel):
     proxies: str | None = None
     proxy_list: list[ProxyCreate] | None = None
     url: str | None = None
+    filename: str | None = None

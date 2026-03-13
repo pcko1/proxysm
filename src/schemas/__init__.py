@@ -8,6 +8,7 @@ from src.schemas.project import (
     ProjectUpdate,
 )
 from src.schemas.proxy import ProxyBulkImport, ProxyCreate, ProxyResponse, ProxyUpdate
+from src.schemas.source import SourceCreate, SourceResponse, SourceUpdate
 
 __all__ = [
     "PaginatedResponse",
@@ -26,4 +27,7 @@ __all__ = [
     "ProxyCreate",
     "ProxyResponse",
     "ProxyUpdate",
+    "SourceCreate",
+    "SourceResponse",
+    "SourceUpdate",
 ]
