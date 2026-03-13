@@ -33,35 +33,35 @@ const SLIDES = [
     subtitle: "Import, monitor & manage thousands of proxies with source tracking",
     number: "01",
     // Ken Burns: slow zoom toward the proxy table
-    kb: { endScale: 1.18, originX: "50%", originY: "35%" },
+    kb: { endScale: 1.03, originX: "50%", originY: "35%" },
   },
   {
     image: "screenshots/02-dashboard.png",
     title: "Real-Time Dashboard",
     subtitle: "Health rings, provider overview, pool utilization at a glance",
     number: "02",
-    kb: { endScale: 1.15, originX: "45%", originY: "40%" },
+    kb: { endScale: 1.03, originX: "50%", originY: "40%" },
   },
   {
     image: "screenshots/03-import-modal.png",
     title: "Flexible Import",
     subtitle: "Paste, upload files, or fetch from URLs with auto-polling",
     number: "03",
-    kb: { endScale: 1.12, originX: "50%", originY: "50%" },
+    kb: { endScale: 1.02, originX: "50%", originY: "50%" },
   },
   {
     image: "screenshots/04-pools.png",
     title: "Pool Rotation",
     subtitle: "Round-robin & random strategies with health-aware routing",
     number: "04",
-    kb: { endScale: 1.16, originX: "55%", originY: "30%" },
+    kb: { endScale: 1.03, originX: "50%", originY: "30%" },
   },
   {
     image: "screenshots/05-api-docs.png",
     title: "Full REST API",
     subtitle: "Interactive API docs with Redocly — every feature accessible via API",
     number: "05",
-    kb: { endScale: 1.14, originX: "50%", originY: "25%" },
+    kb: { endScale: 1.03, originX: "50%", originY: "25%" },
   },
 ];
 
@@ -329,10 +329,10 @@ const FeatureSlide: React.FC<{
       <div
         style={{
           position: "absolute",
-          top: 50,
-          left: 80,
-          right: 80,
-          bottom: 200,
+          top: 30,
+          left: 50,
+          right: 50,
+          bottom: 130,
           opacity: frameOpacity,
           transform: `perspective(1200px) rotateX(${frameTiltX}deg) rotateY(${frameTiltY}deg) translateY(${frameTranslateY}px)`,
           transformOrigin: "center bottom",
@@ -353,7 +353,8 @@ const FeatureSlide: React.FC<{
               style={{
                 width: "100%",
                 height: "100%",
-                objectFit: "cover",
+                objectFit: "contain",
+                objectPosition: "top center",
               }}
             />
           </div>
@@ -364,9 +365,9 @@ const FeatureSlide: React.FC<{
       <div
         style={{
           position: "absolute",
-          bottom: 55,
-          left: 80,
-          right: 80,
+          bottom: 25,
+          left: 50,
+          right: 50,
         }}
       >
         {/* Accent line */}
