@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.schemas.proxy import ProxyCreate, ProxyBulkImport
-from src.schemas.pool import PoolCreate
+from src.schemas.pool import PoolCreate, PoolUpdate
 from src.schemas.project import ProjectCreate
 
 
@@ -107,9 +107,34 @@ class TestPoolCreate:
         p = PoolCreate(name="pool2", rotation_strategy="random")
         assert p.rotation_strategy == "random"
 
+    def test_weighted_random_strategy(self):
+        p = PoolCreate(name="pool3", rotation_strategy="weighted_random")
+        assert p.rotation_strategy == "weighted_random"
+
+    def test_least_connections_not_exposed(self):
+        # Implemented in the rotation engine, but proxy servers never maintain
+        # the connections ZSET, so the strategy is intentionally not exposed.
+        with pytest.raises(ValidationError):
+            PoolCreate(name="pool4", rotation_strategy="least_connections")
+
+    def test_invalid_strategy(self):
+        with pytest.raises(ValidationError):
+            PoolCreate(name="pool5", rotation_strategy="bogus")
+
     def test_missing_name(self):
         with pytest.raises(ValidationError):
             PoolCreate()
+
+
+class TestPoolUpdate:
+    def test_weighted_random_strategy(self):
+        p = PoolUpdate(rotation_strategy="weighted_random")
+        assert p.rotation_strategy == "weighted_random"
+        assert p.name is None
+
+    def test_least_connections_not_exposed(self):
+        with pytest.raises(ValidationError):
+            PoolUpdate(rotation_strategy="least_connections")
 
 
 # ---------------------------------------------------------------------------

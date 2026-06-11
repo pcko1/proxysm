@@ -33,15 +33,21 @@ async def _get_pool_counts(db: AsyncSession, pool_id: uuid.UUID) -> tuple[int, i
 async def _sync_pool_redis(db: AsyncSession, pool_id: uuid.UUID) -> None:
     """Sync pool proxy list and proxy info to Redis."""
     stmt = (
-        select(Proxy)
+        select(Proxy, PoolProxy.weight)
         .join(PoolProxy, PoolProxy.proxy_id == Proxy.id)
         .where(PoolProxy.pool_id == pool_id, Proxy.is_active == True)  # noqa: E712
     )
-    proxies = (await db.execute(stmt)).scalars().all()
+    rows = (await db.execute(stmt)).all()
+    proxies = [proxy for proxy, _ in rows]
     redis = await get_redis()
     engine = RotationEngine(redis)
     proxy_ids = [str(p.id) for p in proxies]
     await engine.sync_pool(str(pool_id), proxy_ids)
+    # Keep the weighted ZSET in sync for every pool (cheap), so switching a
+    # pool to weighted_random works without a re-sync.
+    await engine.sync_weighted_pool(
+        str(pool_id), {str(proxy.id): weight for proxy, weight in rows}
+    )
     # Cache proxy info so rotation works immediately (before first health check)
     for proxy in proxies:
         await engine.cache_proxy_info(str(proxy.id), {
