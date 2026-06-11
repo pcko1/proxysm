@@ -183,6 +183,11 @@
     let currentProjectId = null;
     let allPools = [];
 
+    // Connection examples target the host you're viewing the dashboard on, not
+    // a hardcoded localhost — so a copied command runs as-is from anywhere.
+    const PROXY_URL_HOST = window.location.hostname + ':{{ http_port }}';
+    const API_BASE = window.location.origin;
+
     const COPY_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
     const ROTATE_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
 
@@ -316,8 +321,8 @@
                         </div>
                         <div class="proj-conn">
                             <span class="tag tag-http" style="flex-shrink:0">curl</span>
-                            <code class="conn-code"><span class="tok-dim">curl -x</span> <span class="tok-cmd">http://${esc(p.slug)}:\${API_KEY}@</span><span class="tok-flag">localhost:9080</span> <span class="tok-str">https://httpbin.org/ip</span></code>
-                            <button class="copy-btn" onclick="copyText('curl -x http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080 https://httpbin.org/ip', this, 'Command copied')">${COPY_ICON}<span class="copy-label">Copy</span></button>
+                            <code class="conn-code"><span class="tok-dim">curl -x</span> <span class="tok-cmd">http://${esc(p.slug)}:\${API_KEY}@</span><span class="tok-flag">${PROXY_URL_HOST}</span> <span class="tok-str">https://httpbin.org/ip</span></code>
+                            <button class="copy-btn" onclick="copyText('curl -x http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST} https://httpbin.org/ip', this, 'Command copied')">${COPY_ICON}<span class="copy-label">Copy</span></button>
                         </div>
                         <div class="proj-usage" id="usage-${p.id}" style="display:none">
 
@@ -335,7 +340,7 @@
                                             <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','cpp',this)">C++</button>
                                         </div>
                                         <div class="lang-panel" data-group="http-${p.id}" data-lang="curl">
-                                            <pre class="code-block"><code class="language-bash">curl -x http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080 \\
+                                            <pre class="code-block"><code class="language-bash">curl -x http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST} \\
   https://httpbin.org/ip</code></pre>
                                         </div>
                                         <div class="lang-panel" data-group="http-${p.id}" data-lang="python" style="display:none">
@@ -344,8 +349,8 @@
 result = requests.get(
     "https://httpbin.org/ip",
     proxies={
-        "http": "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080",
-        "https": "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080",
+        "http": "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST}",
+        "https": "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST}",
     },
     timeout=10
 )
@@ -355,7 +360,7 @@ print(result.json())</code></pre>
                                             <pre class="code-block"><code class="language-javascript">import { ProxyAgent } from "proxy-agent";
 
 const agent = new ProxyAgent(
-  "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080"
+  "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST}"
 );
 
 const resp = await fetch("https://httpbin.org/ip", { agent });
@@ -363,7 +368,7 @@ console.log(await resp.json());</code></pre>
                                         </div>
                                         <div class="lang-panel" data-group="http-${p.id}" data-lang="go" style="display:none">
                                             <pre class="code-block"><code class="language-go">proxyURL, _ := url.Parse(
-    "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080",
+    "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST}",
 )
 client := &http.Client{
     Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)},
@@ -376,7 +381,7 @@ fmt.Println(string(body))</code></pre>
                                         <div class="lang-panel" data-group="http-${p.id}" data-lang="rust" style="display:none">
                                             <pre class="code-block"><code class="language-rust">let client = reqwest::Client::builder()
     .proxy(reqwest::Proxy::all(
-        "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080"
+        "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST}"
     )?)
     .build()?;
 let body = client.get("https://httpbin.org/ip")
@@ -385,7 +390,7 @@ println!("{body}");</code></pre>
                                         </div>
                                         <div class="lang-panel" data-group="http-${p.id}" data-lang="csharp" style="display:none">
                                             <pre class="code-block"><code class="language-csharp">var handler = new HttpClientHandler {
-    Proxy = new WebProxy("http://localhost:9080") {
+    Proxy = new WebProxy("http://${PROXY_URL_HOST}") {
         Credentials = new NetworkCredential(
             "${esc(p.slug)}", "${esc(p.api_key || 'YOUR_API_KEY')}"
         )
@@ -398,7 +403,7 @@ Console.WriteLine(result);</code></pre>
                                         <div class="lang-panel" data-group="http-${p.id}" data-lang="java" style="display:none">
                                             <pre class="code-block"><code class="language-java">var client = HttpClient.newBuilder()
     .proxy(ProxySelector.of(
-        new InetSocketAddress("localhost", 9080)))
+        new InetSocketAddress("${window.location.hostname}", {{ http_port }})))
     .authenticator(new Authenticator() {
         protected PasswordAuthentication getPasswordAuthentication() {
             return new PasswordAuthentication(
@@ -415,7 +420,7 @@ System.out.println(resp.body());</code></pre>
                                             <pre class="code-block"><code class="language-cpp">CURL* curl = curl_easy_init();
 std::string response;
 curl_easy_setopt(curl, CURLOPT_URL, "https://httpbin.org/ip");
-curl_easy_setopt(curl, CURLOPT_PROXY, "http://localhost:9080");
+curl_easy_setopt(curl, CURLOPT_PROXY, "http://${PROXY_URL_HOST}");
 curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD,
     "${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}");
 curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
@@ -441,13 +446,13 @@ std::cout << response << std::endl;</code></pre>
                                         </div>
                                         <div class="lang-panel" data-group="api-${p.id}" data-lang="curl">
                                             <pre class="code-block"><code class="language-bash">curl -H "X-API-Key: ${esc(p.api_key || 'YOUR_API_KEY')}" \\
-  http://localhost:8080/api/v1/rotate/${esc(p.slug)}</code></pre>
+  ${API_BASE}/api/v1/rotate/${esc(p.slug)}</code></pre>
                                         </div>
                                         <div class="lang-panel" data-group="api-${p.id}" data-lang="python" style="display:none">
                                             <pre class="code-block"><code class="language-python">import requests
 
 API_KEY = "${esc(p.api_key || 'YOUR_API_KEY')}"
-BASE = "http://localhost:8080"
+BASE = "${API_BASE}"
 
 # Get proxy from pool
 resp = requests.get(
@@ -473,7 +478,7 @@ print(result.json())</code></pre>
                                         </div>
                                         <div class="lang-panel" data-group="api-${p.id}" data-lang="javascript" style="display:none">
                                             <pre class="code-block"><code class="language-javascript">const API_KEY = "${esc(p.api_key || 'YOUR_API_KEY')}";
-const BASE = "http://localhost:8080";
+const BASE = "${API_BASE}";
 
 // Get proxy from pool
 const resp = await fetch(
@@ -495,7 +500,7 @@ import (
 
 func main() {
 	apiKey := "${esc(p.api_key || 'YOUR_API_KEY')}"
-	base := "http://localhost:8080"
+	base := "${API_BASE}"
 
 	req, _ := http.NewRequest("GET", base+"/api/v1/rotate/${esc(p.slug)}", nil)
 	req.Header.Set("X-API-Key", apiKey)
@@ -510,7 +515,7 @@ func main() {
                                         <div class="lang-panel" data-group="api-${p.id}" data-lang="rust" style="display:none">
                                             <pre class="code-block"><code class="language-rust">// reqwest = { version = "0.12", features = ["json"] }
 let proxy: serde_json::Value = reqwest::Client::new()
-    .get("http://localhost:8080/api/v1/rotate/${esc(p.slug)}")
+    .get("${API_BASE}/api/v1/rotate/${esc(p.slug)}")
     .header("X-API-Key", "${esc(p.api_key || 'YOUR_API_KEY')}")
     .send().await?
     .json().await?;
@@ -520,14 +525,14 @@ println!("{proxy}");</code></pre>
                                             <pre class="code-block"><code class="language-csharp">using var client = new HttpClient();
 client.DefaultRequestHeaders.Add("X-API-Key", "${esc(p.api_key || 'YOUR_API_KEY')}");
 var proxy = await client.GetFromJsonAsync&lt;Dictionary&lt;string, object&gt;&gt;(
-    "http://localhost:8080/api/v1/rotate/${esc(p.slug)}"
+    "${API_BASE}/api/v1/rotate/${esc(p.slug)}"
 );
 Console.WriteLine(string.Join(", ", proxy!));</code></pre>
                                         </div>
                                         <div class="lang-panel" data-group="api-${p.id}" data-lang="java" style="display:none">
                                             <pre class="code-block"><code class="language-java">var client = HttpClient.newHttpClient();
 var req = HttpRequest.newBuilder()
-    .uri(URI.create("http://localhost:8080/api/v1/rotate/${esc(p.slug)}"))
+    .uri(URI.create("${API_BASE}/api/v1/rotate/${esc(p.slug)}"))
     .header("X-API-Key", "${esc(p.api_key || 'YOUR_API_KEY')}")
     .build();
 var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
@@ -539,7 +544,7 @@ std::string response;
 struct curl_slist* hdrs = nullptr;
 hdrs = curl_slist_append(hdrs, "X-API-Key: ${esc(p.api_key || 'YOUR_API_KEY')}");
 curl_easy_setopt(curl, CURLOPT_URL,
-    "http://localhost:8080/api/v1/rotate/${esc(p.slug)}");
+    "${API_BASE}/api/v1/rotate/${esc(p.slug)}");
 curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdrs);
 curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
 curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);

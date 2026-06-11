@@ -651,7 +651,7 @@
         // Usage example
         const slug = esc(createdSlug || 'SLUG');
         const keyDisplay = createdApiKey ? esc(createdApiKey) : 'YOUR_API_KEY';
-        document.getElementById('usageExample').textContent = 'curl -x http://' + (createdSlug || 'SLUG') + ':' + (createdApiKey || 'YOUR_API_KEY') + '@localhost:9080 https://httpbin.org/ip';
+        document.getElementById('usageExample').textContent = 'curl -x http://' + (createdSlug || 'SLUG') + ':' + (createdApiKey || 'YOUR_API_KEY') + '@' + window.location.hostname + ':{{ http_port }} https://httpbin.org/ip';
 
         document.getElementById('setupSuccess').classList.add('active');
     }
