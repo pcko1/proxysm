@@ -1,17 +1,60 @@
 {% extends "base.html" %}
-{% block title %}Projects - Proxysm{% endblock %}
+{% block title %}Projects — Proxysm{% endblock %}
 
 {% block content %}
 <style>
-    .usage-label {
-        color: var(--text-muted);
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        margin: 12px 0 6px 0;
+    /* Project cards */
+    .proj-list { display: flex; flex-direction: column; gap: 16px; }
+    .proj-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: border-color 0.15s;
     }
-    .usage-label:first-child { margin-top: 0; }
+    .proj-card.selected { border-color: var(--accent-line); }
+    .proj-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px; }
+    .proj-name { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); }
+    .proj-slug { font-family: "Geist Mono", monospace; font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .proj-pools { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+    .chip {
+        display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px;
+        background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 7px;
+        font-family: "Geist Mono", monospace; font-size: 11px; color: var(--text-secondary);
+        white-space: nowrap; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .chip:hover { border-color: var(--border-strong); color: var(--text-primary); }
+    .chip.chip-empty { font-family: inherit; color: var(--text-muted); border-style: dashed; }
+    .key-label {
+        font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+        color: var(--text-muted); flex-shrink: 0; white-space: nowrap;
+    }
+    .keyfield { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .keyfield .km {
+        font-family: "Geist Mono", monospace; font-size: 12px; color: var(--text-secondary);
+        background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 7px;
+        padding: 5px 10px; letter-spacing: 1px; word-break: break-all;
+    }
+    .proj-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; flex-shrink: 0; }
+    .proj-created { font-size: 11px; color: var(--text-muted); }
+    .proj-conn {
+        background: var(--sunken); border-top: 1px solid var(--border);
+        padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+    }
+    .conn-code {
+        flex: 1; font-family: "Geist Mono", monospace; font-size: 12px; color: var(--text-secondary);
+        white-space: nowrap; overflow-x: auto;
+    }
+    .conn-code .tok-cmd { color: var(--accent); }
+    .conn-code .tok-flag { color: #56C8D8; }
+    .conn-code .tok-str { color: var(--green); }
+    .conn-code .tok-dim { color: var(--text-muted); }
+    .proj-usage { border-top: 1px solid var(--border); padding: 14px 20px; }
+    @media (max-width: 720px) {
+        .proj-top { flex-direction: column; }
+        .proj-meta { align-items: flex-start; }
+    }
+    /* Usage panels */
     .usage-tab {
         background: transparent;
         border: 1px solid transparent;
@@ -28,11 +71,6 @@
         color: #fff;
         border-color: var(--accent);
     }
-    .code-block-wrap pre.code-block {
-        margin: 0;
-        white-space: pre-wrap;
-        word-break: break-all;
-    }
     .usage-section {
         border: 1px solid var(--border);
         border-radius: 8px;
@@ -45,7 +83,7 @@
         font-weight: 600;
         font-size: 13px;
         color: var(--text-primary);
-        background: var(--bg-secondary);
+        background: var(--sunken);
         list-style: none;
         display: flex;
         align-items: center;
@@ -60,7 +98,7 @@
         transition: transform 0.15s;
     }
     .usage-section[open] summary::before { transform: rotate(90deg); }
-    .usage-section summary:hover { background: var(--bg-hover); }
+    .usage-section summary:hover { background: var(--surface-2); }
     .usage-desc {
         font-weight: 400;
         font-size: 11px;
@@ -69,20 +107,17 @@
     .usage-section-body {
         padding: 10px 14px;
     }
-    .api-key-cell {
-        padding: 2px 6px;
-        border-radius: 4px;
-        transition: background 0.15s, color 0.15s;
-    }
-    .api-key-cell:hover {
-        background: var(--accent-subtle);
-        color: var(--accent);
-    }
 </style>
 <div class="page-header">
-    <h1>Projects</h1>
+    <div class="title-block">
+        <h1>Projects</h1>
+        <span class="sub">Each project gets an isolated API key &amp; pool assignments</span>
+    </div>
     <div class="page-header-actions">
-        <button class="btn btn-primary" onclick="openModal('createProjectModal')">Create Project</button>
+        <button class="btn btn-primary" onclick="openModal('createProjectModal')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Project
+        </button>
     </div>
 </div>
 
@@ -99,10 +134,11 @@
 <!-- Create Modal -->
 <div class="modal-overlay" id="createProjectModal">
     <div class="modal">
-        <h2>Create Project</h2>
+        <h2>New Project</h2>
+        <p style="color:var(--text-muted);margin-bottom:14px;font-size:12px">A slug and API key are generated automatically.</p>
         <div class="form-group">
             <label for="projectName">Project Name</label>
-            <input type="text" id="projectName" placeholder="e.g. my-scraper" />
+            <input type="text" id="projectName" placeholder="e.g. price-monitor" />
         </div>
         <div class="modal-actions">
             <button class="btn btn-outline" onclick="closeModal('createProjectModal')">Cancel</button>
@@ -124,23 +160,17 @@
     </div>
 </div>
 
-<div class="table-card">
-    <table>
-        <thead>
-            <tr>
-                <th class="col-check"><input type="checkbox" class="row-checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
-                <th>Name</th>
-                <th>Slug</th>
-                <th>API Key</th>
-                <th>Pools</th>
-                <th>Created</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody id="projectTableBody">
-        </tbody>
-    </table>
+<div class="row" id="listTools" style="margin-bottom:12px;display:none;gap:10px">
+    <label class="row" style="gap:8px;font-size:12px;color:var(--text-muted);cursor:pointer">
+        <input type="checkbox" class="row-checkbox" id="selectAll" onchange="toggleSelectAllCards(this)" style="width:auto;accent-color:var(--accent)">
+        Select all
+    </label>
+    <span class="spacer"></span>
+    <span class="mono" style="font-size:12px;color:var(--text-muted)" id="projCount"></span>
 </div>
+
+<div class="proj-list" id="projList"></div>
+
 <div id="emptyState" class="empty-state" style="display:none;">
     <div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
     <h3>No projects yet</h3>
@@ -153,14 +183,33 @@
     let currentProjectId = null;
     let allPools = [];
 
-    function copyText(text, el) {
+    const COPY_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    const ROTATE_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+
+    function copyText(text, el, msg) {
         navigator.clipboard.writeText(text).then(() => {
-            const orig = el.textContent;
-            el.textContent = 'Copied!';
-            el.style.color = 'var(--green)';
-            setTimeout(() => { el.textContent = orig; el.style.color = ''; }, 1500);
-            showToast('API key copied', 'success');
+            const target = (el.querySelector && el.querySelector('.copy-label')) || el;
+            const orig = target.textContent;
+            target.textContent = 'Copied!';
+            target.style.color = 'var(--green)';
+            setTimeout(() => { target.textContent = orig; target.style.color = ''; }, 1500);
+            showToast(msg || 'API key copied', 'success');
         });
+    }
+
+    function maskKey(key) {
+        return '••••••••••••' + key.slice(-4);
+    }
+
+    function toggleKeyReveal(id, key, btn) {
+        const el = document.getElementById('key-' + id);
+        if (btn.textContent.trim() === 'Reveal') {
+            el.textContent = key;
+            btn.textContent = 'Hide';
+        } else {
+            el.textContent = maskKey(key);
+            btn.textContent = 'Reveal';
+        }
     }
 
     function switchLangTab(group, lang, btn) {
@@ -172,45 +221,104 @@
         });
     }
 
+    function toggleCardSelection(id, checkbox) {
+        const card = checkbox.closest('.proj-card');
+        if (checkbox.checked) {
+            selectedIds.add(id);
+            card.classList.add('selected');
+        } else {
+            selectedIds.delete(id);
+            card.classList.remove('selected');
+        }
+        const boxes = Array.from(document.querySelectorAll('#projList .row-checkbox'));
+        const allChecked = boxes.length > 0 && boxes.every(cb => cb.checked);
+        const someChecked = boxes.some(cb => cb.checked);
+        const master = document.getElementById('selectAll');
+        master.checked = allChecked;
+        master.indeterminate = someChecked && !allChecked;
+        updateBulkBar();
+    }
+
+    function toggleSelectAllCards(masterCheckbox) {
+        document.querySelectorAll('#projList .row-checkbox').forEach(cb => {
+            cb.checked = masterCheckbox.checked;
+            const card = cb.closest('.proj-card');
+            if (masterCheckbox.checked) {
+                selectedIds.add(cb.dataset.id);
+                card.classList.add('selected');
+            } else {
+                selectedIds.delete(cb.dataset.id);
+                card.classList.remove('selected');
+            }
+        });
+        updateBulkBar();
+    }
 
     async function loadProjects() {
         try {
             const data = await apiCall('GET', '/api/v1/projects');
             const items = data.data || [];
-            const tbody = document.getElementById('projectTableBody');
+            const list = document.getElementById('projList');
             const empty = document.getElementById('emptyState');
+            const tools = document.getElementById('listTools');
 
             if (items.length === 0) {
-                tbody.innerHTML = '';
+                list.innerHTML = '';
+                list.style.display = 'none';
+                tools.style.display = 'none';
                 empty.style.display = 'block';
-                document.querySelector('.table-card').style.display = 'none';
             } else {
                 empty.style.display = 'none';
-                document.querySelector('.table-card').style.display = '';
-                tbody.innerHTML = items.map(p => {
-                    const poolCount = p.pools ? p.pools.length : 0;
-                    const poolLabel = poolCount === 1 ? 'pool' : 'pools';
-                    return `<tr>
-                        <td class="col-check"><input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="toggleRowSelection('${p.id}', this)"></td>
-                        <td><strong style="color:var(--text-primary)">${esc(p.name)}</strong></td>
-                        <td><code class="mono">${esc(p.slug)}</code></td>
-                        <td>${p.api_key ? '<code class="mono api-key-cell" style="font-size:11px;cursor:pointer" title="Click to copy" onclick="copyText(\'' + esc(p.api_key) + '\', this)">' + esc(p.api_key) + '</code>' : '<span style="color:var(--text-muted)">Rotate to reveal</span>'}</td>
-                        <td>
-                            <span class="stat-pill" style="cursor:pointer" onclick="managePools('${p.id}', '${esc(p.name)}')">
-                                <span class="stat-value">${poolCount}</span> ${poolLabel}
-                            </span>
-                        </td>
-                        <td style="color:var(--text-muted);font-size:12px">${fmtDate(p.created_at)}</td>
-                        <td class="actions">
-                            <button class="btn btn-outline btn-sm" onclick="toggleUsage('${p.id}')">Usage</button>
-                            <button class="btn btn-outline btn-sm" onclick="managePools('${p.id}', '${esc(p.name)}')">Pools</button>
-                            <button class="btn btn-outline btn-sm" onclick="rotateKey('${p.id}')">Rotate Key</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button>
-                        </td>
-                    </tr>
-                    <tr id="usage-${p.id}" style="display:none">
-                        <td colspan="7" style="padding:0 16px 12px 16px;border-bottom:1px solid var(--border)">
-                            <div class="card" style="margin-top:4px">
+                list.style.display = '';
+                tools.style.display = 'flex';
+                document.getElementById('projCount').textContent = items.length + (items.length === 1 ? ' project' : ' projects');
+                list.innerHTML = items.map(p => {
+                    const pools = p.pools || [];
+                    const poolChips = pools.length > 0
+                        ? pools.map(pl => `<button class="chip" title="Manage pools" onclick="managePools('${p.id}', '${esc(p.name)}')">${esc(pl.name)}</button>`).join('')
+                        : `<button class="chip chip-empty" onclick="managePools('${p.id}', '${esc(p.name)}')">+ Assign pools</button>`;
+                    const keyHtml = p.api_key
+                        ? `<span class="keyfield">
+                                <span class="km" id="key-${p.id}">${maskKey(esc(p.api_key))}</span>
+                                <button class="copy-btn" onclick="copyText('${esc(p.api_key)}', this)">${COPY_ICON}<span class="copy-label">Copy</span></button>
+                                <button class="copy-btn" onclick="toggleKeyReveal('${p.id}', '${esc(p.api_key)}', this)">Reveal</button>
+                                <button class="copy-btn" title="Rotate key" onclick="rotateKey('${p.id}')">${ROTATE_ICON}Rotate</button>
+                            </span>`
+                        : `<span class="keyfield">
+                                <span style="color:var(--text-muted);font-size:12px">Rotate to reveal</span>
+                                <button class="copy-btn" title="Rotate key" onclick="rotateKey('${p.id}')">${ROTATE_ICON}Rotate</button>
+                            </span>`;
+                    return `<div class="proj-card">
+                        <div class="proj-top">
+                            <div style="min-width:0;flex:1">
+                                <div class="row" style="gap:12px;align-items:flex-start">
+                                    <input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="toggleCardSelection('${p.id}', this)" style="width:auto;margin-top:4px;accent-color:var(--accent)">
+                                    <div style="min-width:0">
+                                        <div class="proj-name">${esc(p.name)}</div>
+                                        <div class="proj-slug">/${esc(p.slug)}</div>
+                                    </div>
+                                </div>
+                                <div class="proj-pools">${poolChips}</div>
+                                <div class="row" style="gap:10px;margin-top:14px;flex-wrap:wrap">
+                                    <span class="key-label">API Key</span>
+                                    ${keyHtml}
+                                </div>
+                            </div>
+                            <div class="proj-meta">
+                                <span class="proj-created">Created ${fmtDate(p.created_at)}</span>
+                                <div class="row" style="gap:8px">
+                                    <button class="btn btn-outline btn-sm" onclick="toggleUsage('${p.id}')">Usage</button>
+                                    <button class="btn btn-outline btn-sm" onclick="managePools('${p.id}', '${esc(p.name)}')">Pools</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="proj-conn">
+                            <span class="tag tag-http" style="flex-shrink:0">curl</span>
+                            <code class="conn-code"><span class="tok-dim">curl -x</span> <span class="tok-cmd">http://${esc(p.slug)}:\${API_KEY}@</span><span class="tok-flag">localhost:9080</span> <span class="tok-str">https://httpbin.org/ip</span></code>
+                            <button class="copy-btn" onclick="copyText('curl -x http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@localhost:9080 https://httpbin.org/ip', this, 'Command copied')">${COPY_ICON}<span class="copy-label">Copy</span></button>
+                        </div>
+                        <div class="proj-usage" id="usage-${p.id}" style="display:none">
 
                                 <details class="usage-section" open>
                                     <summary>Proxy Rotator <span class="usage-desc">Point your client at port 9080 &mdash; rotates proxies automatically</span></summary>
@@ -440,9 +548,8 @@ std::cout << response << std::endl;</code></pre>
                                     </div>
                                 </details>
 
-                            </div>
-                        </td>
-                    </tr>`;
+                        </div>
+                    </div>`;
                 }).join('');
             }
             clearSelection();

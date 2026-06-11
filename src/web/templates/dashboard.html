@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard - Proxysm{% endblock %}
+{% block title %}Dashboard — Proxysm{% endblock %}
 
 {% block content %}
 <style>
@@ -26,73 +26,19 @@
         align-items: center;
         justify-content: space-between;
     }
-    .stat-cards {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-        margin-bottom: 20px;
-    }
-    .stat-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 16px;
-        text-align: center;
-    }
-    .stat-card .stat-label {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 6px;
-    }
-    .stat-card .stat-number {
-        font-size: 28px;
-        font-weight: 700;
-        color: var(--text-primary);
-        letter-spacing: -1px;
-        line-height: 1.1;
-    }
-    .stat-card .stat-sub {
-        font-size: 11px;
-        color: var(--text-muted);
-        margin-top: 4px;
-    }
-    /* Health ring */
-    .health-ring-container { display: flex; align-items: center; gap: 24px; }
-    .health-ring-svg { width: 140px; height: 140px; flex-shrink: 0; }
-    .health-ring-svg circle {
-        fill: none; stroke-width: 18; stroke-linecap: round;
-        transform-origin: center; transform: rotate(-90deg);
-        transition: stroke-dasharray 0.6s ease;
-    }
-    .health-legend { display: flex; flex-direction: column; gap: 8px; }
-    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .legend-dot-healthy { background: var(--green); }
-    .legend-dot-degraded { background: var(--yellow); }
-    .legend-dot-dead { background: var(--red); }
-    .legend-dot-unknown { background: var(--text-muted); }
-    .legend-count { font-weight: 600; color: var(--text-primary); margin-left: auto; min-width: 28px; text-align: right; }
-    /* Granularity buttons */
-    .granularity-btns { display: flex; gap: 4px; }
-    .granularity-btns button {
-        padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-light);
-        background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 600;
-        cursor: pointer; transition: all var(--transition-fast); font-family: inherit;
-    }
-    .granularity-btns button:hover { background: var(--bg-hover); color: var(--text-secondary); }
-    .granularity-btns button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    /* Inline health bars (provider / pool tables) */
+    .health-bar { flex: 1; height: 6px; background: var(--sunken); border-radius: 4px; overflow: hidden; }
+    .health-bar i { display: block; height: 100%; border-radius: 4px; }
     /* Stacked bar chart */
-    .ts-bar-chart { display: flex; align-items: flex-end; gap: 2px; height: 140px; padding-top: 8px; }
+    .ts-bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 150px; padding-top: 8px; }
     .ts-bar {
-        flex: 1; min-width: 0; border-radius: 2px 2px 0 0; position: relative;
-        cursor: default; display: flex; flex-direction: column; justify-content: flex-end;
+        flex: 1; min-width: 0; position: relative;
+        cursor: default; display: flex; flex-direction: column; justify-content: flex-end; gap: 1.5px;
     }
-    .ts-bar-success { background: var(--green); border-radius: 2px 2px 0 0; transition: height 0.4s ease; }
-    .ts-bar-fail { background: var(--red); transition: height 0.4s ease; }
-    .ts-bar:hover .ts-bar-success, .ts-bar:hover .ts-bar-fail { opacity: 0.8; }
+    .ts-bar-success { background: linear-gradient(180deg, var(--accent), rgba(91,141,239,0.55)); border-radius: 3px 3px 0 0; transition: height 0.4s ease; }
+    .ts-bar.ts-now .ts-bar-success { background: var(--prism); }
+    .ts-bar-fail { background: var(--red); border-radius: 3px 3px 0 0; transition: height 0.4s ease; }
+    .ts-bar:hover .ts-bar-success, .ts-bar:hover .ts-bar-fail { opacity: 0.85; }
     .ts-bar .ts-tooltip {
         display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
         background: var(--bg-tertiary); border: 1px solid var(--border-light); border-radius: 6px;
@@ -100,16 +46,12 @@
         pointer-events: none; z-index: 10; margin-bottom: 4px; line-height: 1.5;
     }
     .ts-bar:hover .ts-tooltip { display: block; }
-    .ts-bar.ts-now { border-top: 2px solid var(--accent); }
     .ts-labels { display: flex; gap: 2px; margin-top: 6px; }
     .ts-labels span {
         flex: 1; min-width: 0; text-align: center; font-size: 9px; color: var(--text-muted);
         white-space: nowrap; overflow: visible;
     }
     .ts-labels span.ts-now { color: var(--accent); font-weight: 600; white-space: normal; line-height: 1.3; }
-    .ts-legend { display: flex; gap: 16px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
-    .ts-legend-item { display: flex; align-items: center; gap: 5px; }
-    .ts-legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
     /* Pool utilization */
     .pool-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
     .pool-bar-name { font-size: 13px; color: var(--text-secondary); width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
@@ -120,30 +62,20 @@
     .dash-card table { min-width: auto; }
     .dash-card thead th { background: var(--bg-primary); padding: 8px 12px; }
     .dash-card tbody td { padding: 8px 12px; }
-    /* Live indicator */
-    .live-indicator {
-        display: inline-flex; align-items: center; gap: 6px;
-        font-size: 13px; color: var(--green); font-weight: 600;
-    }
-    .live-dot {
-        width: 8px; height: 8px; border-radius: 50%; background: var(--green);
-        box-shadow: 0 0 6px rgba(34,197,94,0.4);
-        animation: livePulse 2s infinite;
-    }
-    @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     /* Tab switcher */
     .dash-tabs {
-        display: flex; gap: 4px; margin-bottom: 24px;
-        background: var(--bg-secondary); border: 1px solid var(--border);
-        border-radius: 10px; padding: 4px; width: fit-content;
+        display: inline-flex; gap: 2px; margin-bottom: 24px;
+        background: var(--sunken); border: 1px solid var(--border);
+        border-radius: 10px; padding: 3px; width: fit-content;
     }
     .dash-tab {
-        padding: 8px 20px; border-radius: 8px; border: none;
-        background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 600;
+        height: 28px; padding: 0 13px; border-radius: 7px; border: none;
+        background: transparent; color: var(--text-muted); font-size: 12.5px; font-weight: 500;
+        letter-spacing: -0.01em;
         cursor: pointer; transition: all var(--transition-fast); font-family: inherit;
     }
-    .dash-tab:hover { color: var(--text-secondary); background: var(--bg-hover); }
-    .dash-tab.active { background: var(--accent); color: #fff; }
+    .dash-tab:hover { color: var(--text-secondary); }
+    .dash-tab.active { background: var(--surface-2); color: var(--text-primary); box-shadow: var(--shadow-sm); }
     .dash-section { display: none; }
     .dash-section.active { display: block; }
     /* Status code bars */
@@ -181,9 +113,9 @@
     .hist-labels { display: flex; gap: 4px; margin-top: 4px; }
     .hist-labels span { flex: 1; text-align: center; font-size: 9px; color: var(--text-muted); }
     /* Line chart */
-    .line-chart-wrap { position: relative; height: 120px; overflow: visible; }
+    .line-chart-wrap { position: relative; height: 150px; overflow: visible; }
     .line-chart-svg { width: 100%; height: 100%; overflow: visible; }
-    .line-chart-svg text { font-size: 9px; fill: var(--text-muted); }
+    .line-chart-svg text { font-size: 9px; fill: var(--text-4); font-family: "Geist Mono", monospace; }
     .line-chart-svg .grid-line { stroke: var(--border); stroke-width: 0.5; }
     .line-chart-svg .data-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .line-chart-svg .hover-dot { opacity: 0; transition: opacity 0.15s; }
@@ -224,12 +156,9 @@
     .rotation-bar:hover .rot-tip { display: block; }
     .rotation-summary { display: flex; gap: 20px; margin-top: 8px; font-size: 11px; color: var(--text-muted); }
     @media (max-width: 900px) {
-        .stat-cards { grid-template-columns: repeat(2, 1fr); }
         .dashboard-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
-        .stat-cards { grid-template-columns: 1fr 1fr; }
-        .health-ring-container { flex-direction: column; align-items: flex-start; }
         .ts-labels span { font-size: 8px; }
         .ts-labels span:nth-child(odd):not(.ts-now) { visibility: hidden; }
     }
@@ -237,10 +166,15 @@
 
 <!-- Page Header -->
 <div class="page-header">
-    <h1>Dashboard</h1>
+    <div class="title-block">
+        <h1>Dashboard</h1>
+        <span class="sub">Real-time overview of your proxy fleet &middot; last 24 hours</span>
+    </div>
     <div class="page-header-actions">
-        <span class="live-indicator"><span class="live-dot"></span>Live</span>
-        <button class="btn btn-outline btn-sm" onclick="loadStats()">Refresh</button>
+        <button class="btn btn-outline btn-sm" onclick="loadStats()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh
+        </button>
     </div>
 </div>
 
@@ -255,75 +189,110 @@
 
 <!-- SECTION 1: PROXIES -->
 <div class="dash-section active" id="section-proxies">
-<div class="stat-cards">
-    <div class="stat-card">
-        <div class="stat-label">Total Proxies</div>
-        <div class="stat-number" id="statProxies">-</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom:16px">
+    <div class="kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">Total Proxies</span>
+            <span class="kpi-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>
+        </div>
+        <div class="kpi-val" id="statProxies">-</div>
+        <div class="kpi-foot" id="kpiProxiesFoot"></div>
     </div>
-    <div class="stat-card">
-        <div class="stat-label">Healthy</div>
-        <div class="stat-number" id="statHealthy" style="color:var(--green)">-</div>
+    <div class="kpi tone-green">
+        <div class="kpi-top">
+            <span class="kpi-label">Healthy</span>
+            <span class="kpi-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        </div>
+        <div class="kpi-val" id="statHealthy">-</div>
+        <div class="kpi-foot" id="kpiHealthyFoot"></div>
     </div>
-    <div class="stat-card">
-        <div class="stat-label">Degraded</div>
-        <div class="stat-number" id="statDegraded" style="color:var(--yellow)">-</div>
+    <div class="kpi tone-amber">
+        <div class="kpi-top">
+            <span class="kpi-label">Degraded</span>
+            <span class="kpi-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        </div>
+        <div class="kpi-val" id="statDegraded">-</div>
+        <div class="kpi-foot" id="kpiDegradedFoot"></div>
     </div>
-    <div class="stat-card">
-        <div class="stat-label">Dead</div>
-        <div class="stat-number" id="statDead" style="color:var(--red)">-</div>
+    <div class="kpi tone-red">
+        <div class="kpi-top">
+            <span class="kpi-label">Dead</span>
+            <span class="kpi-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
+        </div>
+        <div class="kpi-val" id="statDead">-</div>
+        <div class="kpi-foot" id="kpiDeadFoot"></div>
     </div>
 </div>
 
-<div class="dashboard-grid">
-    <!-- Health Ring -->
-    <div class="dash-card">
-        <h3><span>Proxy Health</span></h3>
-        <div class="health-ring-container">
-            <svg class="health-ring-svg" viewBox="0 0 160 160" id="healthRing">
-                <circle cx="80" cy="80" r="60" stroke="rgba(255,255,255,0.04)" stroke-width="18" fill="none"/>
-                <circle cx="80" cy="80" r="60" id="ringUnknown" stroke="var(--text-muted)" stroke-dasharray="0 377" />
-                <circle cx="80" cy="80" r="60" id="ringDead" stroke="var(--red)" stroke-dasharray="0 377" />
-                <circle cx="80" cy="80" r="60" id="ringDegraded" stroke="var(--yellow)" stroke-dasharray="0 377" />
-                <circle cx="80" cy="80" r="60" id="ringHealthy" stroke="var(--green)" stroke-dasharray="0 377" />
-                <text x="80" y="76" text-anchor="middle" fill="var(--text-primary)" font-size="26" font-weight="700" id="ringCenterNum">-</text>
-                <text x="80" y="96" text-anchor="middle" fill="var(--text-muted)" font-size="11" font-weight="500">TOTAL</text>
-            </svg>
-            <div class="health-legend">
-                <div class="legend-item"><span class="legend-dot legend-dot-healthy"></span>Healthy<span class="legend-count" id="legHealthy">0</span></div>
-                <div class="legend-item"><span class="legend-dot legend-dot-degraded"></span>Degraded<span class="legend-count" id="legDegraded">0</span></div>
-                <div class="legend-item"><span class="legend-dot legend-dot-dead"></span>Dead<span class="legend-count" id="legDead">0</span></div>
-                <div class="legend-item"><span class="legend-dot legend-dot-unknown"></span>Unknown<span class="legend-count" id="legUnknown">0</span></div>
+<!-- Health + Request volume -->
+<div class="grid-2" style="margin-bottom:16px">
+    <div class="panel">
+        <div class="panel-head"><h3>Proxy Health</h3><span class="hint mono" id="healthPct"></span></div>
+        <div class="panel-body">
+            <div style="display:flex;align-items:center;gap:26px">
+                <svg viewBox="0 0 180 180" style="width:148px;height:148px;flex-shrink:0" id="donut"></svg>
+                <div style="flex:1;display:flex;flex-direction:column;gap:12px" id="healthLegend"></div>
             </div>
         </div>
     </div>
-
-    <!-- Request Volume with granularity -->
-    <div class="dash-card">
-        <h3>
-            <span>Request Volume</span>
-            <div class="granularity-btns" id="granBtns">
-                <button onclick="setGranularity('5min')" data-g="5min">5 min</button>
-                <button onclick="setGranularity('1hour')" data-g="1hour" class="active">1 hour</button>
-                <button onclick="setGranularity('1day')" data-g="1day">1 day</button>
+    <div class="panel">
+        <div class="panel-head">
+            <h3>Request Volume</h3>
+            <div class="seg seg-mini" id="granBtns">
+                <button onclick="setGranularity('5min')" data-g="5min">5m</button>
+                <button onclick="setGranularity('1hour')" data-g="1hour" class="active">1h</button>
+                <button onclick="setGranularity('1day')" data-g="1day">1d</button>
             </div>
-        </h3>
-        <div class="ts-bar-chart" id="requestChart"></div>
-        <div class="ts-labels" id="requestChartLabels"></div>
-        <div class="ts-legend">
-            <div class="ts-legend-item"><span class="ts-legend-dot" style="background:var(--green)"></span>Successful</div>
-            <div class="ts-legend-item"><span class="ts-legend-dot" style="background:var(--red)"></span>Failed</div>
+        </div>
+        <div class="panel-body">
+            <div class="ts-bar-chart" id="requestChart"></div>
+            <div class="ts-labels" id="requestChartLabels"></div>
+            <div class="row" style="gap:18px;margin-top:14px;font-size:12px;color:var(--text-muted)">
+                <span class="row" style="gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:var(--accent)"></i>Successful</span>
+                <span class="row" style="gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:var(--red)"></i>Failed</span>
+                <span class="spacer"></span>
+                <span class="mono" id="volSummary"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Latency + bandwidth -->
+<div class="grid-2" style="margin-bottom:16px">
+    <div class="panel">
+        <div class="panel-head"><h3>Response Time</h3><span class="hint mono">p50 &middot; p95</span></div>
+        <div class="panel-body">
+            <div class="line-chart-wrap" id="latencyTrendChart"></div>
+            <div class="row" style="gap:18px;margin-top:12px;font-size:12px;color:var(--text-muted)">
+                <span class="row" style="gap:6px"><i style="width:14px;height:3px;border-radius:2px;background:var(--accent)"></i><span id="latP50Label">p50</span></span>
+                <span class="row" style="gap:6px"><i style="width:14px;height:3px;border-radius:2px;background:var(--amber)"></i><span id="latP95Label">p95</span></span>
+            </div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-head"><h3>Bandwidth</h3><span class="hint mono" id="bwHint"></span></div>
+        <div class="panel-body">
+            <div class="line-chart-wrap" id="bandwidthOverviewChart"></div>
+            <div class="row" style="gap:18px;margin-top:12px;font-size:12px;color:var(--text-muted)">
+                <span class="row" style="gap:6px"><i style="width:14px;height:3px;border-radius:2px;background:var(--accent)"></i><span id="bwRecvLabel">Received</span></span>
+                <span class="row" style="gap:6px"><i style="width:14px;height:3px;border-radius:2px;background:var(--green)"></i><span id="bwSentLabel">Sent</span></span>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Provider Health Overview -->
-<div class="dash-card" style="margin-bottom:20px">
-    <h3><span>Provider Health Overview</span></h3>
+<div class="panel" style="margin-bottom:16px">
+    <div class="panel-head"><h3>Provider Health Overview</h3><span class="hint" id="providerHint"></span></div>
     <div id="providerHealthContainer">
-        <table class="metrics-table">
-            <thead><tr><th>Provider</th><th>Total</th><th>Healthy</th><th>Degraded</th><th>Dead</th><th>Active</th></tr></thead>
-            <tbody id="providerHealthBody"></tbody>
-        </table>
+        <div class="table-scroll">
+            <table class="tbl">
+                <thead><tr><th>Provider</th><th>Total</th><th>Healthy</th><th>Degraded</th><th>Dead</th><th style="width:200px">Availability</th></tr></thead>
+                <tbody id="providerHealthBody"></tbody>
+            </table>
+        </div>
     </div>
     <div class="empty-state" id="providerHealthEmpty" style="display:none;padding:30px 16px">
         <div class="empty-state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
@@ -332,24 +301,16 @@
     </div>
 </div>
 
-<!-- Response Time Trend (P50/P95) -->
-<div class="dash-card" style="margin-bottom:20px">
-    <h3><span>Response Time Trend</span></h3>
-    <div class="line-chart-wrap" id="latencyTrendChart"></div>
-    <div class="line-chart-legend">
-        <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--accent)"></span>P50 (Median)</div>
-        <div class="line-chart-legend-item"><span class="line-chart-legend-dot" style="background:var(--yellow)"></span>P95</div>
-    </div>
-</div>
-
 <!-- Pool Utilization -->
-<div class="dash-card" style="margin-bottom:20px">
-    <h3><span>Pool Utilization</span></h3>
+<div class="panel" style="margin-bottom:20px">
+    <div class="panel-head"><h3>Pool Utilization</h3><span class="hint" id="poolHint"></span></div>
     <div id="poolUtilContainer">
-        <table class="metrics-table">
-            <thead><tr><th>Pool</th><th>Proxies</th><th>Healthy</th><th>Requests (24h)</th><th>Error Rate</th><th>Median Latency</th></tr></thead>
-            <tbody id="poolUtilBody"></tbody>
-        </table>
+        <div class="table-scroll">
+            <table class="tbl">
+                <thead><tr><th>Pool</th><th>Strategy</th><th>Proxies</th><th>Requests 24h</th><th>Error rate</th><th>p50</th><th style="width:150px">Healthy</th></tr></thead>
+                <tbody id="poolUtilBody"></tbody>
+            </table>
+        </div>
     </div>
     <div class="empty-state" id="poolUtilEmpty" style="display:none;padding:30px 16px">
         <div class="empty-state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
@@ -558,32 +519,43 @@
         return dt.getHours().toString().padStart(2, '0') + ':' + dt.getMinutes().toString().padStart(2, '0');
     }
 
-    function drawHealthRing(healthy, degraded, dead, unknown) {
+    function cssVar(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function drawDonut(healthy, degraded, dead, unknown) {
+        const counts = { healthy, degraded, dead, unknown };
+        const order = [['healthy','--green','Healthy'],['degraded','--yellow','Degraded'],['dead','--red','Dead'],['unknown','--text-muted','Unknown']];
         const total = healthy + degraded + dead + unknown;
-        const circumference = 2 * Math.PI * 60;
-        document.getElementById('ringCenterNum').textContent = total;
-        document.getElementById('legHealthy').textContent = healthy;
-        document.getElementById('legDegraded').textContent = degraded;
-        document.getElementById('legDead').textContent = dead;
-        document.getElementById('legUnknown').textContent = unknown;
-
-        if (total === 0) {
-            ['ringHealthy','ringDegraded','ringDead','ringUnknown'].forEach(id => {
-                document.getElementById(id).setAttribute('stroke-dasharray', '0 ' + circumference);
-                document.getElementById(id).setAttribute('stroke-dashoffset', '0');
+        const R = 64, C = 2 * Math.PI * R, cx = 90, cy = 90;
+        let off = 0;
+        let svg = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="16"/>`;
+        if (total > 0) {
+            order.forEach(([k, varName]) => {
+                if (!counts[k]) return;
+                const len = (counts[k] / total) * C;
+                svg += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${cssVar(varName)}" stroke-width="16" stroke-linecap="round"
+                         stroke-dasharray="${Math.max(len - 3, 0.5)} ${C - len + 3}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cy})"
+                         style="transition:stroke-dasharray .6s ease"/>`;
+                off += len;
             });
-            return;
         }
+        svg += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="${cssVar('--text-primary')}" font-family="Geist Mono" font-size="28" font-weight="600">${formatNum(total)}</text>`;
+        svg += `<text x="${cx}" y="${cy + 15}" text-anchor="middle" fill="${cssVar('--text-muted')}" font-size="11" font-weight="500" letter-spacing="1.2">TOTAL</text>`;
+        document.getElementById('donut').innerHTML = svg;
 
-        let offset = 0;
-        [{ id: 'ringHealthy', count: healthy }, { id: 'ringDegraded', count: degraded },
-         { id: 'ringDead', count: dead }, { id: 'ringUnknown', count: unknown }].forEach(seg => {
-            const len = (seg.count / total) * circumference;
-            const el = document.getElementById(seg.id);
-            el.setAttribute('stroke-dasharray', len + ' ' + (circumference - len));
-            el.setAttribute('stroke-dashoffset', -offset);
-            offset += len;
-        });
+        document.getElementById('healthLegend').innerHTML = order.map(([k, varName, label]) => {
+            const pct = total > 0 ? ((counts[k] / total) * 100).toFixed(0) : 0;
+            return `<div class="row" style="gap:9px;font-size:13px">
+                <i style="width:9px;height:9px;border-radius:50%;background:${cssVar(varName)};flex-shrink:0"></i>
+                <span style="color:var(--text-secondary)">${label}</span>
+                <span class="spacer"></span>
+                <span class="mono" style="color:var(--text-primary)">${formatNum(counts[k])}</span>
+                <span class="mono" style="color:var(--text-muted);width:34px;text-align:right">${pct}%</span>
+            </div>`;
+        }).join('');
+
+        document.getElementById('healthPct').textContent = total > 0 ? Math.round(healthy / total * 100) + '% healthy' : 'no proxies';
     }
 
     function fillTimeslots(data, granularity) {
@@ -654,6 +626,12 @@
 
         container.innerHTML = barsHtml;
         labelsContainer.innerHTML = labelsHtml;
+
+        const totalReq = filled.reduce((s, p) => s + p.total_requests, 0);
+        const totalOk = filled.reduce((s, p) => s + p.successful_requests, 0);
+        document.getElementById('volSummary').textContent = totalReq > 0
+            ? `${formatNum(totalReq)} total · ${(totalOk / totalReq * 100).toFixed(1)}% ok`
+            : 'no requests';
     }
 
     function setGranularity(g) {
@@ -667,11 +645,23 @@
     async function loadOverview() {
         try {
             const d = await apiCall('GET', '/api/v1/stats/overview');
-            document.getElementById('statProxies').textContent = formatNum(d.total_proxies);
-            document.getElementById('statHealthy').textContent = formatNum(d.healthy_proxies);
-            document.getElementById('statDegraded').textContent = formatNum(d.degraded_proxies);
-            document.getElementById('statDead').textContent = formatNum(d.dead_proxies);
-            drawHealthRing(d.healthy_proxies, d.degraded_proxies, d.dead_proxies, d.unknown_proxies);
+            document.getElementById('statProxies').textContent = d.total_proxies.toLocaleString('en-US');
+            document.getElementById('statHealthy').textContent = d.healthy_proxies.toLocaleString('en-US');
+            document.getElementById('statDegraded').textContent = d.degraded_proxies.toLocaleString('en-US');
+            document.getElementById('statDead').textContent = d.dead_proxies.toLocaleString('en-US');
+
+            const total = d.total_proxies;
+            const pct = s => total > 0 ? (s / total * 100).toFixed(1) : '0.0';
+            document.getElementById('kpiProxiesFoot').innerHTML =
+                `<span class="delta flat">${d.total_pools}</span><span>pools &middot; ${d.total_projects} projects</span>`;
+            document.getElementById('kpiHealthyFoot').innerHTML =
+                `<span class="delta up">${pct(d.healthy_proxies)}%</span><span>of fleet active</span>`;
+            document.getElementById('kpiDegradedFoot').innerHTML =
+                `<span class="delta ${d.degraded_proxies > 0 ? 'down' : 'flat'}">${pct(d.degraded_proxies)}%</span><span>of fleet</span>`;
+            document.getElementById('kpiDeadFoot').innerHTML =
+                `<span class="delta flat">+ ${formatNum(d.unknown_proxies)} unknown</span><span>&middot; pending check</span>`;
+
+            drawDonut(d.healthy_proxies, d.degraded_proxies, d.dead_proxies, d.unknown_proxies);
         } catch (e) { console.error('Failed to load overview', e); }
     }
 
@@ -693,18 +683,23 @@
             const tbody = document.getElementById('providerHealthBody');
             const container = document.getElementById('providerHealthContainer');
             const empty = document.getElementById('providerHealthEmpty');
-            if (data.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
+            if (data.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; document.getElementById('providerHint').textContent = ''; return; }
             container.style.display = ''; empty.style.display = 'none';
+            const totalProxies = data.reduce((s, p) => s + p.total, 0);
+            document.getElementById('providerHint').textContent = `${data.length} provider${data.length === 1 ? '' : 's'} · ${formatNum(totalProxies)} proxies`;
             tbody.innerHTML = data.map(p => {
                 const healthPct = p.total > 0 ? Math.round(p.healthy / p.total * 100) : 0;
-                const pctStyle = healthPct >= 80 ? 'color:var(--green)' : healthPct >= 50 ? 'color:var(--yellow)' : 'color:var(--red)';
+                const color = healthPct >= 85 ? 'var(--green)' : healthPct >= 65 ? 'var(--yellow)' : 'var(--red)';
                 return `<tr>
-                    <td style="color:var(--text-primary);font-weight:500">${esc(p.provider)}</td>
-                    <td class="mono">${p.total}</td>
-                    <td class="mono" style="color:var(--green)">${p.healthy}</td>
+                    <td><span class="strong">${esc(p.provider)}</span></td>
+                    <td class="mono">${formatNum(p.total)}</td>
+                    <td class="mono" style="color:var(--green)">${formatNum(p.healthy)}</td>
                     <td class="mono" style="color:var(--yellow)">${p.degraded}</td>
                     <td class="mono" style="color:var(--red)">${p.dead}</td>
-                    <td class="mono" style="${pctStyle}">${p.active}/${p.total}</td>
+                    <td><div class="row" style="gap:10px">
+                        <div class="health-bar"><i style="width:${healthPct}%;background:${color}"></i></div>
+                        <span class="mono" style="color:${color};width:34px;text-align:right;font-size:12px">${healthPct}%</span>
+                    </div></td>
                 </tr>`;
             }).join('');
         } catch (e) { console.error('Failed to load provider health', e); }
@@ -909,7 +904,7 @@
 
         const rect = container.getBoundingClientRect();
         const W = Math.max(rect.width || 400, 200);
-        const H = 120;
+        const H = 150;
         const padL = 50, padR = 15, padT = 8, padB = 20;
         const chartW = W - padL - padR, chartH = H - padT - padB;
         const allVals = datasets.flatMap(d => d.values.filter(v => v !== null));
@@ -924,6 +919,14 @@
 
         // Build SVG
         let svg = `<svg class="line-chart-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`;
+
+        // Gradient area fills, one per dataset
+        svg += '<defs>' + datasets.map((ds, i) =>
+            `<linearGradient id="${containerId}g${i}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="${ds.color}" stop-opacity="0.22"/>
+                <stop offset="1" stop-color="${ds.color}" stop-opacity="0"/>
+            </linearGradient>`
+        ).join('') + '</defs>';
 
         // Grid lines + Y labels
         for (let i = 0; i <= 3; i++) {
@@ -943,7 +946,7 @@
         }
 
         // Data lines + area fills
-        datasets.forEach(ds => {
+        datasets.forEach((ds, di) => {
             let points = [];
             ds.values.forEach((v, i) => {
                 if (v !== null) points.push({ i, x: xPos(i), y: yPos(v) });
@@ -952,9 +955,12 @@
                 // Area fill
                 const areaPoints = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
                 const bottom = padT + chartH;
-                svg += `<polygon fill="${ds.color}" opacity="0.08" points="${points[0].x.toFixed(1)},${bottom} ${areaPoints} ${points[points.length-1].x.toFixed(1)},${bottom}"/>`;
+                svg += `<polygon fill="url(#${containerId}g${di})" points="${points[0].x.toFixed(1)},${bottom} ${areaPoints} ${points[points.length-1].x.toFixed(1)},${bottom}"/>`;
                 // Line
                 svg += `<polyline class="data-line" stroke="${ds.color}" points="${areaPoints}"/>`;
+                // Endpoint dot
+                const lastPt = points[points.length - 1];
+                svg += `<circle cx="${lastPt.x.toFixed(1)}" cy="${lastPt.y.toFixed(1)}" r="3" fill="${ds.color}"/>`;
             }
         });
 
@@ -1024,6 +1030,10 @@
 
     // === PROXIES TAB: NEW CHARTS ===
 
+    function formatMs(v) {
+        return v >= 1000 ? (v / 1000).toFixed(2) + 's' : Math.round(v) + 'ms';
+    }
+
     async function loadLatencyTrend() {
         try {
             const resp = await apiCall('GET', '/api/v1/stats/latency-trend');
@@ -1033,10 +1043,33 @@
                 return dt.getHours().toString().padStart(2, '0') + ':00';
             });
             drawLineChart('latencyTrendChart', [
-                { values: data.map(d => d.p50), color: 'var(--accent)', tipLabel: 'P50: ' },
-                { values: data.map(d => d.p95), color: 'var(--yellow)', tipLabel: 'P95: ' },
-            ], labels, { formatValue: v => Math.round(v) + ' ms' });
+                { values: data.map(d => d.p50), color: 'var(--accent)', tipLabel: 'p50: ' },
+                { values: data.map(d => d.p95), color: 'var(--amber)', tipLabel: 'p95: ' },
+            ], labels, { formatValue: v => formatMs(v) });
+            const last = [...data].reverse().find(d => d.p50 !== null || d.p95 !== null);
+            document.getElementById('latP50Label').textContent = last && last.p50 !== null ? `p50 — ${formatMs(last.p50)}` : 'p50';
+            document.getElementById('latP95Label').textContent = last && last.p95 !== null ? `p95 — ${formatMs(last.p95)}` : 'p95';
         } catch (e) { console.error('Failed to load latency trend', e); }
+    }
+
+    async function loadBandwidthOverview() {
+        try {
+            const resp = await apiCall('GET', '/api/v1/stats/bandwidth-trend');
+            const data = resp.data || [];
+            const labels = data.map(d => {
+                const dt = new Date(d.period);
+                return dt.getHours().toString().padStart(2, '0') + ':00';
+            });
+            drawLineChart('bandwidthOverviewChart', [
+                { values: data.map(d => d.bytes_received), color: 'var(--accent)', tipLabel: 'Recv: ' },
+                { values: data.map(d => d.bytes_sent), color: 'var(--green)', tipLabel: 'Sent: ' },
+            ], labels, { formatValue: v => formatBytes(v) });
+            const recv = data.reduce((s, d) => s + d.bytes_received, 0);
+            const sent = data.reduce((s, d) => s + d.bytes_sent, 0);
+            document.getElementById('bwRecvLabel').textContent = `Received — ${formatBytes(recv)}`;
+            document.getElementById('bwSentLabel').textContent = `Sent — ${formatBytes(sent)}`;
+            document.getElementById('bwHint').textContent = `${formatBytes(recv + sent)} · 24h`;
+        } catch (e) { console.error('Failed to load bandwidth trend', e); }
     }
 
     async function loadPoolUtilization() {
@@ -1053,21 +1086,27 @@
             const tbody = document.getElementById('poolUtilBody');
             const container = document.getElementById('poolUtilContainer');
             const empty = document.getElementById('poolUtilEmpty');
-            if (pools.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
+            if (pools.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; document.getElementById('poolHint').textContent = ''; return; }
             container.style.display = ''; empty.style.display = 'none';
+            document.getElementById('poolHint').textContent = `${pools.length} pool${pools.length === 1 ? '' : 's'}`;
             tbody.innerHTML = pools.map(p => {
                 const m = metricsMap[p.id] || {};
                 const healthPct = p.proxy_count > 0 ? Math.round((p.healthy_count || 0) / p.proxy_count * 100) : 0;
-                const healthStyle = healthPct >= 80 ? 'color:var(--green)' : healthPct >= 50 ? 'color:var(--yellow)' : 'color:var(--red)';
-                const errStyle = (m.error_rate || 0) > 5 ? 'color:var(--red);font-weight:600' : '';
-                const latency = m.median_latency_ms != null ? Math.round(m.median_latency_ms) + ' ms' : '-';
+                const color = healthPct >= 85 ? 'var(--green)' : healthPct >= 65 ? 'var(--yellow)' : 'var(--red)';
+                const err = m.error_rate || 0;
+                const errColor = err > 5 ? 'var(--red)' : err > 2 ? 'var(--yellow)' : 'var(--text-secondary)';
+                const latency = m.median_latency_ms != null ? formatMs(m.median_latency_ms) : '-';
                 return `<tr>
-                    <td style="color:var(--text-primary);font-weight:500">${esc(p.name)}</td>
-                    <td class="mono">${p.proxy_count}</td>
-                    <td class="mono" style="${healthStyle}">${p.healthy_count || 0} (${healthPct}%)</td>
+                    <td><span class="strong mono">${esc(p.name)}</span></td>
+                    <td><span class="tag tag-neutral">${esc((p.rotation_strategy || '').replace(/_/g, ' '))}</span></td>
+                    <td class="mono">${formatNum(p.proxy_count || 0)}</td>
                     <td class="mono">${formatNum(m.total_requests || 0)}</td>
-                    <td class="mono" style="${errStyle}">${m.error_rate || 0}%</td>
+                    <td class="mono" style="color:${errColor}">${err}%</td>
                     <td class="mono">${latency}</td>
+                    <td><div class="row" style="gap:10px">
+                        <div class="health-bar"><i style="width:${healthPct}%;background:${color}"></i></div>
+                        <span class="mono" style="color:${color};width:34px;text-align:right;font-size:12px">${healthPct}%</span>
+                    </div></td>
                 </tr>`;
             }).join('');
         } catch (e) { console.error('Failed to load pool utilization', e); }
@@ -1215,6 +1254,7 @@
             loadTimeseries(),
             loadProviderHealth(),
             loadLatencyTrend(),
+            loadBandwidthOverview(),
             loadPoolUtilization(),
             selectedProjectId ? loadProjectDetail() : loadProjectStats(),
         ]);

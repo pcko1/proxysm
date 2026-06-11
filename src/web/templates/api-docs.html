@@ -1,97 +1,221 @@
 {% extends "base.html" %}
-{% block title %}API Docs{% endblock %}
+{% block title %}API Docs — Proxysm{% endblock %}
+
 {% block content %}
 <style>
-    /* Remove container padding for full-width ReDoc */
-    .container { max-width: 100%; padding: 0; }
+    /* API reference layout: sticky sidebar nav + content */
+    .api-layout { display: grid; grid-template-columns: 230px 1fr; gap: 28px; align-items: start; }
+    .api-nav { position: sticky; top: 80px; display: flex; flex-direction: column; gap: 1px; }
+    .api-nav .grp { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-4); padding: 14px 12px 6px; }
+    .api-nav a { display: flex; align-items: center; gap: 9px; padding: 6px 12px; border-radius: 8px; color: var(--text-muted); font-size: 13px; transition: all var(--transition-fast); }
+    .api-nav a:hover { color: var(--text-secondary); background: var(--bg-hover); }
+    .api-nav a.active { color: var(--text-primary); background: var(--accent-subtle); box-shadow: inset 0 0 0 1px var(--accent-line); }
+    .api-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
-    .redoc-wrap {
-        background: var(--bg-primary) !important;
-        min-height: calc(100vh - 120px);
-    }
+    /* HTTP method badges */
+    .m { font-family: "Geist Mono", monospace; font-size: 9.5px; font-weight: 600; line-height: 1.6; padding: 1px 6px; border-radius: 5px; letter-spacing: 0.04em; flex-shrink: 0; width: 46px; text-align: center; }
+    .m.get { background: var(--green-bg); color: var(--green); }
+    .m.post { background: var(--accent-subtle); color: var(--accent); }
+    .m.patch { background: var(--yellow-bg); color: var(--amber); }
+    .m.del { background: var(--red-bg); color: var(--red); }
 
-    /* ReDoc dark theme overrides to match Proxysm UI */
-    .redoc-wrap .menu-content {
-        background: var(--bg-secondary) !important;
-    }
+    /* Endpoint rows */
+    .ep { border-bottom: 1px solid var(--border); padding: 22px 0; scroll-margin-top: 76px; }
+    .ep:first-child { padding-top: 0; }
+    .ep:last-child { border-bottom: none; padding-bottom: 0; }
+    .ep-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+    .ep-path { font-family: "Geist Mono", monospace; font-size: 14px; font-weight: 500; color: var(--text-primary); word-break: break-all; }
+    .ep-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 0; line-height: 1.6; max-width: 680px; }
+    .ep-desc + .code-block, .ep-desc + .ep-desc { margin-top: 12px; }
+    .ep .code-block { margin-top: 12px; }
+    .ep-desc .mono { color: var(--text-primary); }
 
-    /* Hide ReDoc's own top bar since we have our navbar */
-    .redoc-wrap > div > div:first-child > div:first-child {
-        display: none !important;
+    @media (max-width: 760px) {
+        .api-layout { grid-template-columns: 1fr; }
+        .api-nav { position: static; flex-direction: row; flex-wrap: wrap; }
+        .api-nav .grp { width: 100%; }
     }
 </style>
 
-<div id="redoc-container"></div>
+<!-- Page Header -->
+<div class="page-header">
+    <div class="title-block">
+        <h1>API Reference</h1>
+        <span class="sub">REST API &middot; base <span class="mono" style="color:var(--text-secondary)">/api/v1</span> &middot; auth <span class="mono" style="color:var(--text-secondary)">Authorization: Bearer &lt;admin password&gt;</span></span>
+    </div>
+    <div class="page-header-actions">
+        <a class="btn btn-outline btn-sm" href="/docs" target="_blank" rel="noopener">Swagger UI &#8599;</a>
+        <a class="btn btn-outline btn-sm" href="/redoc" target="_blank" rel="noopener">ReDoc &#8599;</a>
+        <a class="btn btn-outline btn-sm" href="/openapi.json" target="_blank" rel="noopener">OpenAPI spec &#8599;</a>
+    </div>
+</div>
 
-<script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+<div class="api-layout">
+    <nav class="api-nav" id="apiNav">
+        <span class="grp">Proxies</span>
+        <a href="#ep-list-ips" class="active"><span class="m get">GET</span>/ips</a>
+        <a href="#ep-bulk-ips"><span class="m post">POST</span>/ips/bulk</a>
+        <a href="#ep-check-ip"><span class="m post">POST</span>/ips/{id}/check</a>
+        <a href="#ep-delete-ip"><span class="m del">DEL</span>/ips/{id}</a>
+        <span class="grp">Pools</span>
+        <a href="#ep-list-pools"><span class="m get">GET</span>/pools</a>
+        <a href="#ep-create-pool"><span class="m post">POST</span>/pools</a>
+        <a href="#ep-pool-ips"><span class="m post">POST</span>/pools/{id}/ips</a>
+        <span class="grp">Projects</span>
+        <a href="#ep-create-project"><span class="m post">POST</span>/projects</a>
+        <a href="#ep-assign-pools"><span class="m post">POST</span>/projects/{id}/pools</a>
+        <a href="#ep-rotate-key"><span class="m post">POST</span>/rotate-key</a>
+        <span class="grp">Rotation</span>
+        <a href="#ep-rotate"><span class="m get">GET</span>/rotate/{slug}</a>
+        <span class="grp">Stats &amp; Health</span>
+        <a href="#ep-overview"><span class="m get">GET</span>/stats/overview</a>
+        <a href="#ep-timeseries"><span class="m get">GET</span>/stats/timeseries</a>
+        <a href="#ep-health"><span class="m get">GET</span>/health</a>
+    </nav>
+
+    <div class="api-stack">
+        <!-- Authentication -->
+        <div class="panel">
+            <div class="panel-head"><h3>Authentication</h3></div>
+            <div class="panel-body">
+                <p class="ep-desc" style="margin-bottom:14px">All management endpoints require your admin password sent as a Bearer token. <span class="mono">/health</span> is public, and <span class="mono">/rotate/{slug}</span> uses the project API key via <span class="mono">X-API-Key</span> instead.</p>
+                <pre class="code-block"><code class="language-bash">curl -H "Authorization: Bearer {{ admin_token }}" \
+  http://localhost:8080/api/v1/stats/overview</code></pre>
+            </div>
+        </div>
+
+        <!-- Endpoints -->
+        <div class="panel">
+            <div class="panel-head"><h3>Endpoints</h3><span class="hint">full schema in Swagger UI</span></div>
+            <div class="panel-body">
+
+                <div class="ep" id="ep-list-ips">
+                    <div class="ep-head"><span class="m get">GET</span><span class="ep-path">/api/v1/ips</span><span class="tag-neutral">paginated</span></div>
+                    <p class="ep-desc">List proxies. Filter with <span class="mono">pool_id</span>, <span class="mono">status</span>, <span class="mono">protocol</span> or <span class="mono">provider</span>; sort with <span class="mono">sort_by</span> / <span class="mono">sort_dir</span>. Pagination via <span class="mono">page</span> and <span class="mono">per_page</span> (max 100).</p>
+                    <pre class="code-block"><code class="language-json">{
+  "data": [
+    { "host": "185.42.118.20", "port": 8080, "protocol": "http", "last_health_status": "healthy" }
+  ],
+  "meta": { "total": 5151, "page": 1, "per_page": 50 }
+}</code></pre>
+                </div>
+
+                <div class="ep" id="ep-bulk-ips">
+                    <div class="ep-head"><span class="m post">POST</span><span class="ep-path">/api/v1/ips/bulk</span></div>
+                    <p class="ep-desc">Bulk-import proxies from a newline-delimited list (<span class="mono">host:port</span> or <span class="mono">user:pass@host:port</span>), a structured <span class="mono">proxy_list</span>, or a subscription <span class="mono">url</span>. Protocols: <span class="mono">http</span>, <span class="mono">https</span>, <span class="mono">socks5</span>. Duplicates are skipped.</p>
+                    <pre class="code-block"><code class="language-json">{
+  "protocol": "http",
+  "provider": "BrightData",
+  "proxies": "user:pass@1.2.3.4:8080\n5.6.7.8:3128"
+}</code></pre>
+                </div>
+
+                <div class="ep" id="ep-check-ip">
+                    <div class="ep-head"><span class="m post">POST</span><span class="ep-path">/api/v1/ips/{proxy_id}/check</span></div>
+                    <p class="ep-desc">Trigger an immediate health check for a single proxy and return the updated status.</p>
+                </div>
+
+                <div class="ep" id="ep-delete-ip">
+                    <div class="ep-head"><span class="m del">DELETE</span><span class="ep-path">/api/v1/ips/{proxy_id}</span></div>
+                    <p class="ep-desc">Delete a proxy. It is removed from every pool it belongs to. Returns <span class="mono">204 No Content</span>.</p>
+                </div>
+
+                <div class="ep" id="ep-list-pools">
+                    <div class="ep-head"><span class="m get">GET</span><span class="ep-path">/api/v1/pools</span><span class="tag-neutral">paginated</span></div>
+                    <p class="ep-desc">List pools with proxy counts and health summary. <span class="mono">PATCH</span> / <span class="mono">DELETE /api/v1/pools/{pool_id}</span> update or remove a pool.</p>
+                </div>
+
+                <div class="ep" id="ep-create-pool">
+                    <div class="ep-head"><span class="m post">POST</span><span class="ep-path">/api/v1/pools</span></div>
+                    <p class="ep-desc">Create a pool with a rotation strategy: <span class="mono">round_robin</span> (default) or <span class="mono">random</span>.</p>
+                    <pre class="code-block"><code class="language-json">{ "name": "us-residential", "rotation_strategy": "round_robin" }</code></pre>
+                </div>
+
+                <div class="ep" id="ep-pool-ips">
+                    <div class="ep-head"><span class="m post">POST</span><span class="ep-path">/api/v1/pools/{pool_id}/ips</span></div>
+                    <p class="ep-desc">Add proxies to a pool by id: <span class="mono">{ "proxy_ids": ["…"] }</span>. The same body on <span class="mono">DELETE /api/v1/pools/{pool_id}/ips</span> removes them.</p>
+                </div>
+
+                <div class="ep" id="ep-create-project">
+                    <div class="ep-head"><span class="m post">POST</span><span class="ep-path">/api/v1/projects</span></div>
+                    <p class="ep-desc">Create a project: <span class="mono">{ "name": "my-scraper" }</span>. The response includes the generated <span class="mono">slug</span> and the plaintext <span class="mono">api_key</span> used as proxy credentials.</p>
+                </div>
+
+                <div class="ep" id="ep-assign-pools">
+                    <div class="ep-head"><span class="m post">POST</span><span class="ep-path">/api/v1/projects/{project_id}/pools</span></div>
+                    <p class="ep-desc">Assign pools to a project: <span class="mono">{ "pool_ids": ["…"] }</span>. Unassign with <span class="mono">DELETE /api/v1/projects/{project_id}/pools/{pool_id}</span>.</p>
+                </div>
+
+                <div class="ep" id="ep-rotate-key">
+                    <div class="ep-head"><span class="m post">POST</span><span class="ep-path">/api/v1/projects/{project_id}/rotate-key</span></div>
+                    <p class="ep-desc">Generate a new API key for the project. The previous key is revoked immediately.</p>
+                </div>
+
+                <div class="ep" id="ep-rotate">
+                    <div class="ep-head"><span class="m get">GET</span><span class="ep-path">/api/v1/rotate/{project_slug}</span><span class="tag-neutral">X-API-Key auth</span></div>
+                    <p class="ep-desc">Fetch the next proxy from the project's pools (by pool priority, using each pool's rotation strategy) — for clients that want raw proxy endpoints instead of the built-in gateway.</p>
+                    <pre class="code-block"><code class="language-json">{ "host": "185.42.118.20", "port": 8080, "protocol": "http", "username": "user", "password": "pass" }</code></pre>
+                </div>
+
+                <div class="ep" id="ep-overview">
+                    <div class="ep-head"><span class="m get">GET</span><span class="ep-path">/api/v1/stats/overview</span></div>
+                    <p class="ep-desc">Fleet-wide counters: total / healthy / degraded / dead proxies, pools and projects. More under <span class="mono">/api/v1/stats/*</span>: <span class="mono">status-codes</span>, <span class="mono">pool-metrics</span>, <span class="mono">top-domains</span>, <span class="mono">latency-trend</span>, <span class="mono">bandwidth-trend</span>, <span class="mono">provider-health</span>…</p>
+                </div>
+
+                <div class="ep" id="ep-timeseries">
+                    <div class="ep-head"><span class="m get">GET</span><span class="ep-path">/api/v1/stats/timeseries</span></div>
+                    <p class="ep-desc">Request volume over time. Query params: <span class="mono">granularity</span> (<span class="mono">5min</span>, <span class="mono">1hour</span>, <span class="mono">1day</span>) and <span class="mono">hours</span> of history.</p>
+                </div>
+
+                <div class="ep" id="ep-health">
+                    <div class="ep-head"><span class="m get">GET</span><span class="ep-path">/api/v1/health</span><span class="tag-neutral" style="color:var(--green)">no auth</span></div>
+                    <p class="ep-desc">Liveness probe. Returns <span class="mono" style="color:var(--green)">200 OK</span> with <span class="mono">{ "status": "ok" }</span> when the service is up.</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Using the proxy -->
+        <div class="panel">
+            <div class="panel-head"><h3>Using the proxy</h3><span class="hint mono">SLUG:KEY = project credentials</span></div>
+            <div class="panel-body">
+                <p class="ep-desc" style="margin-bottom:14px">Route traffic through a project's pools using its <span class="mono">slug:api_key</span> as proxy credentials.</p>
+                <pre class="code-block" style="margin-bottom:10px"><code class="language-bash"># HTTP / HTTPS — :{{ http_port }}
+curl -x http://SLUG:KEY@localhost:{{ http_port }} https://httpbin.org/ip</code></pre>
+                <pre class="code-block"><code class="language-bash"># SOCKS5 — :{{ socks5_port }}
+curl --proxy socks5://SLUG:KEY@localhost:{{ socks5_port }} https://httpbin.org/ip</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-    Redoc.init('/openapi.json', {
-        theme: {
-            colors: {
-                primary: { main: '#6366F1' },
-                success: { main: '#10B981' },
-                warning: { main: '#F59E0B' },
-                error: { main: '#EF4444' },
-                text: {
-                    primary: '#EDEDF0',
-                    secondary: '#9898A6',
-                },
-                http: {
-                    get: '#10B981',
-                    post: '#6366F1',
-                    put: '#F59E0B',
-                    delete: '#EF4444',
-                    patch: '#A78BFA',
-                },
-            },
-            typography: {
-                fontSize: '14px',
-                fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                headings: {
-                    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontWeight: '600',
-                },
-                code: {
-                    fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                    fontSize: '13px',
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                },
-                links: {
-                    color: '#818CF8',
-                },
-            },
-            sidebar: {
-                backgroundColor: '#0D0D12',
-                textColor: '#9898A6',
-                activeTextColor: '#EDEDF0',
-                groupHeadings: {
-                    textTransform: 'uppercase',
-                },
-                level1Items: {
-                    textTransform: 'none',
-                },
-            },
-            rightPanel: {
-                backgroundColor: '#0D0D12',
-                textColor: '#EDEDF0',
-            },
-            schema: {
-                nestedBackground: '#141419',
-                typeNameColor: '#A78BFA',
-                typeTitleColor: '#EDEDF0',
-            },
-            codeBlock: {
-                backgroundColor: '#0D0D12',
-            },
-        },
-        scrollYOffset: 56,
-        hideDownloadButton: true,
-        noAutoAuth: true,
-        pathInMiddlePanel: true,
-        requiredPropsFirst: true,
-        sortPropsAlphabetically: false,
-        hideSchemaPattern: false,
-        nativeScrollbars: true,
-    }, document.getElementById('redoc-container'));
+    // Sidebar: highlight link on click and while scrolling past sections
+    (function () {
+        const nav = document.getElementById('apiNav');
+        const links = Array.from(nav.querySelectorAll('a[href^="#"]'));
+
+        function setActive(link) {
+            links.forEach(a => a.classList.toggle('active', a === link));
+        }
+
+        links.forEach(link => link.addEventListener('click', () => setActive(link)));
+
+        const byId = {};
+        links.forEach(a => { byId[a.getAttribute('href').slice(1)] = a; });
+
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && byId[entry.target.id]) setActive(byId[entry.target.id]);
+            });
+        }, { rootMargin: '-80px 0px -65% 0px' });
+
+        Object.keys(byId).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) observer.observe(el);
+        });
+    })();
 </script>
 {% endblock %}

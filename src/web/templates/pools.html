@@ -1,18 +1,52 @@
 {% extends "base.html" %}
-{% block title %}Pools - Proxysm{% endblock %}
+{% block title %}Pools — Proxysm{% endblock %}
 
 {% block content %}
+<style>
+    .pool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .pool-card {
+        position: relative; background: var(--surface); border: 1px solid var(--border);
+        border-radius: 12px; padding: 18px; transition: border-color 0.15s ease, transform 0.15s ease;
+        overflow: hidden;
+    }
+    .pool-card:hover { border-color: var(--border-2); transform: translateY(-1px); }
+    .pool-card:has(.row-checkbox:checked) { border-color: var(--accent-line); }
+    .pool-card .pc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .pool-card .pc-title { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+    .pool-card .pc-title .row-checkbox { margin-top: 2px; flex-shrink: 0; }
+    .pool-card .pc-name { font: 600 15px/1.2 "Geist Mono", monospace; color: var(--text-primary); letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pool-card .pc-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .pc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+    .pc-stat .v { font: 600 20px/1 "Geist Mono", monospace; color: var(--text-primary); }
+    .pc-stat .l { font-size: 11px; color: var(--text-muted); margin-top: 5px; letter-spacing: -0.01em; }
+    .pc-stat.pc-clickable { cursor: pointer; }
+    .pc-bar { height: 7px; background: var(--sunken); border-radius: 5px; overflow: hidden; display: flex; }
+    .pc-bar i { height: 100%; display: block; transition: width 0.3s ease; }
+    .pc-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 11px; font-size: 12px; color: var(--text-muted); }
+    .pc-actions { display: flex; gap: 6px; flex-shrink: 0; opacity: 0; transition: opacity 0.15s ease; }
+    .pool-card:hover .pc-actions, .pool-card:focus-within .pc-actions, .pool-card:has(.row-checkbox:checked) .pc-actions { opacity: 1; }
+    @media (hover: none) { .pc-actions { opacity: 1; } }
+    @media (max-width: 860px) { .pool-grid { grid-template-columns: 1fr; } }
+</style>
+
 <div class="page-header">
-    <h1>Pools</h1>
+    <div class="title-block">
+        <h1>Pools</h1>
+        <span class="sub">Group proxies for rotation &middot; assign pools to projects</span>
+    </div>
     <div class="page-header-actions">
-        <button class="btn btn-primary" onclick="openModal('createPoolModal')">Create Pool</button>
+        <button class="btn btn-primary btn-sm" onclick="openModal('createPoolModal')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Pool
+        </button>
     </div>
 </div>
 
 <!-- Create Modal -->
 <div class="modal-overlay" id="createPoolModal">
-    <div class="modal">
+    <div class="modal" style="max-width:440px">
         <h2>Create Pool</h2>
+        <p style="color:var(--text-muted);margin-bottom:14px;font-size:12px">Group proxies and pick how requests rotate through them.</p>
         <div class="form-group">
             <label for="poolName">Pool Name</label>
             <input type="text" id="poolName" placeholder="e.g. us-residential" />
@@ -20,8 +54,8 @@
         <div class="form-group">
             <label for="poolStrategy">Rotation Strategy</label>
             <select id="poolStrategy">
-                <option value="round_robin" selected>Round Robin</option>
-                <option value="random">Random</option>
+                <option value="round_robin" selected>Round Robin &mdash; sequential through healthy</option>
+                <option value="random">Random &mdash; random healthy proxy</option>
             </select>
         </div>
         <div class="modal-actions">
@@ -44,23 +78,7 @@
     </div>
 </div>
 
-<div class="table-card">
-    <table>
-        <thead>
-            <tr>
-                <th class="col-check"><input type="checkbox" class="row-checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
-                <th>Pool Name</th>
-                <th>Proxies</th>
-                <th>Health</th>
-                <th>Strategy</th>
-                <th>Created</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody id="poolTableBody">
-        </tbody>
-    </table>
-</div>
+<div class="pool-grid" id="poolGrid"></div>
 <div id="emptyState" class="empty-state" style="display:none;">
     <div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
     <h3>No pools yet</h3>
@@ -72,50 +90,68 @@
 <script>
     let currentPoolId = null;
 
+    function togglePoolSelection(id, checkbox) {
+        if (checkbox.checked) {
+            selectedIds.add(id);
+        } else {
+            selectedIds.delete(id);
+        }
+        updateBulkBar();
+    }
+
     async function loadPools() {
         try {
             const data = await apiCall('GET', '/api/v1/pools');
             const items = data.data || [];
-            const tbody = document.getElementById('poolTableBody');
+            const grid = document.getElementById('poolGrid');
             const empty = document.getElementById('emptyState');
 
             if (items.length === 0) {
-                tbody.innerHTML = '';
+                grid.innerHTML = '';
+                grid.style.display = 'none';
                 empty.style.display = 'block';
-                document.querySelector('.table-card').style.display = 'none';
             } else {
                 empty.style.display = 'none';
-                document.querySelector('.table-card').style.display = '';
-                tbody.innerHTML = items.map(p => {
+                grid.style.display = '';
+                grid.innerHTML = items.map(p => {
                     const proxyCount = p.proxy_count || 0;
                     const healthyCount = p.healthy_count || 0;
                     const strategy = esc(p.rotation_strategy).replace('_', ' ');
                     const healthPct = proxyCount > 0 ? Math.round(healthyCount / proxyCount * 100) : 0;
-                    const barColor = proxyCount === 0 ? 'var(--text-muted)' : healthPct > 70 ? 'var(--green)' : healthPct > 30 ? 'var(--yellow)' : 'var(--red)';
+                    const tone = proxyCount === 0 ? 'var(--text-muted)' : healthPct > 70 ? 'var(--green)' : healthPct > 30 ? 'var(--yellow)' : 'var(--red)';
                     const barWidth = proxyCount === 0 ? 0 : healthPct;
-                    return `<tr>
-                        <td class="col-check"><input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="toggleRowSelection('${p.id}', this)"></td>
-                        <td><strong style="color:var(--text-primary)">${esc(p.name)}</strong></td>
-                        <td>
-                            <span class="stat-pill" style="cursor:pointer" onclick="manageProxies('${p.id}', '${esc(p.name)}')">
-                                <span class="stat-value">${proxyCount}</span> ${proxyCount === 1 ? 'proxy' : 'proxies'}
-                            </span>
-                        </td>
-                        <td>
-                            <div style="display:flex;align-items:center;gap:8px">
-                                <div style="flex:1;max-width:72px;height:4px;background:var(--border-light);border-radius:2px;overflow:hidden">
-                                    <div style="width:${barWidth}%;height:100%;background:${barColor};border-radius:2px;transition:width 0.3s ease"></div>
+                    return `<div class="pool-card" data-id="${p.id}">
+                        <div class="pc-head">
+                            <div class="pc-title">
+                                <input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="togglePoolSelection('${p.id}', this)">
+                                <div style="min-width:0">
+                                    <div class="pc-name">${esc(p.name)}</div>
+                                    <div class="pc-meta">Created ${fmtDate(p.created_at)} <span class="dot-sep">&middot;</span> <span class="tag tag-neutral" style="vertical-align:middle">${strategy}</span></div>
                                 </div>
-                                <span class="mono" style="font-size:11px">${healthyCount}/${proxyCount}</span>
                             </div>
-                        </td>
-                        <td><span class="tag tag-http">${strategy}</span></td>
-                        <td style="color:var(--text-muted);font-size:12px">${fmtDate(p.created_at)}</td>
-                        <td class="actions">
-                            <button class="btn btn-outline btn-sm" onclick="manageProxies('${p.id}', '${esc(p.name)}')">Manage Proxies</button>
-                            <button class="btn btn-danger btn-sm" onclick="deletePool('${p.id}')">Delete</button>
-                        </td>
-                    </tr>`;
+                            <div class="pc-actions">
+                                <button class="btn btn-ghost btn-sm" onclick="manageProxies('${p.id}', '${esc(p.name)}')">Manage Proxies</button>
+                                <button class="btn btn-danger btn-sm" onclick="deletePool('${p.id}')" title="Delete">Delete</button>
+                            </div>
+                        </div>
+                        <div class="pc-stats">
+                            <div class="pc-stat pc-clickable" onclick="manageProxies('${p.id}', '${esc(p.name)}')" title="Manage proxies">
+                                <div class="v">${proxyCount}</div><div class="l">${proxyCount === 1 ? 'Proxy' : 'Proxies'}</div>
+                            </div>
+                            <div class="pc-stat">
+                                <div class="v" style="color:${healthyCount > 0 ? 'var(--green)' : 'var(--text-muted)'}">${healthyCount}</div><div class="l">Healthy</div>
+                            </div>
+                            <div class="pc-stat">
+                                <div class="v" style="color:${tone}">${healthPct}%</div><div class="l">Health</div>
+                            </div>
+                        </div>
+                        <div class="pc-bar">
+                            <i style="width:${barWidth}%;background:${tone}"></i>
+                        </div>
+                        <div class="pc-foot">
+                            <span class="mono" style="font-size:11px">${healthyCount}/${proxyCount} healthy</span>
+                        </div>
+                    </div>`;
                 }).join('');
             }
             clearSelection();

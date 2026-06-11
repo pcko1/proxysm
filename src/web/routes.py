@@ -11,7 +11,12 @@ templates = Jinja2Templates(directory=str(pathlib.Path(__file__).parent / "templ
 
 
 def _ctx(request: Request) -> dict:
-    return {"request": request, "admin_token": settings.pm_admin_password}
+    return {
+        "request": request,
+        "admin_token": settings.pm_admin_password,
+        "http_port": settings.proxy_http_port,
+        "socks5_port": settings.proxy_socks5_port,
+    }
 
 
 @router.get("/", response_class=RedirectResponse)
