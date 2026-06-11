@@ -1,3 +1,5 @@
+import pathlib
+
 import structlog
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -26,6 +28,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+_static_dir = pathlib.Path(__file__).parent / "web" / "static"
+app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 
 # Prometheus metrics (conditional on config flag)
