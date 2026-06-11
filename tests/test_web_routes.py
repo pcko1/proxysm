@@ -136,15 +136,15 @@ async def test_dashboard_contains_html_structure(client):
 @pytest.mark.asyncio
 @patch("src.web.routes.settings", _fake_settings)
 async def test_navbar_order(client):
-    """Navbar links should appear in order: Proxies, Pools, Projects, Dashboard, API Docs."""
+    """Navbar links should appear in order: Dashboard, Proxies, Pools, Projects, API Docs."""
     resp = await client.get("/dashboard")
     body = resp.text
+    dashboard_pos = body.index('id="nav-dashboard"')
     proxies_pos = body.index('id="nav-proxies"')
     pools_pos = body.index('id="nav-pools"')
     projects_pos = body.index('id="nav-projects"')
-    dashboard_pos = body.index('id="nav-dashboard"')
     api_docs_pos = body.index('id="nav-api-docs"')
-    assert proxies_pos < pools_pos < projects_pos < dashboard_pos < api_docs_pos
+    assert dashboard_pos < proxies_pos < pools_pos < projects_pos < api_docs_pos
 
 
 # ---------------------------------------------------------------------------
