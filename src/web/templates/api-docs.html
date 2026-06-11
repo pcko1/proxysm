@@ -79,7 +79,7 @@
             <div class="panel-head"><h3>Authentication</h3></div>
             <div class="panel-body">
                 <p class="ep-desc" style="margin-bottom:14px">All management endpoints require your admin password sent as a Bearer token. <span class="mono">/health</span> is public, and <span class="mono">/rotate/{slug}</span> uses the project API key via <span class="mono">X-API-Key</span> instead.</p>
-                <pre class="code-block"><code class="language-bash">curl -H "Authorization: Bearer {{ admin_token }}" \
+                <pre class="code-block"><code class="language-bash">curl -H "Authorization: Bearer $PM_ADMIN_PASSWORD" \
   http://localhost:8080/api/v1/stats/overview</code></pre>
             </div>
         </div>

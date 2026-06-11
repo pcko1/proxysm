@@ -4,6 +4,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from src.web.auth import SESSION_COOKIE, create_session_token
 from src.web.routes import router as web_router
 
 # ---------------------------------------------------------------------------
@@ -25,6 +26,16 @@ test_app = _build_test_app()
 
 @pytest.fixture
 def client():
+    """Authenticated client (carries a valid session cookie)."""
+    transport = ASGITransport(app=test_app)
+    c = AsyncClient(transport=transport, base_url="http://test", follow_redirects=False)
+    c.cookies.set(SESSION_COOKIE, create_session_token())
+    return c
+
+
+@pytest.fixture
+def anon_client():
+    """Client without a session cookie."""
     transport = ASGITransport(app=test_app)
     return AsyncClient(transport=transport, base_url="http://test", follow_redirects=False)
 
@@ -230,3 +241,68 @@ async def test_proxies_sources_table_no_url_column(client):
     assert "Date Added" in body
     # Should not have a standalone URL header in the sources table
     # (URL is now shown as part of the Type column)
+
+
+# ---------------------------------------------------------------------------
+# Auth tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_pages_redirect_to_login_without_session(anon_client):
+    for path in ["/dashboard", "/proxies", "/pools", "/projects", "/settings", "/api-docs", "/setup"]:
+        resp = await anon_client.get(path)
+        assert resp.status_code == 302, path
+        assert resp.headers["location"] == "/login", path
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_login_page_renders(anon_client):
+    resp = await anon_client.get("/login")
+    assert resp.status_code == 200
+    assert "password" in resp.text.lower()
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_login_wrong_password_rejected(anon_client):
+    resp = await anon_client.post("/login", data={"password": "nope"})
+    assert resp.status_code == 401
+    assert SESSION_COOKIE not in resp.cookies
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_login_correct_password_sets_session(anon_client):
+    resp = await anon_client.post("/login", data={"password": "testpassword"})
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/dashboard"
+    assert SESSION_COOKIE in resp.cookies
+    resp2 = await anon_client.get("/dashboard")
+    assert resp2.status_code == 200
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_logout_clears_session(client):
+    resp = await client.get("/logout")
+    assert resp.status_code == 307 or resp.status_code == 302
+    assert resp.headers["location"] == "/login"
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_login_page_redirects_when_authenticated(client):
+    resp = await client.get("/login")
+    assert resp.status_code == 307
+    assert resp.headers["location"] == "/dashboard"
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_admin_password_not_embedded_in_pages(client):
+    for path in ["/dashboard", "/proxies", "/api-docs"]:
+        resp = await client.get(path)
+        assert "testpassword" not in resp.text, path

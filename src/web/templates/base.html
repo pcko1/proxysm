@@ -866,6 +866,18 @@
             font-family: "Geist Mono", monospace; font-size: 10.5px;
         }
 
+        /* ===== API FAILURE BANNER ===== */
+        .api-banner {
+            position: sticky; top: 60px; z-index: 99;
+            display: none; align-items: center; gap: 10px;
+            padding: 9px 22px;
+            background: rgba(242,107,107,0.10);
+            border-bottom: 1px solid var(--red-border);
+            color: var(--red); font-size: 13px;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        }
+        .api-banner.visible { display: flex; }
+
         /* ===== FOOTER ===== */
         .footer {
             border-top: 1px solid var(--border);
@@ -990,9 +1002,17 @@
         <a href="/settings" class="nav-settings-cog" id="nav-settings" title="Settings">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </a>
+        <a href="/logout" class="nav-settings-cog" id="nav-logout" title="Sign out">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
         <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
         </div>
     </nav>
+
+    <div class="api-banner" id="apiBanner" role="alert">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span id="apiBannerMsg"></span>
+    </div>
 
     <div class="toast-container" id="toastContainer"></div>
 
@@ -1057,22 +1077,43 @@
             });
         });
 
-        // Admin token
-        const ADMIN_TOKEN = '{{ admin_token }}';
+        // API failure banner
+        function showApiBanner(msg) {
+            const banner = document.getElementById('apiBanner');
+            if (!banner) return;
+            document.getElementById('apiBannerMsg').textContent = msg;
+            banner.classList.add('visible');
+        }
+        function hideApiBanner() {
+            const banner = document.getElementById('apiBanner');
+            if (banner) banner.classList.remove('visible');
+        }
 
-        // API helper
+        // API helper — authenticated by the session cookie
         async function apiCall(method, url, body) {
             const opts = {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + ADMIN_TOKEN,
-                },
+                headers: { 'Content-Type': 'application/json' },
             };
             if (body !== undefined && body !== null) {
                 opts.body = JSON.stringify(body);
             }
-            const resp = await fetch(url, opts);
+            let resp;
+            try {
+                resp = await fetch(url, opts);
+            } catch (e) {
+                showApiBanner('Cannot reach the Proxysm API — check that the server is running.');
+                throw e;
+            }
+            if (resp.status === 401) {
+                window.location.href = '/login';
+                throw new Error('Session expired — redirecting to login');
+            }
+            if (resp.status >= 500) {
+                showApiBanner(`The API returned an error (${resp.status}) — see server logs.`);
+            } else {
+                hideApiBanner();
+            }
             if (!resp.ok) {
                 let msg = `Error ${resp.status}`;
                 try {

@@ -20,17 +20,23 @@ def _make_settings(**overrides):
     return mock
 
 
+def _request(cookies: dict | None = None):
+    req = MagicMock()
+    req.cookies = cookies or {}
+    return req
+
+
 @pytest.mark.asyncio
 @patch("src.api.deps.settings", _make_settings())
 async def test_admin_auth_valid_token():
-    await admin_auth(authorization=f"Bearer {FAKE_PASSWORD}")
+    await admin_auth(_request(), authorization=f"Bearer {FAKE_PASSWORD}")
 
 
 @pytest.mark.asyncio
 @patch("src.api.deps.settings", _make_settings())
 async def test_admin_auth_invalid_token():
     with pytest.raises(HTTPException) as exc_info:
-        await admin_auth(authorization="Bearer wrongpassword")
+        await admin_auth(_request(), authorization="Bearer wrongpassword")
     assert exc_info.value.status_code == 401
     assert "Invalid admin credentials" in exc_info.value.detail
 
@@ -39,7 +45,7 @@ async def test_admin_auth_invalid_token():
 @patch("src.api.deps.settings", _make_settings())
 async def test_admin_auth_missing_bearer_prefix():
     with pytest.raises(HTTPException) as exc_info:
-        await admin_auth(authorization="Token something")
+        await admin_auth(_request(), authorization="Token something")
     assert exc_info.value.status_code == 401
     assert "Invalid authorization header format" in exc_info.value.detail
 
@@ -49,7 +55,7 @@ async def test_admin_auth_missing_bearer_prefix():
 async def test_admin_auth_empty_bearer_token():
     """Bearer prefix present but the token portion is empty."""
     with pytest.raises(HTTPException) as exc_info:
-        await admin_auth(authorization="Bearer ")
+        await admin_auth(_request(), authorization="Bearer ")
     assert exc_info.value.status_code == 401
     assert "Invalid admin credentials" in exc_info.value.detail
 
@@ -58,7 +64,7 @@ async def test_admin_auth_empty_bearer_token():
 @patch("src.api.deps.settings", _make_settings())
 async def test_admin_auth_no_space_after_bearer():
     with pytest.raises(HTTPException) as exc_info:
-        await admin_auth(authorization="Bearertoken")
+        await admin_auth(_request(), authorization="Bearertoken")
     assert exc_info.value.status_code == 401
     assert "Invalid authorization header format" in exc_info.value.detail
 
@@ -72,7 +78,7 @@ async def test_admin_auth_hash_comparison():
     password_hash = hashlib.sha256(FAKE_PASSWORD.encode()).hexdigest()
     assert token_hash == password_hash
     # Should not raise
-    await admin_auth(authorization=f"Bearer {password}")
+    await admin_auth(_request(), authorization=f"Bearer {password}")
 
 
 # ---------------------------------------------------------------------------
@@ -124,4 +130,30 @@ async def test_get_project_by_api_key_empty_string():
     db = _mock_db_session(None)
     with pytest.raises(HTTPException) as exc_info:
         await get_project_by_api_key(x_api_key="", db=db)
+    assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+@patch("src.api.deps.settings", _make_settings())
+async def test_admin_auth_valid_session_cookie():
+    from src.web.auth import SESSION_COOKIE, create_session_token
+
+    await admin_auth(_request({SESSION_COOKIE: create_session_token()}), authorization=None)
+
+
+@pytest.mark.asyncio
+@patch("src.api.deps.settings", _make_settings())
+async def test_admin_auth_invalid_session_cookie():
+    from src.web.auth import SESSION_COOKIE
+
+    with pytest.raises(HTTPException) as exc_info:
+        await admin_auth(_request({SESSION_COOKIE: "123.deadbeef"}), authorization=None)
+    assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+@patch("src.api.deps.settings", _make_settings())
+async def test_admin_auth_no_credentials():
+    with pytest.raises(HTTPException) as exc_info:
+        await admin_auth(_request(), authorization=None)
     assert exc_info.value.status_code == 401
