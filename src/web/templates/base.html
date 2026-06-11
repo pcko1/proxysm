@@ -7,7 +7,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><polygon points='16,30 13.5,11 16,4 18.5,11' fill='%236B8CF5'/></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=optional" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
@@ -215,12 +215,9 @@
             margin: 0 auto;
             padding: 30px 26px 60px;
             flex: 1;
-            animation: pageIn 0.3s ease;
         }
-        @keyframes pageIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        /* entrance animation intentionally omitted — content must always be visible
+           (throttled tabs freeze CSS animations at their first frame) */
 
         /* ===== PAGE HEADER ===== */
         .page-header {
@@ -866,6 +863,18 @@
             font-family: "Geist Mono", monospace; font-size: 10.5px;
         }
 
+        /* ===== PAGE TRANSITIONS ===== */
+        /* Same-origin navigations crossfade; the navbar and footer are their own
+           snapshot groups so they stay visually fixed instead of flickering. */
+        @view-transition { navigation: auto; }
+        .navbar { view-transition-name: navbar; }
+        .footer { view-transition-name: footer; }
+        @media (prefers-reduced-motion: reduce) {
+            ::view-transition-group(*),
+            ::view-transition-old(*),
+            ::view-transition-new(*) { animation: none !important; }
+        }
+
         /* ===== API FAILURE BANNER ===== */
         .api-banner {
             position: sticky; top: 60px; z-index: 99;
@@ -1008,6 +1017,21 @@
         <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
         </div>
     </nav>
+    <script>
+        // Runs before first paint so the active pill never pops in late
+        (function() {
+            const path = window.location.pathname;
+            document.querySelectorAll('.navbar-links a').forEach(link => {
+                if (path.startsWith(link.getAttribute('href'))) {
+                    link.classList.add('active');
+                }
+            });
+            const cog = document.getElementById('nav-settings');
+            if (cog && path.startsWith('/settings')) {
+                cog.classList.add('active');
+            }
+        })();
+    </script>
 
     <div class="api-banner" id="apiBanner" role="alert">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -1051,21 +1075,6 @@
     </div>
 
     <script>
-        // Highlight active nav link
-        (function() {
-            const path = window.location.pathname;
-            const links = document.querySelectorAll('.navbar-links a');
-            links.forEach(link => {
-                if (path.startsWith(link.getAttribute('href'))) {
-                    link.classList.add('active');
-                }
-            });
-            const cog = document.getElementById('nav-settings');
-            if (cog && path.startsWith('/settings')) {
-                cog.classList.add('active');
-            }
-        })();
-
         // Mobile nav toggle
         document.getElementById('navToggle').addEventListener('click', function() {
             document.getElementById('navLinks').classList.toggle('open');
