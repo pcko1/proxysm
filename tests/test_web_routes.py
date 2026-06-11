@@ -285,7 +285,8 @@ async def test_proxies_sources_table_no_url_column(client):
 @pytest.mark.asyncio
 @patch("src.web.routes.settings", _fake_settings)
 async def test_pages_redirect_to_login_without_session(anon_client):
-    for path in ["/dashboard", "/proxies", "/pools", "/projects", "/settings", "/api-docs", "/setup"]:
+    pages = ["/dashboard", "/proxies", "/pools", "/projects", "/settings", "/api-docs", "/setup"]
+    for path in pages:
         resp = await anon_client.get(path)
         assert resp.status_code == 302, path
         assert resp.headers["location"] == "/login", path
