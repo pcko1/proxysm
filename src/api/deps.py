@@ -1,29 +1,38 @@
 import hashlib
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
 from src.database import get_db
 from src.models.project import Project
+from src.web.auth import SESSION_COOKIE, verify_session_token
 
 
-async def admin_auth(authorization: str = Header(...)) -> None:
-    """Validate Bearer token against admin password."""
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authorization header format",
-        )
-    token = authorization[7:]
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    password_hash = hashlib.sha256(settings.pm_admin_password.encode()).hexdigest()
-    if token_hash != password_hash:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin credentials",
-        )
+async def admin_auth(request: Request, authorization: str | None = Header(None)) -> None:
+    """Authenticate as admin via Bearer token or web session cookie."""
+    if authorization is not None:
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authorization header format",
+            )
+        token = authorization[7:]
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        password_hash = hashlib.sha256(settings.pm_admin_password.encode()).hexdigest()
+        if token_hash != password_hash:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid admin credentials",
+            )
+        return
+    if verify_session_token(request.cookies.get(SESSION_COOKIE)):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required",
+    )
 
 
 async def get_project_by_api_key(

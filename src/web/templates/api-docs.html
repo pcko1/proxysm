@@ -79,7 +79,7 @@
             <div class="panel-head"><h3>Authentication</h3></div>
             <div class="panel-body">
                 <p class="ep-desc" style="margin-bottom:14px">All management endpoints require your admin password sent as a Bearer token. <span class="mono">/health</span> is public, and <span class="mono">/rotate/{slug}</span> uses the project API key via <span class="mono">X-API-Key</span> instead.</p>
-                <pre class="code-block"><code class="language-bash">curl -H "Authorization: Bearer {{ admin_token }}" \
+                <pre class="code-block"><code class="language-bash">curl -H "Authorization: Bearer $PM_ADMIN_PASSWORD" \
   http://localhost:8080/api/v1/stats/overview</code></pre>
             </div>
         </div>
@@ -196,26 +196,50 @@ curl --proxy socks5://SLUG:KEY@localhost:{{ socks5_port }} https://httpbin.org/i
     (function () {
         const nav = document.getElementById('apiNav');
         const links = Array.from(nav.querySelectorAll('a[href^="#"]'));
+        const ids = links.map(a => a.getAttribute('href').slice(1));
+        const byId = {};
+        links.forEach(a => { byId[a.getAttribute('href').slice(1)] = a; });
 
         function setActive(link) {
             links.forEach(a => a.classList.toggle('active', a === link));
         }
 
-        links.forEach(link => link.addEventListener('click', () => setActive(link)));
+        // After a click, the chosen link wins until the jump-scroll settles
+        let suppressUntil = 0;
+        links.forEach(link => link.addEventListener('click', () => {
+            setActive(link);
+            suppressUntil = Date.now() + 800;
+        }));
 
-        const byId = {};
-        links.forEach(a => { byId[a.getAttribute('href').slice(1)] = a; });
+        function spy() {
+            if (Date.now() < suppressUntil) return;
+            const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+            let best = ids[0];
+            if (atBottom) {
+                best = ids[ids.length - 1];
+            } else {
+                const line = 110; // just below the sticky nav
+                for (const id of ids) {
+                    const el = document.getElementById(id);
+                    if (el && el.getBoundingClientRect().top <= line) best = id;
+                }
+            }
+            if (byId[best]) setActive(byId[best]);
+        }
 
-        const observer = new IntersectionObserver(entries => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting && byId[entry.target.id]) setActive(byId[entry.target.id]);
-            });
-        }, { rootMargin: '-80px 0px -65% 0px' });
+        let ticking = false;
+        window.addEventListener('scroll', () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => { ticking = false; spy(); });
+        }, { passive: true });
 
-        Object.keys(byId).forEach(id => {
-            const el = document.getElementById(id);
-            if (el) observer.observe(el);
-        });
+        // Initial state: honor a deep link, otherwise spy the current position
+        if (location.hash && byId[location.hash.slice(1)]) {
+            setActive(byId[location.hash.slice(1)]);
+        } else {
+            spy();
+        }
     })();
 </script>
 {% endblock %}

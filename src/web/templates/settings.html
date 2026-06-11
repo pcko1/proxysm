@@ -186,16 +186,35 @@
         </div>
         <div class="form-group">
             <label for="alertCondType">Condition Type</label>
-            <select id="alertCondType">
+            <select id="alertCondType" onchange="updateCondFields()">
                 <option value="error_rate_above">Error Rate Above Threshold</option>
                 <option value="pool_below_min_healthy">Pool Below Min Healthy</option>
                 <option value="bandwidth_exceeded">Bandwidth Exceeded</option>
                 <option value="all_proxies_dead">All Proxies Dead</option>
             </select>
         </div>
-        <div class="form-group">
-            <label for="alertCondConfig">Condition Config (JSON)</label>
-            <textarea id="alertCondConfig" rows="3" placeholder='{"threshold": 0.5, "window_seconds": 300}'></textarea>
+        <div class="form-group" id="grpErrThreshold">
+            <label for="alertErrThreshold">Error Rate Threshold (%)</label>
+            <input type="number" id="alertErrThreshold" min="0" max="100" step="any" placeholder="e.g. 50">
+        </div>
+        <div class="form-group" id="grpErrWindow">
+            <label for="alertErrWindow">Window (seconds)</label>
+            <input type="number" id="alertErrWindow" min="1" step="1" placeholder="e.g. 300">
+        </div>
+        <div class="form-group" id="grpPool" style="display:none">
+            <label for="alertPoolSelect">Pool</label>
+            <select id="alertPoolSelect"></select>
+        </div>
+        <div class="form-group" id="grpMinHealthy" style="display:none">
+            <label for="alertMinHealthy">Min Healthy Proxies</label>
+            <input type="number" id="alertMinHealthy" min="1" step="1" placeholder="e.g. 2">
+        </div>
+        <div class="form-group" id="grpBwLimit" style="display:none">
+            <label for="alertBwLimit">Bandwidth Limit (GB)</label>
+            <input type="number" id="alertBwLimit" min="0" step="any" placeholder="e.g. 100">
+        </div>
+        <div class="form-group" id="grpAllDeadHint" style="display:none">
+            <span class="hint">Triggers when every proxy is marked dead. No configuration needed.</span>
         </div>
         <div class="form-group">
             <label for="alertActionType">Action Type</label>
@@ -204,8 +223,8 @@
             </select>
         </div>
         <div class="form-group">
-            <label for="alertActionConfig">Action Config (JSON)</label>
-            <textarea id="alertActionConfig" rows="3" placeholder='{"url": "https://hooks.example.com/alert"}'></textarea>
+            <label for="alertWebhookUrl">Webhook URL</label>
+            <input type="url" id="alertWebhookUrl" placeholder="https://hooks.example.com/alert">
         </div>
         <div class="form-group">
             <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;color:var(--text-secondary);cursor:pointer">
@@ -321,29 +340,105 @@
         return map[t] || t;
     }
 
+    // Typed condition fields ------------------------------------------------
+    const COND_FIELD_GROUPS = {
+        'error_rate_above': ['grpErrThreshold', 'grpErrWindow'],
+        'pool_below_min_healthy': ['grpPool', 'grpMinHealthy'],
+        'bandwidth_exceeded': ['grpBwLimit'],
+        'all_proxies_dead': ['grpAllDeadHint'],
+    };
+    const ALL_COND_GROUPS = [...new Set(Object.values(COND_FIELD_GROUPS).flat())];
+    const BYTES_PER_GB = 1e9;
+
+    // Originals of the rule being edited, so unknown config keys are preserved.
+    let origCondType = null;
+    let origCondConfig = {};
+    let origActionConfig = {};
+    let poolOptionsPromise = null;
+
+    function updateCondFields() {
+        const type = document.getElementById('alertCondType').value;
+        const visible = COND_FIELD_GROUPS[type] || [];
+        ALL_COND_GROUPS.forEach(id => {
+            document.getElementById(id).style.display = visible.includes(id) ? '' : 'none';
+        });
+    }
+
+    function loadPoolOptions() {
+        if (!poolOptionsPromise) {
+            poolOptionsPromise = apiCall('GET', '/api/v1/pools?per_page=100').then(resp => {
+                const pools = (resp && resp.data) || [];
+                const sel = document.getElementById('alertPoolSelect');
+                sel.innerHTML = pools.length
+                    ? pools.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')
+                    : '<option value="">No pools available</option>';
+                return pools;
+            }).catch(e => {
+                poolOptionsPromise = null; // allow retry next time
+                throw e;
+            });
+        }
+        return poolOptionsPromise;
+    }
+
     function openCreateAlert() {
         document.getElementById('alertModalTitle').textContent = 'Create Alert Rule';
         document.getElementById('alertEditId').value = '';
         document.getElementById('alertName').value = '';
         document.getElementById('alertCondType').value = 'error_rate_above';
-        document.getElementById('alertCondConfig').value = '';
+        origCondType = null;
+        origCondConfig = {};
+        origActionConfig = {};
+        document.getElementById('alertErrThreshold').value = '';
+        document.getElementById('alertErrWindow').value = '300';
+        document.getElementById('alertMinHealthy').value = '';
+        document.getElementById('alertBwLimit').value = '';
+        document.getElementById('alertWebhookUrl').value = '';
         document.getElementById('alertActionType').value = 'webhook';
-        document.getElementById('alertActionConfig').value = '';
         document.getElementById('alertEnabled').checked = true;
+        loadPoolOptions().catch(() => {});
+        updateCondFields();
         openModal('alertModal');
     }
 
     async function editAlert(id) {
         try {
-            const alert = await apiCall('GET', `/api/v1/alerts/${id}`);
+            const rule = await apiCall('GET', `/api/v1/alerts/${id}`);
             document.getElementById('alertModalTitle').textContent = 'Edit Alert Rule';
             document.getElementById('alertEditId').value = id;
-            document.getElementById('alertName').value = alert.name;
-            document.getElementById('alertCondType').value = alert.condition_type;
-            document.getElementById('alertCondConfig').value = JSON.stringify(alert.condition_config, null, 2);
-            document.getElementById('alertActionType').value = alert.action_type;
-            document.getElementById('alertActionConfig').value = JSON.stringify(alert.action_config, null, 2);
-            document.getElementById('alertEnabled').checked = alert.is_enabled;
+            document.getElementById('alertName').value = rule.name;
+            document.getElementById('alertCondType').value = rule.condition_type;
+            document.getElementById('alertActionType').value = rule.action_type;
+
+            origCondType = rule.condition_type;
+            origCondConfig = rule.condition_config || {};
+            origActionConfig = rule.action_config || {};
+            const cfg = origCondConfig;
+
+            document.getElementById('alertErrThreshold').value =
+                cfg.threshold != null ? parseFloat((cfg.threshold * 100).toFixed(4)) : '';
+            document.getElementById('alertErrWindow').value =
+                cfg.window_seconds != null ? cfg.window_seconds : '300';
+            document.getElementById('alertMinHealthy').value =
+                cfg.min_healthy != null ? cfg.min_healthy : '';
+            document.getElementById('alertBwLimit').value =
+                cfg.limit_bytes != null ? parseFloat((cfg.limit_bytes / BYTES_PER_GB).toFixed(4)) : '';
+
+            try { await loadPoolOptions(); } catch { /* pool list optional */ }
+            const poolSel = document.getElementById('alertPoolSelect');
+            if (cfg.pool_id) {
+                if (![...poolSel.options].some(o => o.value === String(cfg.pool_id))) {
+                    const opt = document.createElement('option');
+                    opt.value = cfg.pool_id;
+                    opt.textContent = cfg.pool_id + ' (unknown pool)';
+                    poolSel.appendChild(opt);
+                }
+                poolSel.value = cfg.pool_id;
+            }
+
+            document.getElementById('alertWebhookUrl').value = origActionConfig.url != null ? origActionConfig.url : '';
+            document.getElementById('alertEnabled').checked = rule.is_enabled;
+            updateCondFields();
             openModal('alertModal');
         } catch (e) {
             showToast('Failed to load alert: ' + e.message, 'error');
@@ -354,25 +449,38 @@
         const name = document.getElementById('alertName').value.trim();
         if (!name) { showToast('Please enter a name', 'error'); return; }
 
-        let condConfig, actionConfig;
-        try {
-            const condText = document.getElementById('alertCondConfig').value.trim();
-            condConfig = condText ? JSON.parse(condText) : {};
-        } catch {
-            showToast('Invalid condition config JSON', 'error');
-            return;
+        const condType = document.getElementById('alertCondType').value;
+        // Preserve unknown keys from the original config when the type is unchanged.
+        const condConfig = condType === origCondType ? { ...origCondConfig } : {};
+
+        if (condType === 'error_rate_above') {
+            const pct = parseFloat(document.getElementById('alertErrThreshold').value);
+            const win = parseInt(document.getElementById('alertErrWindow').value, 10);
+            if (!isFinite(pct) || pct <= 0 || pct > 100) { showToast('Enter an error rate threshold between 0 and 100%', 'error'); return; }
+            if (!isFinite(win) || win <= 0) { showToast('Enter a window in seconds (greater than 0)', 'error'); return; }
+            condConfig.threshold = pct / 100;
+            condConfig.window_seconds = win;
+        } else if (condType === 'pool_below_min_healthy') {
+            const poolId = document.getElementById('alertPoolSelect').value;
+            const minHealthy = parseInt(document.getElementById('alertMinHealthy').value, 10);
+            if (!poolId) { showToast('Select a pool', 'error'); return; }
+            if (!isFinite(minHealthy) || minHealthy < 1) { showToast('Enter a min healthy count of at least 1', 'error'); return; }
+            condConfig.pool_id = poolId;
+            condConfig.min_healthy = minHealthy;
+        } else if (condType === 'bandwidth_exceeded') {
+            const gb = parseFloat(document.getElementById('alertBwLimit').value);
+            if (!isFinite(gb) || gb <= 0) { showToast('Enter a bandwidth limit in GB (greater than 0)', 'error'); return; }
+            condConfig.limit_bytes = Math.round(gb * BYTES_PER_GB);
         }
-        try {
-            const actText = document.getElementById('alertActionConfig').value.trim();
-            actionConfig = actText ? JSON.parse(actText) : {};
-        } catch {
-            showToast('Invalid action config JSON', 'error');
-            return;
-        }
+        // all_proxies_dead: no fields.
+
+        const webhookUrl = document.getElementById('alertWebhookUrl').value.trim();
+        if (!/^https?:\/\/\S+$/i.test(webhookUrl)) { showToast('Enter a valid webhook URL (http:// or https://)', 'error'); return; }
+        const actionConfig = { ...origActionConfig, url: webhookUrl };
 
         const body = {
             name: name,
-            condition_type: document.getElementById('alertCondType').value,
+            condition_type: condType,
             condition_config: condConfig,
             action_type: document.getElementById('alertActionType').value,
             action_config: actionConfig,

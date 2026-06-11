@@ -30,8 +30,11 @@
         border-top: 4px solid var(--accent);
         opacity: 1;
     }
-    /* Toolbar: status filter pills */
+    /* Toolbar: search + status filter pills */
     .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .search-field { position: relative; flex: 1; min-width: 220px; max-width: 360px; }
+    .search-field svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+    .search-field input { padding-left: 36px; height: 38px; width: 100%; }
     .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
     .fpill {
         height: 38px; padding: 0 13px; display: inline-flex; align-items: center; gap: 7px;
@@ -231,8 +234,28 @@
     </div>
 </div>
 
-<!-- Toolbar: status filter pills -->
+<!-- Move to Pool Modal -->
+<div class="modal-overlay" id="moveToPoolModal">
+    <div class="modal" style="max-width:420px">
+        <h2>Move to Pool</h2>
+        <p id="movePoolMsg" style="color:var(--text-muted);font-size:13px;margin:-12px 0 18px"></p>
+        <div class="form-group">
+            <label for="movePoolSelect">Pool</label>
+            <select id="movePoolSelect"></select>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('moveToPoolModal')">Cancel</button>
+            <button class="btn btn-primary" id="movePoolConfirmBtn" onclick="confirmMoveToPool()">Add to Pool</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toolbar: search + status filter pills -->
 <div class="toolbar">
+    <div class="search-field">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="proxySearch" placeholder="Search host, provider…">
+    </div>
     <div class="filter-pills" id="statusFilters">
         <span class="fpill active" data-f="" onclick="setStatusFilter('')">All <span class="ct" id="ctAll"></span></span>
         <span class="fpill" data-f="healthy" onclick="setStatusFilter('healthy')">Healthy <span class="ct" id="ctHealthy"></span></span>
@@ -253,6 +276,7 @@
                     <th class="sortable" data-sort="provider" onclick="toggleSort('provider')">Provider</th>
                     <th class="sortable" data-sort="status" onclick="toggleSort('status')">Status</th>
                     <th class="sortable" data-sort="latency" onclick="toggleSort('latency')">Latency</th>
+                    <th>Last check</th>
                     <th></th>
                 </tr>
             </thead>
@@ -277,6 +301,7 @@
     let sortColumn = null;
     let sortDir = 'asc';
     let statusFilter = '';
+    let searchQuery = '';
 
     function toggleSort(col) {
         if (sortColumn === col) {
@@ -317,6 +342,12 @@
         } catch (e) { console.error('Failed to load overview', e); }
     }
 
+    function lastCheckCell(p) {
+        if (!p.last_health_check) return '<span class="mono">-</span>';
+        const full = new Date(p.last_health_check).toLocaleString();
+        return `<span class="mono" title="${esc(full)}">${timeAgo(p.last_health_check)}</span>`;
+    }
+
     function latencyCell(p) {
         if (!p.avg_latency_ms) return '<span class="mono">-</span>';
         const ms = p.avg_latency_ms.toFixed(0);
@@ -347,6 +378,7 @@
                 <td class="cell-truncate">${esc(provName)}</td>
                 <td>${statusBadge(p.last_health_status)}</td>
                 <td>${latencyCell(p)}</td>
+                <td>${lastCheckCell(p)}</td>
                 <td class="actions">
                     <button class="btn btn-ghost btn-sm" onclick="checkProxy('${p.id}', this)" title="Recheck"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
                     <button class="btn btn-danger btn-sm" onclick="deleteProxy('${p.id}')">Delete</button>
@@ -361,6 +393,7 @@
         try {
             let url = `/api/v1/ips?page=${currentPage}&per_page=${pageSize}`;
             if (statusFilter) url += `&status=${encodeURIComponent(statusFilter)}`;
+            if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
             if (sortColumn) url += `&sort_by=${sortColumn}&sort_dir=${sortDir}`;
             const data = await apiCall('GET', url);
             const proxies = data.data || [];
@@ -531,6 +564,96 @@
     }
 
     document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
+
+    // --- Search (debounced) ---
+    let searchTimer = null;
+    document.getElementById('proxySearch').addEventListener('input', e => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            searchQuery = e.target.value.trim();
+            currentPage = 1;
+            loadProxies();
+        }, 300);
+    });
+
+    // --- Bulk actions: recheck + move to pool ---
+    (function injectBulkButtons() {
+        const deleteBtn = document.getElementById('bulkDeleteBtn');
+        const recheckBtn = document.createElement('button');
+        recheckBtn.id = 'bulkRecheckBtn';
+        recheckBtn.className = 'btn-bulk-cancel';
+        recheckBtn.textContent = 'Recheck';
+        recheckBtn.onclick = bulkRecheck;
+        const moveBtn = document.createElement('button');
+        moveBtn.id = 'bulkMoveBtn';
+        moveBtn.className = 'btn-bulk-cancel';
+        moveBtn.textContent = 'Move to pool';
+        moveBtn.onclick = openMoveToPool;
+        deleteBtn.parentNode.insertBefore(recheckBtn, deleteBtn);
+        deleteBtn.parentNode.insertBefore(moveBtn, deleteBtn);
+    })();
+
+    async function bulkRecheck() {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        showToast(`Rechecking ${ids.length} ${ids.length === 1 ? 'proxy' : 'proxies'}...`, 'success');
+        let done = 0;
+        for (let i = 0; i < ids.length; i += 10) {
+            const chunk = ids.slice(i, i + 10);
+            const results = await Promise.all(chunk.map(id =>
+                apiCall('POST', `/api/v1/ips/${id}/check`).then(() => true).catch(() => false)
+            ));
+            done += results.filter(Boolean).length;
+        }
+        showToast(`Rechecked ${done} of ${ids.length} ${ids.length === 1 ? 'proxy' : 'proxies'}`, 'success');
+        clearSelection();
+        loadProxies();
+        loadOverview();
+    }
+
+    let moveIds = [];
+
+    async function openMoveToPool() {
+        moveIds = Array.from(selectedIds);
+        if (moveIds.length === 0) return;
+        const select = document.getElementById('movePoolSelect');
+        select.innerHTML = '<option value="">Loading pools...</option>';
+        document.getElementById('movePoolMsg').textContent =
+            `Add ${moveIds.length} selected ${moveIds.length === 1 ? 'proxy' : 'proxies'} to a pool.`;
+        openModal('moveToPoolModal');
+        try {
+            const data = await apiCall('GET', '/api/v1/pools?per_page=100');
+            const pools = data.data || [];
+            if (pools.length === 0) {
+                select.innerHTML = '<option value="">No pools available</option>';
+                return;
+            }
+            select.innerHTML = pools.map(p =>
+                `<option value="${esc(p.id)}">${esc(p.name)} (${p.proxy_count || 0} proxies)</option>`
+            ).join('');
+        } catch (e) {
+            select.innerHTML = '<option value="">Failed to load pools</option>';
+            showToast('Failed to load pools: ' + e.message, 'error');
+        }
+    }
+
+    async function confirmMoveToPool() {
+        const poolId = document.getElementById('movePoolSelect').value;
+        if (!poolId) { showToast('Please select a pool', 'error'); return; }
+        if (moveIds.length === 0) { closeModal('moveToPoolModal'); return; }
+        const btn = document.getElementById('movePoolConfirmBtn');
+        btnLoading(btn);
+        try {
+            const result = await apiCall('POST', `/api/v1/pools/${poolId}/ips`, { proxy_ids: moveIds });
+            btnReset(btn);
+            closeModal('moveToPoolModal');
+            showToast(`Added ${result.added} ${result.added === 1 ? 'proxy' : 'proxies'} to pool`, 'success');
+            clearSelection();
+        } catch (e) {
+            btnReset(btn);
+            showToast('Move to pool failed: ' + e.message, 'error');
+        }
+    }
 
     // --- Sources Panel ---
     let deleteSourceId = null;
