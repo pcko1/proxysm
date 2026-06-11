@@ -671,7 +671,8 @@
     }
 
     function copySourceName(text, el) {
-        navigator.clipboard.writeText(text).then(() => {
+        copyToClipboard(text).then(ok => {
+            if (!ok) { showToast('Copy failed — select the text manually', 'error'); return; }
             const orig = el.textContent;
             el.textContent = 'Copied!';
             el.style.color = 'var(--green)';

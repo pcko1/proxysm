@@ -658,8 +658,8 @@
 
     function copySetupApiKey() {
         const key = document.getElementById('successApiKey').textContent;
-        navigator.clipboard.writeText(key).then(() => {
-            showToast('API key copied to clipboard', 'success');
+        copyToClipboard(key).then(ok => {
+            showToast(ok ? 'API key copied to clipboard' : 'Copy failed — select the key manually', ok ? 'success' : 'error');
         });
     }
 
