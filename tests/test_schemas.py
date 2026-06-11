@@ -3,10 +3,9 @@
 import pytest
 from pydantic import ValidationError
 
-from src.schemas.proxy import ProxyCreate, ProxyBulkImport
 from src.schemas.pool import PoolCreate, PoolUpdate
 from src.schemas.project import ProjectCreate
-
+from src.schemas.proxy import ProxyBulkImport, ProxyCreate
 
 # ---------------------------------------------------------------------------
 # ProxyCreate

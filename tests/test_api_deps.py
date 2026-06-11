@@ -6,7 +6,6 @@ from fastapi import HTTPException
 
 from src.api.deps import admin_auth, get_project_by_api_key
 
-
 # ---------------------------------------------------------------------------
 # admin_auth tests
 # ---------------------------------------------------------------------------
