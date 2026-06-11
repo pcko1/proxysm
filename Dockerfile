@@ -9,8 +9,8 @@ RUN adduser --disabled-password --no-create-home appuser
 
 FROM base AS deps
 
-COPY pyproject.toml .
-RUN pip install --no-cache-dir .
+COPY pyproject.toml constraints.txt ./
+RUN pip install --no-cache-dir . -c constraints.txt
 
 FROM deps AS app
 
