@@ -27,6 +27,7 @@ class ProxyResponse(BaseModel):
     provider: str | None = None
     is_active: bool
     last_health_status: str | None = None
+    last_health_check: datetime | None = None
     avg_latency_ms: float | None = None
     created_at: datetime
 

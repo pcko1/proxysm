@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import admin_auth
@@ -19,7 +19,7 @@ from src.services.import_parser import parse_proxy_list
 
 def _make_source_name(prefix: str) -> str:
     """Generate a timestamped source name."""
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H:%M:%S")
+    ts = datetime.now(UTC).strftime("%Y-%m-%d-%H:%M:%S")
     return f"{prefix}-{ts}"
 
 router = APIRouter(prefix="/ips", tags=["proxies"])
@@ -43,6 +43,7 @@ async def list_proxies(
     status_filter: str | None = Query(None, alias="status"),
     protocol: str | None = Query(None),
     provider: str | None = Query(None),
+    search: str | None = Query(None),
     sort_by: str | None = Query(None),
     sort_dir: str = Query("asc"),
     db: AsyncSession = Depends(get_db),
@@ -52,8 +53,12 @@ async def list_proxies(
     count_base = select(func.count(Proxy.id))
 
     if pool_id:
-        base = base.join(PoolProxy, PoolProxy.proxy_id == Proxy.id).where(PoolProxy.pool_id == pool_id)
-        count_base = count_base.join(PoolProxy, PoolProxy.proxy_id == Proxy.id).where(PoolProxy.pool_id == pool_id)
+        base = base.join(PoolProxy, PoolProxy.proxy_id == Proxy.id).where(
+            PoolProxy.pool_id == pool_id
+        )
+        count_base = count_base.join(PoolProxy, PoolProxy.proxy_id == Proxy.id).where(
+            PoolProxy.pool_id == pool_id
+        )
     if status_filter:
         base = base.where(Proxy.last_health_status == status_filter)
         count_base = count_base.where(Proxy.last_health_status == status_filter)
@@ -63,6 +68,11 @@ async def list_proxies(
     if provider:
         base = base.where(Proxy.provider == provider)
         count_base = count_base.where(Proxy.provider == provider)
+    if search:
+        pattern = f"%{search}%"
+        search_clause = or_(Proxy.host.ilike(pattern), Proxy.provider.ilike(pattern))
+        base = base.where(search_clause)
+        count_base = count_base.where(search_clause)
 
     total = (await db.execute(count_base)).scalar() or 0
 
