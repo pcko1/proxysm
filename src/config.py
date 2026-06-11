@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # Source polling
     source_poll_interval: int = 3600
 
+    # Alert evaluation
+    alert_check_interval: int = 60
+    alert_cooldown_seconds: int = 900
+
     # Prometheus metrics
     prometheus_enabled: bool = False
     prometheus_port: int = 0  # 0 = serve on main HTTP port at /metrics

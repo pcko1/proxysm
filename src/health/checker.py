@@ -18,7 +18,7 @@ import asyncio
 import json
 import random
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import aiohttp
 import structlog
@@ -85,8 +85,9 @@ async def start_health_checker() -> None:
     )
 
     # Register Phase 2 background services on the same scheduler
-    from src.services.metrics import start_metrics_service
+    from src.services.alerts import start_alert_service
     from src.services.bandwidth import start_bandwidth_service
+    from src.services.metrics import start_metrics_service
     from src.services.partitions import start_partition_service
     from src.services.source_poller import start_source_poller
 
@@ -94,6 +95,7 @@ async def start_health_checker() -> None:
     start_bandwidth_service(_scheduler)
     start_partition_service(_scheduler)
     start_source_poller(_scheduler)
+    start_alert_service(_scheduler)
 
     _scheduler.start()
     log.info("health_checker_started", interval=settings.health_check_interval)
@@ -149,7 +151,7 @@ async def check_all_proxies() -> None:
         return_exceptions=True,
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     async with async_session_factory() as session:
         for proxy, result in zip(proxies_to_check, results):
