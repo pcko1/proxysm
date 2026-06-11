@@ -116,6 +116,27 @@ async def test_settings_returns_html(client):
 
 @pytest.mark.asyncio
 @patch("src.web.routes.settings", _fake_settings)
+async def test_settings_alert_modal_has_typed_fields(client):
+    """Alert modal uses typed per-condition fields instead of raw JSON textareas."""
+    resp = await client.get("/settings")
+    assert resp.status_code == 200
+    body = resp.text
+    # Typed condition fields
+    assert 'id="alertErrThreshold"' in body
+    assert 'id="alertErrWindow"' in body
+    assert 'id="alertPoolSelect"' in body
+    assert 'id="alertMinHealthy"' in body
+    assert 'id="alertBwLimit"' in body
+    assert 'id="grpAllDeadHint"' in body
+    # Webhook action field
+    assert 'id="alertWebhookUrl"' in body
+    # Raw JSON textareas removed
+    assert 'id="alertCondConfig"' not in body
+    assert 'id="alertActionConfig"' not in body
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
 async def test_setup_returns_html(client):
     resp = await client.get("/setup")
     assert resp.status_code == 200
@@ -183,6 +204,19 @@ async def test_dashboard_has_pool_utilization_chart(client):
     assert "Pool Utilization" in body
     assert "poolUtilBody" in body
     assert "loadPoolUtilization" in body
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_dashboard_has_onboarding_card(client):
+    """Dashboard should have the first-run onboarding card with setup steps."""
+    resp = await client.get("/dashboard")
+    body = resp.text
+    assert 'id="onboardingCard"' in body
+    assert "onboardingStepProxies" in body
+    assert "onboardingStepPools" in body
+    assert "onboardingStepProjects" in body
+    assert 'href="/setup"' in body
 
 
 @pytest.mark.asyncio
