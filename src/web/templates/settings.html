@@ -1,230 +1,176 @@
 {% extends "base.html" %}
-{% block title %}Settings - Proxysm{% endblock %}
+{% block title %}Settings — Proxysm{% endblock %}
 
 {% block content %}
 <style>
-    .settings-grid {
+    .settings-layout {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        margin-bottom: 20px;
+        grid-template-columns: 200px 1fr;
+        gap: 28px;
+        align-items: start;
     }
-    .settings-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 20px;
+    .side-nav {
+        position: sticky;
+        top: 84px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
     }
-    .settings-card h3 {
-        font-size: 13px;
-        font-weight: 600;
+    .side-nav a {
+        padding: 8px 12px;
+        border-radius: 9px;
         color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        font-size: 13.5px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all var(--transition-fast);
     }
-    .settings-row {
+    .side-nav a:hover { color: var(--text-secondary); background: var(--surface-2); }
+    .side-nav a.active {
+        color: var(--text-primary);
+        background: var(--accent-soft);
+        box-shadow: inset 0 0 0 1px var(--accent-line);
+    }
+    .settings-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .settings-stack .panel { scroll-margin-top: 84px; }
+    .set-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 10px 0;
+        gap: 18px;
+        padding: 14px 0;
         border-bottom: 1px solid var(--border);
     }
-    .settings-row:last-child { border-bottom: none; }
-    .settings-label {
-        font-size: 13px;
-        color: var(--text-secondary);
-    }
-    .settings-value {
+    .set-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .set-row:first-child { padding-top: 0; }
+    .set-row .label { font-size: 13.5px; font-weight: 500; color: var(--text-primary); }
+    .set-row .desc { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; max-width: 460px; }
+    .set-row .value {
         font-size: 13px;
         font-weight: 600;
         color: var(--text-primary);
-        font-family: "JetBrains Mono", monospace;
-    }
-    .alert-card-full {
-        grid-column: 1 / -1;
-    }
-    .alert-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 14px;
-        background: var(--bg-primary);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        margin-bottom: 8px;
-        transition: background var(--transition-fast);
-    }
-    .alert-row:hover { background: var(--bg-hover); }
-    .alert-row:last-child { margin-bottom: 0; }
-    .alert-info {
-        flex: 1;
-        min-width: 0;
-    }
-    .alert-name {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 2px;
-    }
-    .alert-meta {
-        font-size: 12px;
-        color: var(--text-muted);
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
-    .alert-toggle {
-        position: relative;
-        width: 36px;
-        height: 20px;
+        font-family: "Geist Mono", monospace;
         flex-shrink: 0;
     }
-    .alert-toggle input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-    .alert-toggle .toggle-slider {
-        position: absolute;
-        cursor: pointer;
-        inset: 0;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-light);
+    /* Toggle switch */
+    .switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; cursor: pointer; display: inline-block; }
+    .switch input { display: none; }
+    .switch .track {
+        position: absolute; inset: 0;
+        background: var(--surface-3);
+        border: 1px solid var(--border-2);
         border-radius: 20px;
-        transition: background var(--transition-fast), border-color var(--transition-fast);
+        transition: all var(--transition-base);
     }
-    .alert-toggle .toggle-slider::before {
-        content: '';
-        position: absolute;
-        height: 14px;
-        width: 14px;
-        left: 2px;
-        bottom: 2px;
+    .switch .knob {
+        position: absolute; top: 3px; left: 3px;
+        width: 16px; height: 16px; border-radius: 50%;
         background: var(--text-muted);
-        border-radius: 50%;
-        transition: transform var(--transition-fast), background var(--transition-fast);
+        transition: all var(--transition-base);
     }
-    .alert-toggle input:checked + .toggle-slider {
-        background: var(--accent-subtle);
-        border-color: var(--accent);
-    }
-    .alert-toggle input:checked + .toggle-slider::before {
-        transform: translateX(16px);
-        background: var(--accent);
-    }
-    .alert-actions {
-        display: flex;
-        gap: 4px;
-        flex-shrink: 0;
-    }
-    .condition-badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        background: var(--yellow-bg);
-        color: var(--yellow);
-        border: 1px solid var(--yellow-border);
-    }
-    .action-badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        background: var(--purple-bg);
-        color: var(--purple);
-        border: 1px solid rgba(167,139,250,0.2);
-    }
-    @media (max-width: 900px) {
-        .settings-grid { grid-template-columns: 1fr; }
-        .alert-card-full { grid-column: 1; }
+    .switch input:checked + .track { background: var(--accent-soft); border-color: var(--accent-line); }
+    .switch input:checked + .track .knob { left: 21px; background: var(--accent); box-shadow: 0 0 10px rgba(91,141,239,0.45); }
+    .alert-actions { display: inline-flex; gap: 6px; align-items: center; }
+    @media (max-width: 760px) {
+        .settings-layout { grid-template-columns: 1fr; }
+        .side-nav { position: static; flex-direction: row; flex-wrap: wrap; margin-bottom: 8px; }
     }
 </style>
 
 <div class="page-header">
-    <h1>Settings</h1>
+    <div class="title-block">
+        <h1>Settings</h1>
+        <span class="sub">Alerts, system behavior, and data retention</span>
+    </div>
 </div>
 
-<div class="settings-grid">
-    <!-- System Info -->
-    <div class="settings-card">
-        <h3>System Info</h3>
-        <div class="settings-row">
-            <span class="settings-label">Version</span>
-            <span class="settings-value">0.1.0</span>
-        </div>
-        <div class="settings-row">
-            <span class="settings-label">Health Check Interval</span>
-            <span class="settings-value" id="setHcInterval">-</span>
-        </div>
-        <div class="settings-row">
-            <span class="settings-label">Health Check Timeout</span>
-            <span class="settings-value" id="setHcTimeout">-</span>
-        </div>
-        <div class="settings-row">
-            <span class="settings-label">Health Check Concurrency</span>
-            <span class="settings-value" id="setHcConcurrency">-</span>
-        </div>
-        <div class="settings-row">
-            <span class="settings-label">HTTP Proxy Port</span>
-            <span class="settings-value" id="setHttpPort">-</span>
-        </div>
-        <div class="settings-row">
-            <span class="settings-label">SOCKS5 Proxy Port</span>
-            <span class="settings-value" id="setSocksPort">-</span>
-        </div>
-        <div class="settings-row">
-            <span class="settings-label">Prometheus Metrics</span>
-            <span class="settings-value" id="setPrometheus">-</span>
-        </div>
-    </div>
+<div class="settings-layout">
+    <nav class="side-nav" id="settingsNav">
+        <a href="#alerts" class="active">Alerts</a>
+        <a href="#system">System</a>
+        <a href="#retention">Retention</a>
+    </nav>
 
-    <!-- Retention Policy -->
-    <div class="settings-card">
-        <h3>Data Retention</h3>
-        <div class="settings-row">
-            <span class="settings-label">Request Log Retention</span>
-            <span class="settings-value" id="setLogRetention">-</span>
+    <div class="settings-stack">
+        <!-- Alerts -->
+        <div class="panel" id="alerts">
+            <div class="panel-head">
+                <h3>Alert Rules</h3>
+                <button class="btn btn-outline btn-sm" onclick="openCreateAlert()">+ Add Rule</button>
+            </div>
+            <div class="table-scroll" id="alertsTable" style="display:none">
+                <table class="tbl">
+                    <thead><tr><th>Name</th><th>Trigger</th><th>Action</th><th>Last Triggered</th><th>Status</th><th></th></tr></thead>
+                    <tbody id="alertsList"></tbody>
+                </table>
+            </div>
+            <div class="empty-state" id="alertsEmpty" style="display:none;padding:30px 16px">
+                <div class="empty-state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+                <h3>No Alert Rules</h3>
+                <p>Create alert rules to get notified about proxy issues.</p>
+            </div>
         </div>
-        <div class="settings-row">
-            <span class="settings-label">5-min Metrics Retention</span>
-            <span class="settings-value" id="set5minRetention">-</span>
-        </div>
-        <div class="settings-row">
-            <span class="settings-label">1-hour Metrics Retention</span>
-            <span class="settings-value" id="set1hourRetention">-</span>
-        </div>
-        <div class="settings-row">
-            <span class="settings-label">Metrics Rollup Interval</span>
-            <span class="settings-value" id="setRollupInterval">-</span>
-        </div>
-        <div class="settings-row">
-            <span class="settings-label">Bandwidth Flush Interval</span>
-            <span class="settings-value" id="setBwFlush">-</span>
-        </div>
-    </div>
 
-    <!-- Alert Rules -->
-    <div class="settings-card alert-card-full">
-        <h3>
-            <span>Alert Rules</span>
-            <button class="btn btn-primary btn-sm" onclick="openCreateAlert()">Create Alert</button>
-        </h3>
-        <div id="alertsList"></div>
-        <div class="empty-state" id="alertsEmpty" style="display:none;padding:30px 16px">
-            <div class="empty-state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
-            <h3>No Alert Rules</h3>
-            <p>Create alert rules to get notified about proxy issues.</p>
+        <!-- System -->
+        <div class="panel" id="system">
+            <div class="panel-head"><h3>System</h3><span class="hint">read-only &middot; configured via environment</span></div>
+            <div class="panel-body">
+                <div class="set-row">
+                    <div><div class="label">Version</div><div class="desc">Current Proxysm release.</div></div>
+                    <span class="value">0.1.0</span>
+                </div>
+                <div class="set-row">
+                    <div><div class="label">Health check interval</div><div class="desc">Healthy proxies are rechecked at this cadence; degraded/dead adapt automatically.</div></div>
+                    <span class="value" id="setHcInterval">-</span>
+                </div>
+                <div class="set-row">
+                    <div><div class="label">Health check timeout</div><div class="desc">Maximum time to wait for a proxy to respond during a check.</div></div>
+                    <span class="value" id="setHcTimeout">-</span>
+                </div>
+                <div class="set-row">
+                    <div><div class="label">Health check concurrency</div><div class="desc">Number of proxies checked in parallel.</div></div>
+                    <span class="value" id="setHcConcurrency">-</span>
+                </div>
+                <div class="set-row">
+                    <div><div class="label">HTTP proxy port</div><div class="desc">Listening port for the HTTP forward proxy.</div></div>
+                    <span class="value" id="setHttpPort">-</span>
+                </div>
+                <div class="set-row">
+                    <div><div class="label">SOCKS5 proxy port</div><div class="desc">Listening port for the SOCKS5 proxy.</div></div>
+                    <span class="value" id="setSocksPort">-</span>
+                </div>
+                <div class="set-row">
+                    <div><div class="label">Prometheus metrics</div><div class="desc">Expose metrics at <span class="mono" style="color:var(--text-secondary)">/metrics</span> for scraping.</div></div>
+                    <span class="value" id="setPrometheus">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Retention -->
+        <div class="panel" id="retention">
+            <div class="panel-head"><h3>Data Retention</h3><span class="hint">read-only &middot; configured via environment</span></div>
+            <div class="panel-body">
+                <div class="set-row">
+                    <div><div class="label">Request log retention</div><div class="desc">How long individual request log entries are kept.</div></div>
+                    <span class="value" id="setLogRetention">-</span>
+                </div>
+                <div class="set-row">
+                    <div><div class="label">5-min metrics retention</div><div class="desc">Retention window for 5-minute metric rollups.</div></div>
+                    <span class="value" id="set5minRetention">-</span>
+                </div>
+                <div class="set-row">
+                    <div><div class="label">1-hour metrics retention</div><div class="desc">Retention window for hourly metric rollups.</div></div>
+                    <span class="value" id="set1hourRetention">-</span>
+                </div>
+                <div class="set-row">
+                    <div><div class="label">Metrics rollup interval</div><div class="desc">How often raw request logs are aggregated into rollups.</div></div>
+                    <span class="value" id="setRollupInterval">-</span>
+                </div>
+                <div class="set-row">
+                    <div><div class="label">Bandwidth flush interval</div><div class="desc">How often bandwidth counters are persisted to the database.</div></div>
+                    <span class="value" id="setBwFlush">-</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -307,43 +253,51 @@
         }
     }
 
+    function alertStatusBadge(enabled) {
+        return enabled
+            ? '<span class="badge badge-healthy">Active</span>'
+            : '<span class="badge badge-unknown">Paused</span>';
+    }
+
     async function loadAlerts() {
         try {
             const alerts = await apiCall('GET', '/api/v1/alerts');
-            const container = document.getElementById('alertsList');
+            const tbody = document.getElementById('alertsList');
+            const table = document.getElementById('alertsTable');
             const empty = document.getElementById('alertsEmpty');
 
             if (!alerts || alerts.length === 0) {
-                container.innerHTML = '';
+                tbody.innerHTML = '';
+                table.style.display = 'none';
                 empty.style.display = 'block';
                 return;
             }
 
+            table.style.display = '';
             empty.style.display = 'none';
 
-            container.innerHTML = alerts.map(a => {
+            tbody.innerHTML = alerts.map(a => {
                 const condLabel = formatCondType(a.condition_type);
                 const actionLabel = formatActionType(a.action_type);
                 const lastTriggered = a.last_triggered_at ? fmtDate(a.last_triggered_at) : 'Never';
 
-                return `<div class="alert-row">
-                    <label class="alert-toggle">
-                        <input type="checkbox" ${a.is_enabled ? 'checked' : ''} onchange="toggleAlert('${a.id}', this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <div class="alert-info">
-                        <div class="alert-name">${esc(a.name)}</div>
-                        <div class="alert-meta">
-                            <span><span class="condition-badge">${esc(condLabel)}</span></span>
-                            <span><span class="action-badge">${esc(actionLabel)}</span></span>
-                            <span>Last triggered: ${lastTriggered}</span>
-                        </div>
-                    </div>
-                    <div class="alert-actions">
-                        <button class="btn btn-outline btn-sm" onclick="editAlert('${a.id}')">Edit</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteAlert('${a.id}')">Delete</button>
-                    </div>
-                </div>`;
+                return `<tr>
+                    <td><span class="strong">${esc(a.name)}</span></td>
+                    <td>${esc(condLabel)}</td>
+                    <td><span class="tag-neutral">${esc(actionLabel)}</span></td>
+                    <td class="mono">${lastTriggered}</td>
+                    <td id="alertStatus-${a.id}">${alertStatusBadge(a.is_enabled)}</td>
+                    <td>
+                        <span class="alert-actions">
+                            <label class="switch" title="${a.is_enabled ? 'Disable' : 'Enable'}">
+                                <input type="checkbox" ${a.is_enabled ? 'checked' : ''} onchange="toggleAlert('${a.id}', this.checked)">
+                                <span class="track"><span class="knob"></span></span>
+                            </label>
+                            <button class="btn btn-outline btn-sm" onclick="editAlert('${a.id}')">Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAlert('${a.id}')">Delete</button>
+                        </span>
+                    </td>
+                </tr>`;
             }).join('');
         } catch (e) {
             showToast('Failed to load alerts: ' + e.message, 'error');
@@ -449,6 +403,8 @@
     async function toggleAlert(id, enabled) {
         try {
             await apiCall('PATCH', `/api/v1/alerts/${id}`, { is_enabled: enabled });
+            const statusCell = document.getElementById(`alertStatus-${id}`);
+            if (statusCell) statusCell.innerHTML = alertStatusBadge(enabled);
             showToast(enabled ? 'Alert enabled' : 'Alert disabled', 'success');
         } catch (e) {
             showToast('Failed to toggle alert: ' + e.message, 'error');
@@ -466,6 +422,26 @@
             showToast('Failed to delete alert: ' + e.message, 'error');
         }
     }
+
+    // Scrollspy for side nav
+    (function () {
+        const links = {};
+        document.querySelectorAll('#settingsNav a').forEach(a => {
+            links[a.getAttribute('href').slice(1)] = a;
+        });
+        const obs = new IntersectionObserver(entries => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    Object.values(links).forEach(a => a.classList.remove('active'));
+                    links[e.target.id].classList.add('active');
+                }
+            });
+        }, { rootMargin: '-80px 0px -65% 0px' });
+        Object.keys(links).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) obs.observe(el);
+        });
+    })();
 
     loadSystemInfo();
     loadAlerts();

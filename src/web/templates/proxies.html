@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Proxies - Proxysm{% endblock %}
+{% block title %}Proxies — Proxysm{% endblock %}
 
 {% block content %}
 <style>
@@ -30,26 +30,60 @@
         border-top: 4px solid var(--accent);
         opacity: 1;
     }
+    /* Toolbar: status filter pills */
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .fpill {
+        height: 38px; padding: 0 13px; display: inline-flex; align-items: center; gap: 7px;
+        background: var(--surface); border: 1px solid var(--border-2); border-radius: 9px;
+        color: var(--text-secondary); font-size: 13px; cursor: pointer;
+        transition: all var(--transition-fast); user-select: none;
+    }
+    .fpill:hover { border-color: var(--border-strong); color: var(--text-primary); }
+    .fpill.active { background: var(--accent-subtle); border-color: var(--accent-line); color: var(--accent-hover); }
+    .fpill .ct { font: 600 11px "Geist Mono", monospace; opacity: 0.7; }
+    /* Collapsible sources panel */
+    .sources-toggle { cursor: pointer; user-select: none; }
+    .sources-toggle .chev { transition: transform var(--transition-base); color: var(--text-muted); flex-shrink: 0; }
+    .sources-panel.collapsed .chev { transform: rotate(-90deg); }
+    .sources-panel.collapsed .table-scroll, .sources-panel.collapsed .src-foot { display: none; }
+    .sources-panel.collapsed .panel-head { border-bottom: none; }
+    .src-foot { padding: 12px 16px; border-top: 1px solid var(--border); }
+    .chip {
+        display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px;
+        background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 7px;
+        font-size: 12px; color: var(--text-secondary); white-space: nowrap;
+        font-family: "Geist Mono", monospace;
+    }
+    /* Table footer: showing range + pager */
+    .pagination { justify-content: space-between; font-size: 13px; color: var(--text-muted); }
 </style>
 
 <div class="page-header">
-    <div>
+    <div class="title-block">
         <h1>Proxies</h1>
+        <span class="sub" id="proxyStats"><span class="mono" style="color:var(--text-secondary)">-</span> proxies</span>
     </div>
     <div class="page-header-actions">
-        <span class="stat-pill" id="proxyStats"></span>
-        <button class="btn btn-primary" onclick="openModal('importModal')">Import Proxies</button>
+        <button class="btn btn-ghost btn-sm" onclick="openModal('addSourceModal')">Add Source</button>
+        <button class="btn btn-primary btn-sm" onclick="openModal('importModal')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Import Proxies
+        </button>
     </div>
 </div>
 
 <!-- Sources Panel -->
-<div class="table-card" id="sourcesPanel" style="margin-bottom:16px">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none" onclick="toggleSources()">
-        <span style="font-weight:600;font-size:14px" id="sourcesHeader">Sources (0)</span>
-        <span id="sourcesToggle" style="font-size:12px;color:var(--text-muted)">&#9650;</span>
+<div class="panel sources-panel" id="sourcesPanel" style="margin-bottom:16px">
+    <div class="panel-head sources-toggle" onclick="toggleSources()">
+        <h3 class="row" style="gap:9px">
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            Sources <span class="chip" id="sourcesHeader" style="margin-left:4px">0</span>
+        </h3>
+        <span class="hint">Auto-polled feeds &amp; manual imports</span>
     </div>
-    <div id="sourcesContent">
-        <table>
+    <div class="table-scroll">
+        <table class="tbl">
             <thead>
                 <tr>
                     <th>Name</th>
@@ -57,15 +91,15 @@
                     <th>Provider</th>
                     <th>Date Added</th>
                     <th>Last Polled</th>
-                    <th>Count</th>
+                    <th>Proxies</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody id="sourcesTableBody"></tbody>
         </table>
-        <div style="padding:12px 16px;border-top:1px solid var(--border)">
-            <button class="btn btn-outline btn-sm" onclick="openModal('addSourceModal')">Add Source</button>
-        </div>
+    </div>
+    <div class="src-foot">
+        <button class="btn btn-ghost btn-sm" onclick="openModal('addSourceModal')">+ Add Source</button>
     </div>
 </div>
 
@@ -73,28 +107,31 @@
 <div class="modal-overlay" id="addSourceModal">
     <div class="modal" style="max-width:460px">
         <h2>Add Source</h2>
+        <p style="color:var(--text-muted);font-size:13px;margin:-12px 0 18px">Auto-poll a provider feed on a schedule.</p>
         <div class="form-group">
             <label for="sourceName">Name</label>
             <input type="text" id="sourceName" placeholder="e.g. my-proxy-feed">
         </div>
-        <div class="form-group">
-            <label for="sourceType">Type</label>
-            <select id="sourceType" onchange="document.getElementById('sourceUrlGroup').style.display = this.value === 'url' ? 'block' : 'none'">
-                <option value="url" selected>URL (auto-polled)</option>
-                <option value="manual">Manual</option>
-            </select>
+        <div class="grid-2" style="gap:14px">
+            <div class="form-group">
+                <label for="sourceType">Type</label>
+                <select id="sourceType" onchange="document.getElementById('sourceUrlGroup').style.display = this.value === 'url' ? 'block' : 'none'">
+                    <option value="url" selected>URL (auto-polled)</option>
+                    <option value="manual">Manual</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="sourceProtocol">Protocol</label>
+                <select id="sourceProtocol">
+                    <option value="http" selected>HTTP</option>
+                    <option value="https">HTTPS</option>
+                    <option value="socks5">SOCKS5</option>
+                </select>
+            </div>
         </div>
         <div class="form-group" id="sourceUrlGroup">
             <label for="sourceUrl">URL</label>
             <input type="text" id="sourceUrl" placeholder="https://provider.com/api/proxies">
-        </div>
-        <div class="form-group">
-            <label for="sourceProtocol">Protocol</label>
-            <select id="sourceProtocol">
-                <option value="http" selected>HTTP</option>
-                <option value="https">HTTPS</option>
-                <option value="socks5">SOCKS5</option>
-            </select>
         </div>
         <div class="form-group">
             <label for="sourceProvider">Provider</label>
@@ -137,21 +174,24 @@
 <div class="modal-overlay" id="importModal">
     <div class="modal" style="max-width:520px">
         <h2>Import Proxies</h2>
-        <div class="form-group">
-            <label for="importProvider">Provider <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional label)</span></label>
-            <input type="text" id="importProvider" placeholder="e.g. BrightData, IPRoyal..." oninput="updatePoolPlaceholder()">
-        </div>
-        <div class="form-group">
-            <label for="importProtocol">Protocol</label>
-            <select id="importProtocol">
-                <option value="http" selected>HTTP</option>
-                <option value="https">HTTPS</option>
-                <option value="socks5">SOCKS5</option>
-            </select>
+        <p style="color:var(--text-muted);font-size:13px;margin:-12px 0 18px">Paste a list, upload a file, or fetch from a provider URL.</p>
+        <div class="grid-2" style="gap:14px">
+            <div class="form-group">
+                <label for="importProvider">Provider <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional label)</span></label>
+                <input type="text" id="importProvider" placeholder="e.g. BrightData, IPRoyal..." oninput="updatePoolPlaceholder()">
+            </div>
+            <div class="form-group">
+                <label for="importProtocol">Protocol</label>
+                <select id="importProtocol">
+                    <option value="http" selected>HTTP</option>
+                    <option value="https">HTTPS</option>
+                    <option value="socks5">SOCKS5</option>
+                </select>
+            </div>
         </div>
         <div class="form-group">
             <label for="importText">Proxy list (one per line)</label>
-            <textarea id="importText" rows="6" placeholder="host:port@user:pass&#10;socks5://user:pass@host:port&#10;host:port:user:pass"></textarea>
+            <textarea id="importText" rows="5" placeholder="host:port@user:pass&#10;socks5://user:pass@host:port&#10;host:port:user:pass"></textarea>
         </div>
         <div class="form-group">
             <label>Or upload a file</label>
@@ -166,7 +206,7 @@
             <input type="text" id="importUrl" placeholder="https://provider.com/api/getproxy/?format=txt&...">
         </div>
         <div class="form-group">
-            <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;color:var(--text-secondary);cursor:pointer">
+            <label style="display:flex;align-items:center;gap:9px;text-transform:none;font-size:13px;color:var(--text-secondary);cursor:pointer">
                 <input type="checkbox" id="importCreatePool" style="width:16px;height:16px;accent-color:var(--accent)" onchange="document.getElementById('importPoolFields').style.display = this.checked ? 'block' : 'none'">
                 Also create a pool from this import
             </label>
@@ -191,22 +231,35 @@
     </div>
 </div>
 
-<div class="table-card">
-    <table>
-        <thead>
-            <tr>
-                <th class="col-check"><input type="checkbox" class="row-checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
-                <th class="sortable" data-sort="host" onclick="toggleSort('host')">Host:Port</th>
-                <th class="sortable" data-sort="protocol" onclick="toggleSort('protocol')">Protocol</th>
-                <th class="sortable" data-sort="provider" onclick="toggleSort('provider')">Provider</th>
-                <th class="sortable" data-sort="status" onclick="toggleSort('status')">Status</th>
-                <th class="sortable" data-sort="latency" onclick="toggleSort('latency')">Latency</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody id="proxyTableBody">
-        </tbody>
-    </table>
+<!-- Toolbar: status filter pills -->
+<div class="toolbar">
+    <div class="filter-pills" id="statusFilters">
+        <span class="fpill active" data-f="" onclick="setStatusFilter('')">All <span class="ct" id="ctAll"></span></span>
+        <span class="fpill" data-f="healthy" onclick="setStatusFilter('healthy')">Healthy <span class="ct" id="ctHealthy"></span></span>
+        <span class="fpill" data-f="degraded" onclick="setStatusFilter('degraded')">Degraded <span class="ct" id="ctDegraded"></span></span>
+        <span class="fpill" data-f="dead" onclick="setStatusFilter('dead')">Dead <span class="ct" id="ctDead"></span></span>
+    </div>
+</div>
+
+<!-- Proxy table -->
+<div class="panel" id="proxyPanel">
+    <div class="table-scroll">
+        <table class="tbl">
+            <thead>
+                <tr>
+                    <th class="col-check"><input type="checkbox" class="row-checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+                    <th class="sortable" data-sort="host" onclick="toggleSort('host')">Host : Port</th>
+                    <th class="sortable" data-sort="protocol" onclick="toggleSort('protocol')">Protocol</th>
+                    <th class="sortable" data-sort="provider" onclick="toggleSort('provider')">Provider</th>
+                    <th class="sortable" data-sort="status" onclick="toggleSort('status')">Status</th>
+                    <th class="sortable" data-sort="latency" onclick="toggleSort('latency')">Latency</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="proxyTableBody">
+            </tbody>
+        </table>
+    </div>
 </div>
 <div id="emptyState" class="empty-state" style="display:none;">
     <div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
@@ -223,6 +276,7 @@
     const pageSize = 50;
     let sortColumn = null;
     let sortDir = 'asc';
+    let statusFilter = '';
 
     function toggleSort(col) {
         if (sortColumn === col) {
@@ -239,6 +293,37 @@
         loadProxies();
     }
 
+    function setStatusFilter(f) {
+        statusFilter = f;
+        document.querySelectorAll('#statusFilters .fpill').forEach(p => {
+            p.classList.toggle('active', p.dataset.f === f);
+        });
+        currentPage = 1;
+        loadProxies();
+    }
+
+    async function loadOverview() {
+        try {
+            const d = await apiCall('GET', '/api/v1/stats/overview');
+            const num = n => (n || 0).toLocaleString('en-US');
+            document.getElementById('ctAll').textContent = num(d.total_proxies);
+            document.getElementById('ctHealthy').textContent = num(d.healthy_proxies);
+            document.getElementById('ctDegraded').textContent = num(d.degraded_proxies);
+            document.getElementById('ctDead').textContent = num(d.dead_proxies);
+            document.getElementById('proxyStats').innerHTML =
+                `<span class="mono" style="color:var(--text-secondary)">${num(d.total_proxies)}</span> proxies` +
+                ` · <span class="mono" style="color:var(--green)">${num(d.healthy_proxies)}</span> healthy` +
+                ` · across <span class="mono" style="color:var(--text-secondary)">${sourcesCount}</span> source${sourcesCount === 1 ? '' : 's'}`;
+        } catch (e) { console.error('Failed to load overview', e); }
+    }
+
+    function latencyCell(p) {
+        if (!p.avg_latency_ms) return '<span class="mono">-</span>';
+        const ms = p.avg_latency_ms.toFixed(0);
+        const color = p.avg_latency_ms > 500 ? 'var(--amber)' : 'var(--text-secondary)';
+        return `<span class="mono" style="color:${color}">${ms} ms</span>`;
+    }
+
     function renderProxies(proxies) {
         const tbody = document.getElementById('proxyTableBody');
         const empty = document.getElementById('emptyState');
@@ -246,24 +331,24 @@
         if (proxies.length === 0) {
             tbody.innerHTML = '';
             empty.style.display = 'block';
-            document.querySelector('.table-card').style.display = 'none';
+            document.getElementById('proxyPanel').style.display = 'none';
             return;
         }
 
         empty.style.display = 'none';
-        document.querySelector('.table-card').style.display = '';
+        document.getElementById('proxyPanel').style.display = '';
 
         tbody.innerHTML = proxies.map(p => {
             const provName = p.provider || '-';
-            const latency = p.avg_latency_ms ? p.avg_latency_ms.toFixed(0) + ' ms' : '-';
             return `<tr>
                 <td class="col-check"><input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="toggleRowSelection('${p.id}', this)"></td>
-                <td><span class="mono" style="color:var(--text-primary)">${esc(p.host)}:${esc(p.port)}</span></td>
+                <td><span class="strong mono">${esc(p.host)}<span style="color:var(--text-muted)">:${esc(p.port)}</span></span></td>
                 <td>${protoTag(p.protocol)}</td>
                 <td class="cell-truncate">${esc(provName)}</td>
                 <td>${statusBadge(p.last_health_status)}</td>
-                <td><span class="mono">${latency}</span></td>
+                <td>${latencyCell(p)}</td>
                 <td class="actions">
+                    <button class="btn btn-ghost btn-sm" onclick="checkProxy('${p.id}', this)" title="Recheck"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
                     <button class="btn btn-danger btn-sm" onclick="deleteProxy('${p.id}')">Delete</button>
                 </td>
             </tr>`;
@@ -275,26 +360,31 @@
     async function loadProxies() {
         try {
             let url = `/api/v1/ips?page=${currentPage}&per_page=${pageSize}`;
+            if (statusFilter) url += `&status=${encodeURIComponent(statusFilter)}`;
             if (sortColumn) url += `&sort_by=${sortColumn}&sort_dir=${sortDir}`;
             const data = await apiCall('GET', url);
             const proxies = data.data || [];
             const total = data.meta ? data.meta.total : proxies.length;
-            document.getElementById('proxyStats').innerHTML = `<span class="stat-value">${total}</span> total`;
             renderProxies(proxies);
-            renderPagination(total);
+            renderPagination(total, proxies.length);
         } catch (e) {
             showToast('Failed to load proxies: ' + e.message, 'error');
         }
     }
 
-    function renderPagination(total) {
+    function renderPagination(total, shownCount) {
         const totalPages = Math.max(1, Math.ceil(total / pageSize));
         const div = document.getElementById('pagination');
-        if (totalPages <= 1) { div.innerHTML = ''; return; }
+        if (total === 0) { div.innerHTML = ''; return; }
+        const from = (currentPage - 1) * pageSize + 1;
+        const to = (currentPage - 1) * pageSize + shownCount;
         div.innerHTML = `
-            <button class="btn btn-outline btn-sm" ${currentPage <= 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})">Prev</button>
-            <span class="pagination-info">Page ${currentPage} of ${totalPages}</span>
-            <button class="btn btn-outline btn-sm" ${currentPage >= totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})">Next</button>
+            <span>Showing <span class="mono" style="color:var(--text-secondary)">${from.toLocaleString('en-US')}–${to.toLocaleString('en-US')}</span> of <span class="mono" style="color:var(--text-secondary)">${total.toLocaleString('en-US')}</span></span>
+            <div class="row" style="gap:6px">
+                <button class="btn btn-outline btn-sm" ${currentPage <= 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})">Previous</button>
+                <span class="pagination-info">Page ${currentPage} of ${totalPages}</span>
+                <button class="btn btn-outline btn-sm" ${currentPage >= totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})">Next</button>
+            </div>
         `;
     }
 
@@ -393,6 +483,7 @@
 
             loadProxies();
             loadSources();
+            loadOverview();
         } catch (e) {
             btnReset(importBtn);
             showToast('Import failed: ' + e.message, 'error');
@@ -405,8 +496,23 @@
             await apiCall('DELETE', `/api/v1/ips/${id}`);
             showToast('Proxy deleted', 'success');
             loadProxies();
+            loadOverview();
         } catch (e) {
             showToast('Delete failed: ' + e.message, 'error');
+        }
+    }
+
+    async function checkProxy(id, btn) {
+        if (btn) btnLoading(btn);
+        try {
+            const result = await apiCall('POST', `/api/v1/ips/${id}/check`);
+            const latency = result.latency_ms ? ` (${Math.round(result.latency_ms)} ms)` : '';
+            showToast(`Check complete: ${result.status}${latency}`, 'success');
+            loadProxies();
+            loadOverview();
+        } catch (e) {
+            if (btn) btnReset(btn);
+            showToast('Check failed: ' + e.message, 'error');
         }
     }
 
@@ -421,24 +527,23 @@
         showToast(`Deleted ${deleted} proxies`, 'success');
         clearSelection();
         loadProxies();
+        loadOverview();
     }
 
     document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
 
     // --- Sources Panel ---
-    let sourcesExpanded = true;
     let deleteSourceId = null;
+    let sourcesCount = 0;
 
     function toggleSources() {
-        sourcesExpanded = !sourcesExpanded;
-        document.getElementById('sourcesContent').style.display = sourcesExpanded ? '' : 'none';
-        document.getElementById('sourcesToggle').innerHTML = sourcesExpanded ? '&#9650;' : '&#9660;';
+        document.getElementById('sourcesPanel').classList.toggle('collapsed');
     }
 
     function sourceStatusDot(source) {
         if (source.type !== 'url') return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text-muted)" title="Static"></span>';
-        if (source.consecutive_failures > 0) return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--danger)" title="Failing"></span>';
-        if (source.last_polled_at) return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--success)" title="OK"></span>';
+        if (source.consecutive_failures > 0) return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red)" title="Failing"></span>';
+        if (source.last_polled_at) return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green)" title="OK"></span>';
         return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text-muted)" title="Not polled yet"></span>';
     }
 
@@ -467,7 +572,8 @@
     }
 
     function renderSources(sources) {
-        document.getElementById('sourcesHeader').textContent = `Sources (${sources.length})`;
+        sourcesCount = sources.length;
+        document.getElementById('sourcesHeader').textContent = sources.length;
         const tbody = document.getElementById('sourcesTableBody');
         if (sources.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px">No sources yet</td></tr>';
@@ -482,12 +588,12 @@
             const pollBtn = s.type === 'url' ? `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();pollSource('${s.id}')" title="Poll Now" style="padding:1px 5px;font-size:11px;margin-left:6px">&#8635;</button>` : '';
             const dateAdded = s.created_at ? new Date(s.created_at).toISOString().slice(0, 10) : '-';
             return `<tr>
-                <td><code class="mono" style="cursor:pointer" title="${esc(s.name)}&#10;Click to copy" onclick="copySourceName('${esc(s.name)}', this)">${esc(displayName)}</code></td>
-                <td>${typeDisplay}</td>
+                <td><code class="mono strong" style="cursor:pointer" title="${esc(s.name)}&#10;Click to copy" onclick="copySourceName('${esc(s.name)}', this)">${esc(displayName)}</code></td>
+                <td><span class="tag tag-neutral">${typeDisplay}</span></td>
                 <td>${esc(s.provider || '-')}</td>
                 <td><span class="mono">${dateAdded}</span></td>
                 <td><span class="mono">${polled}</span>${pollBtn}</td>
-                <td>${sourceStatusDot(s)} <span class="mono" style="font-size:12px">${s.proxy_count}</span></td>
+                <td>${sourceStatusDot(s)} <span class="mono strong" style="font-size:12px">${s.proxy_count}</span></td>
                 <td class="actions">
                     <button class="btn btn-danger btn-sm" onclick="promptDeleteSource('${s.id}', '${esc(s.name)}', ${s.proxy_count})">Delete</button>
                 </td>
@@ -499,6 +605,7 @@
         try {
             const data = await apiCall('GET', '/api/v1/sources?per_page=100');
             renderSources(data.data || []);
+            loadOverview();
         } catch (e) {
             console.error('Failed to load sources', e);
         }
