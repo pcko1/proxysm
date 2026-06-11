@@ -1254,6 +1254,28 @@
             return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
 
+        // Clipboard helper — navigator.clipboard needs a secure context (HTTPS or
+        // localhost); on plain-HTTP origins fall back to a hidden textarea.
+        async function copyToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch (e) { /* fall through */ }
+            }
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            ta.remove();
+            return ok;
+        }
+
         // Escape HTML
         function esc(s) {
             if (s === null || s === undefined) return '';
@@ -1365,7 +1387,8 @@
                 btn.onclick = function(e) {
                     e.stopPropagation();
                     var text = block.textContent.replace(/Copy(ed!)?$/, '').trim();
-                    navigator.clipboard.writeText(text).then(function() {
+                    copyToClipboard(text).then(function(ok) {
+                        if (!ok) { showToast('Copy failed — select the text manually', 'error'); return; }
                         btn.textContent = 'Copied!';
                         btn.style.color = 'var(--green)';
                         setTimeout(function() { btn.textContent = 'Copy'; btn.style.color = ''; }, 2000);
