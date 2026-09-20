@@ -207,7 +207,7 @@ async def test_shell_uses_versioned_static_assets(client, path):
 
 # Pages already rebuilt in Blocks. Each page task appends its path as its first failing test;
 # Task 13 asserts this equals PAGES.
-RESTYLED_PAGES: list[str] = ["/dashboard", "/proxies", "/pools", "/projects"]
+RESTYLED_PAGES: list[str] = ["/dashboard", "/proxies", "/pools", "/projects", "/settings"]
 
 
 @pytest.mark.asyncio
@@ -859,3 +859,126 @@ def test_projects_script_talks_to_the_existing_endpoints_only():
     assert "history.replaceState" in js and "get('project')" in js
     assert "openModalFromQuery({ new: 'createProjectModal' })" in js
     assert "bulkDeleteBtn" not in js and "selectedIds" not in js, "no bulk bar on this page"
+
+
+# ---------------------------------------------------------------------------
+# Settings page (Blocks)
+# ---------------------------------------------------------------------------
+
+_SETTINGS_JS = _STATIC / "js" / "pages" / "settings.js"
+
+_ALERT_CONDITIONS = (
+    "error_rate_above",
+    "pool_below_min_healthy",
+    "bandwidth_exceeded",
+    "all_proxies_dead",
+)
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_settings_page_structure(client):
+    """Four tiles, the rules table with its loading/empty/error states, and the page script."""
+    body = (await client.get("/settings")).text
+    assert re.search(r'<script src="/static/js/pages/settings\.js\?v=[0-9a-f]+"></script>', body)
+    assert "<h1>Settings</h1>" in body
+    for hook in (
+        "alerts", "alertsLoading", "alertsTable", "alertsList", "alertsEmpty", "alertsError",
+        "system", "retention", "apiReference", "alertModal", "alertSaveBtn",
+    ):
+        assert f'id="{hook}"' in body, hook
+    assert body.count('<dl class="kv">') == 3
+    assert body.count("Read-only. Configured through environment variables.") == 2
+    assert "No alert rules" in body
+    # The in-page section menu and its scrollspy are gone.
+    assert 'id="settingsNav"' not in body
+    assert "set-row" not in body
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_settings_keeps_every_system_value(client):
+    body = (await client.get("/settings")).text
+    for value_id in (
+        "setVersion", "setHcInterval", "setHcTimeout", "setHcConcurrency", "setHttpPort",
+        "setSocksPort", "setPrometheus", "setLogRetention", "set5minRetention",
+        "set1hourRetention", "setRollupInterval", "setBwFlush", "systemHint", "retentionHint",
+    ):
+        assert f'id="{value_id}"' in body, value_id
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_settings_links_to_interactive_api_docs(client):
+    """Replaces the retired hand-written API Docs page."""
+    body = (await client.get("/settings")).text
+    assert '<a class="btn" href="/docs">Open Swagger UI</a>' in body
+    assert '<a class="btn" href="/redoc">Open ReDoc</a>' in body
+    assert "The REST API is documented interactively." in body
+    assert '<span class="mono">Authorization: Bearer &lt;admin password&gt;</span>' in body
+    assert 'href="/api-docs"' not in body
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_settings_alert_modal_is_a_labelled_dialog(client):
+    body = (await client.get("/settings")).text
+    assert re.search(
+        r'id="alertModal"[^>]*role="dialog"[^>]*aria-modal="true"'
+        r'[^>]*aria-labelledby="alertModalTitle"',
+        body,
+    )
+    for field in (
+        "alertName", "alertCondType", "alertErrThreshold", "alertErrWindow", "alertPoolSelect",
+        "alertMinHealthy", "alertBwLimit", "alertActionType", "alertWebhookUrl", "alertEnabled",
+    ):
+        assert f'id="{field}"' in body, field
+        assert re.search(rf'<label[^>]*\bfor="{field}"', body), f"no <label for> for {field}"
+    # settings.js shows and hides these groups by id (COND_FIELD_GROUPS).
+    for group in (
+        "grpErrThreshold", "grpErrWindow", "grpPool", "grpMinHealthy", "grpBwLimit",
+        "grpAllDeadHint",
+    ):
+        assert f'id="{group}"' in body, group
+    for cond in _ALERT_CONDITIONS:
+        assert f'<option value="{cond}">' in body, cond
+    assert '<option value="webhook">' in body
+    assert 'id="alertEditId"' in body
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_settings_script_ids_exist_in_page(client):
+    body = (await client.get("/settings")).text
+    assert_js_ids_exist("settings.js", body)
+
+
+def test_settings_script_is_a_classic_script_on_app_js():
+    js = _SETTINGS_JS.read_text()
+    assert "'use strict';" in js
+    assert not re.search(r"^\s*(import|export)\s", js, re.M), "must stay a classic script"
+    assert "{{" not in js and "{%" not in js, "no Jinja in static JS"
+    for helper in (
+        "esc", "apiCall", "showToast", "openModal", "closeModal", "confirmAction", "btnLoading",
+        "btnReset", "fmtDate", "timeAgo", "statusBadge",
+    ):
+        assert not re.search(rf"\bfunction\s+{helper}\s*\(", js), f"must not redefine {helper}"
+    assert "Poller.start" not in js, "Settings loads once and after each mutation, no polling"
+
+
+def test_settings_script_keeps_the_alert_rule_contract():
+    """Condition types, the config keys the evaluator reads, and create vs. PATCH."""
+    js = _SETTINGS_JS.read_text()
+    for cond in _ALERT_CONDITIONS:
+        assert f"'{cond}'" in js, cond
+    for key in ("threshold", "window_seconds", "pool_id", "min_healthy", "limit_bytes"):
+        assert f"condConfig.{key} =" in js, key
+    assert "apiCall('GET', '/api/v1/alerts')" in js
+    assert "apiCall('GET', `/api/v1/alerts/${id}`)" in js
+    assert "apiCall('POST', '/api/v1/alerts', body)" in js
+    assert "apiCall('PATCH', `/api/v1/alerts/${editId}`, body)" in js
+    assert "apiCall('PATCH', `/api/v1/alerts/${id}`, { is_enabled: enabled })" in js
+    assert "apiCall('DELETE', `/api/v1/alerts/${id}`)" in js
+    assert "apiCall('GET', '/api/v1/system/info')" in js
+    assert "apiCall('GET', '/api/v1/pools?per_page=100')" in js
+    assert "confirmAction(" in js

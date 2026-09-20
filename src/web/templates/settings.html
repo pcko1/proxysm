@@ -1,557 +1,205 @@
 {% extends "base.html" %}
-{% block title %}Settings — Proxysm{% endblock %}
+{% block title %}Settings - Proxysm{% endblock %}
 
 {% block content %}
-<style>
-    .settings-layout {
-        display: grid;
-        grid-template-columns: 200px 1fr;
-        gap: 28px;
-        align-items: start;
-    }
-    .side-nav {
-        position: sticky;
-        top: 84px;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-    .side-nav a {
-        padding: 8px 12px;
-        border-radius: 9px;
-        color: var(--text-muted);
-        font-size: 13.5px;
-        font-weight: 500;
-        text-decoration: none;
-        transition: all var(--transition-fast);
-    }
-    .side-nav a:hover { color: var(--text-secondary); background: var(--surface-2); }
-    .side-nav a.active {
-        color: var(--text-primary);
-        background: var(--accent-soft);
-        box-shadow: inset 0 0 0 1px var(--accent-line);
-    }
-    .settings-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-    .settings-stack .panel { scroll-margin-top: 84px; }
-    .set-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 18px;
-        padding: 14px 0;
-        border-bottom: 1px solid var(--border);
-    }
-    .set-row:last-child { border-bottom: none; padding-bottom: 0; }
-    .set-row:first-child { padding-top: 0; }
-    .set-row .label { font-size: 13.5px; font-weight: 500; color: var(--text-primary); }
-    .set-row .desc { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; max-width: 460px; }
-    .set-row .value {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-primary);
-        font-family: "Geist Mono", monospace;
-        flex-shrink: 0;
-    }
-    /* Toggle switch */
-    .switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; cursor: pointer; display: inline-block; }
-    .switch input { display: none; }
-    .switch .track {
-        position: absolute; inset: 0;
-        background: var(--surface-3);
-        border: 1px solid var(--border-2);
-        border-radius: 20px;
-        transition: all var(--transition-base);
-    }
-    .switch .knob {
-        position: absolute; top: 3px; left: 3px;
-        width: 16px; height: 16px; border-radius: 50%;
-        background: var(--text-muted);
-        transition: all var(--transition-base);
-    }
-    .switch input:checked + .track { background: var(--accent-soft); border-color: var(--accent-line); }
-    .switch input:checked + .track .knob { left: 21px; background: var(--accent); box-shadow: 0 0 10px rgba(91,141,239,0.45); }
-    .alert-actions { display: inline-flex; gap: 6px; align-items: center; }
-    @media (max-width: 760px) {
-        .settings-layout { grid-template-columns: 1fr; }
-        .side-nav { position: static; flex-direction: row; flex-wrap: wrap; margin-bottom: 8px; }
-    }
-</style>
-
-<div class="page-header">
-    <div class="title-block">
-        <h1>Settings</h1>
-        <span class="sub">Alerts, system behavior, and data retention</span>
-    </div>
+<div class="page-head">
+    <h1>Settings</h1>
 </div>
 
-<div class="settings-layout">
-    <nav class="side-nav" id="settingsNav">
-        <a href="#alerts" class="active">Alerts</a>
-        <a href="#system">System</a>
-        <a href="#retention">Retention</a>
-    </nav>
-
-    <div class="settings-stack">
-        <!-- Alerts -->
-        <div class="panel" id="alerts">
-            <div class="panel-head">
-                <h3>Alert Rules</h3>
-                <button class="btn btn-outline btn-sm" onclick="openCreateAlert()">+ Add Rule</button>
-            </div>
-            <div class="table-scroll" id="alertsTable" style="display:none">
-                <table class="tbl">
-                    <thead><tr><th>Name</th><th>Trigger</th><th>Action</th><th>Last Triggered</th><th>Status</th><th></th></tr></thead>
-                    <tbody id="alertsList"></tbody>
-                </table>
-            </div>
-            <div class="empty-state" id="alertsEmpty" style="display:none;padding:30px 16px">
-                <div class="empty-state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
-                <h3>No Alert Rules</h3>
-                <p>Create alert rules to get notified about proxy issues.</p>
-            </div>
-        </div>
-
-        <!-- System -->
-        <div class="panel" id="system">
-            <div class="panel-head"><h3>System</h3><span class="hint">read-only &middot; configured via environment</span></div>
-            <div class="panel-body">
-                <div class="set-row">
-                    <div><div class="label">Version</div><div class="desc">Current Proxysm release.</div></div>
-                    <span class="value">0.1.0</span>
-                </div>
-                <div class="set-row">
-                    <div><div class="label">Health check interval</div><div class="desc">Healthy proxies are rechecked at this cadence; degraded/dead adapt automatically.</div></div>
-                    <span class="value" id="setHcInterval">-</span>
-                </div>
-                <div class="set-row">
-                    <div><div class="label">Health check timeout</div><div class="desc">Maximum time to wait for a proxy to respond during a check.</div></div>
-                    <span class="value" id="setHcTimeout">-</span>
-                </div>
-                <div class="set-row">
-                    <div><div class="label">Health check concurrency</div><div class="desc">Number of proxies checked in parallel.</div></div>
-                    <span class="value" id="setHcConcurrency">-</span>
-                </div>
-                <div class="set-row">
-                    <div><div class="label">HTTP proxy port</div><div class="desc">Listening port for the HTTP forward proxy.</div></div>
-                    <span class="value" id="setHttpPort">-</span>
-                </div>
-                <div class="set-row">
-                    <div><div class="label">SOCKS5 proxy port</div><div class="desc">Listening port for the SOCKS5 proxy.</div></div>
-                    <span class="value" id="setSocksPort">-</span>
-                </div>
-                <div class="set-row">
-                    <div><div class="label">Prometheus metrics</div><div class="desc">Expose metrics at <span class="mono" style="color:var(--text-secondary)">/metrics</span> for scraping.</div></div>
-                    <span class="value" id="setPrometheus">-</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Retention -->
-        <div class="panel" id="retention">
-            <div class="panel-head"><h3>Data Retention</h3><span class="hint">read-only &middot; configured via environment</span></div>
-            <div class="panel-body">
-                <div class="set-row">
-                    <div><div class="label">Request log retention</div><div class="desc">How long individual request log entries are kept.</div></div>
-                    <span class="value" id="setLogRetention">-</span>
-                </div>
-                <div class="set-row">
-                    <div><div class="label">5-min metrics retention</div><div class="desc">Retention window for 5-minute metric rollups.</div></div>
-                    <span class="value" id="set5minRetention">-</span>
-                </div>
-                <div class="set-row">
-                    <div><div class="label">1-hour metrics retention</div><div class="desc">Retention window for hourly metric rollups.</div></div>
-                    <span class="value" id="set1hourRetention">-</span>
-                </div>
-                <div class="set-row">
-                    <div><div class="label">Metrics rollup interval</div><div class="desc">How often raw request logs are aggregated into rollups.</div></div>
-                    <span class="value" id="setRollupInterval">-</span>
-                </div>
-                <div class="set-row">
-                    <div><div class="label">Bandwidth flush interval</div><div class="desc">How often bandwidth counters are persisted to the database.</div></div>
-                    <span class="value" id="setBwFlush">-</span>
-                </div>
-            </div>
-        </div>
+<section class="tile" id="alerts" aria-labelledby="alertsTitle">
+    <div class="tile-head">
+        <h2 id="alertsTitle">Alert rules</h2>
+        <button class="btn btn-outline btn-sm" type="button" onclick="openCreateAlert()">Add rule</button>
     </div>
-</div>
+    <p class="muted" id="alertsLoading">Loading alert rules…</p>
+    <div class="table-scroll" id="alertsTable" hidden>
+        <table class="tbl">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Trigger</th>
+                    <th>Action</th>
+                    <th>Last triggered</th>
+                    <th>Status</th>
+                    <th aria-label="Actions"></th>
+                </tr>
+            </thead>
+            <tbody id="alertsList"></tbody>
+        </table>
+    </div>
+    <div class="empty-state" id="alertsEmpty" hidden>
+        <div class="empty-state-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <h3>No alert rules</h3>
+        <p>Add a rule to get a webhook call when proxies fail, a pool runs low or bandwidth runs out.</p>
+        <button class="btn btn-primary" type="button" onclick="openCreateAlert()">Add rule</button>
+    </div>
+    <div class="empty-state" id="alertsError" hidden>
+        <h3>Could not load alert rules</h3>
+        <p>The API did not answer. Your rules are untouched.</p>
+        <button class="btn" type="button" onclick="retryLoad(this)">Retry</button>
+    </div>
+</section>
 
-<!-- Create/Edit Alert Modal -->
-<div class="modal-overlay" id="alertModal">
-    <div class="modal" style="max-width:520px">
-        <h2 id="alertModalTitle">Create Alert Rule</h2>
+<section class="tile" id="system" aria-labelledby="systemTitle">
+    <div class="tile-head tile-head--wrap">
+        <h2 id="systemTitle">System</h2>
+        <span class="tile-head__meta" id="systemHint">Read-only. Configured through environment variables.</span>
+    </div>
+    <dl class="kv">
+        <dt>Version</dt>
+        <dd>
+            <div class="mono" id="setVersion">—</div>
+            <div class="muted">Current Proxysm release.</div>
+        </dd>
+        <dt>Health check interval</dt>
+        <dd>
+            <div class="mono" id="setHcInterval">—</div>
+            <div class="muted">Healthy proxies are rechecked at this cadence; degraded and dead ones adapt automatically.</div>
+        </dd>
+        <dt>Health check timeout</dt>
+        <dd>
+            <div class="mono" id="setHcTimeout">—</div>
+            <div class="muted">Maximum time to wait for a proxy to respond during a check.</div>
+        </dd>
+        <dt>Health check concurrency</dt>
+        <dd>
+            <div class="mono" id="setHcConcurrency">—</div>
+            <div class="muted">Number of proxies checked in parallel.</div>
+        </dd>
+        <dt>HTTP proxy port</dt>
+        <dd>
+            <div class="mono" id="setHttpPort">—</div>
+            <div class="muted">Listening port for the HTTP forward proxy.</div>
+        </dd>
+        <dt>SOCKS5 proxy port</dt>
+        <dd>
+            <div class="mono" id="setSocksPort">—</div>
+            <div class="muted">Listening port for the SOCKS5 proxy.</div>
+        </dd>
+        <dt>Prometheus metrics</dt>
+        <dd>
+            <div class="mono" id="setPrometheus">—</div>
+            <div class="muted">Expose metrics at <span class="mono">/metrics</span> for scraping.</div>
+        </dd>
+    </dl>
+</section>
+
+<section class="tile" id="retention" aria-labelledby="retentionTitle">
+    <div class="tile-head tile-head--wrap">
+        <h2 id="retentionTitle">Data retention</h2>
+        <span class="tile-head__meta" id="retentionHint">Read-only. Configured through environment variables.</span>
+    </div>
+    <dl class="kv">
+        <dt>Request log retention</dt>
+        <dd>
+            <div class="mono" id="setLogRetention">—</div>
+            <div class="muted">How long individual request log entries are kept.</div>
+        </dd>
+        <dt>5-min metrics retention</dt>
+        <dd>
+            <div class="mono" id="set5minRetention">—</div>
+            <div class="muted">Retention window for 5-minute metric rollups.</div>
+        </dd>
+        <dt>1-hour metrics retention</dt>
+        <dd>
+            <div class="mono" id="set1hourRetention">—</div>
+            <div class="muted">Retention window for hourly metric rollups.</div>
+        </dd>
+        <dt>Metrics rollup interval</dt>
+        <dd>
+            <div class="mono" id="setRollupInterval">—</div>
+            <div class="muted">How often raw request logs are aggregated into rollups.</div>
+        </dd>
+        <dt>Bandwidth flush interval</dt>
+        <dd>
+            <div class="mono" id="setBwFlush">—</div>
+            <div class="muted">How often bandwidth counters are persisted to the database.</div>
+        </dd>
+    </dl>
+</section>
+
+<section class="tile" id="apiReference" aria-labelledby="apiReferenceTitle">
+    <div class="tile-head tile-head--wrap">
+        <h2 id="apiReferenceTitle">API reference</h2>
+        <span class="tile-head__meta">The REST API is documented interactively.</span>
+    </div>
+    <dl class="kv">
+        <dt>Interactive docs</dt>
+        <dd class="row">
+            <a class="btn" href="/docs">Open Swagger UI</a>
+            <a class="btn" href="/redoc">Open ReDoc</a>
+        </dd>
+        <dt>Authentication</dt>
+        <dd>
+            <span class="muted">Send the header <span class="mono">Authorization: Bearer &lt;admin password&gt;</span> with every request.</span>
+        </dd>
+    </dl>
+</section>
+
+<div class="modal-overlay" id="alertModal" role="dialog" aria-modal="true" aria-labelledby="alertModalTitle">
+    <div class="modal">
+        <h2 id="alertModalTitle">Create alert rule</h2>
         <input type="hidden" id="alertEditId" value="">
         <div class="form-group">
             <label for="alertName">Name</label>
-            <input type="text" id="alertName" placeholder="e.g. High Error Rate Alert">
+            <input type="text" id="alertName" maxlength="255" autocomplete="off" placeholder="e.g. High error rate">
         </div>
         <div class="form-group">
-            <label for="alertCondType">Condition Type</label>
+            <label for="alertCondType">Condition type</label>
             <select id="alertCondType" onchange="updateCondFields()">
-                <option value="error_rate_above">Error Rate Above Threshold</option>
-                <option value="pool_below_min_healthy">Pool Below Min Healthy</option>
-                <option value="bandwidth_exceeded">Bandwidth Exceeded</option>
-                <option value="all_proxies_dead">All Proxies Dead</option>
+                <option value="error_rate_above">Error rate above threshold</option>
+                <option value="pool_below_min_healthy">Pool below min healthy</option>
+                <option value="bandwidth_exceeded">Bandwidth exceeded</option>
+                <option value="all_proxies_dead">All proxies dead</option>
             </select>
         </div>
         <div class="form-group" id="grpErrThreshold">
-            <label for="alertErrThreshold">Error Rate Threshold (%)</label>
+            <label for="alertErrThreshold">Error rate threshold (%)</label>
             <input type="number" id="alertErrThreshold" min="0" max="100" step="any" placeholder="e.g. 50">
         </div>
         <div class="form-group" id="grpErrWindow">
             <label for="alertErrWindow">Window (seconds)</label>
             <input type="number" id="alertErrWindow" min="1" step="1" placeholder="e.g. 300">
         </div>
-        <div class="form-group" id="grpPool" style="display:none">
+        <div class="form-group" id="grpPool" hidden>
             <label for="alertPoolSelect">Pool</label>
             <select id="alertPoolSelect"></select>
         </div>
-        <div class="form-group" id="grpMinHealthy" style="display:none">
-            <label for="alertMinHealthy">Min Healthy Proxies</label>
+        <div class="form-group" id="grpMinHealthy" hidden>
+            <label for="alertMinHealthy">Min healthy proxies</label>
             <input type="number" id="alertMinHealthy" min="1" step="1" placeholder="e.g. 2">
         </div>
-        <div class="form-group" id="grpBwLimit" style="display:none">
-            <label for="alertBwLimit">Bandwidth Limit (GB)</label>
+        <div class="form-group" id="grpBwLimit" hidden>
+            <label for="alertBwLimit">Bandwidth limit (GB)</label>
             <input type="number" id="alertBwLimit" min="0" step="any" placeholder="e.g. 100">
         </div>
-        <div class="form-group" id="grpAllDeadHint" style="display:none">
-            <span class="hint">Triggers when every proxy is marked dead. No configuration needed.</span>
+        <div class="form-group" id="grpAllDeadHint" hidden>
+            <p class="muted">Triggers when every proxy is marked dead. No configuration needed.</p>
         </div>
         <div class="form-group">
-            <label for="alertActionType">Action Type</label>
+            <label for="alertActionType">Action type</label>
             <select id="alertActionType">
                 <option value="webhook">Webhook</option>
             </select>
         </div>
         <div class="form-group">
             <label for="alertWebhookUrl">Webhook URL</label>
-            <input type="url" id="alertWebhookUrl" placeholder="https://hooks.example.com/alert">
+            <input type="url" id="alertWebhookUrl" autocomplete="off" placeholder="https://hooks.example.com/alert">
         </div>
-        <div class="form-group">
-            <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;color:var(--text-secondary);cursor:pointer">
-                <input type="checkbox" id="alertEnabled" checked style="width:16px;height:16px;accent-color:var(--accent)">
-                Enabled
-            </label>
-        </div>
+        <label class="check" for="alertEnabled">
+            <input type="checkbox" id="alertEnabled" checked>
+            Enabled
+        </label>
         <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeModal('alertModal')">Cancel</button>
-            <button class="btn btn-primary" onclick="saveAlert()">Save</button>
+            <button class="btn" type="button" onclick="closeModal('alertModal')">Cancel</button>
+            <button class="btn btn-primary" type="button" id="alertSaveBtn" onclick="saveAlert()">Save</button>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-    async function loadSystemInfo() {
-        try {
-            const data = await apiCall('GET', '/api/v1/system/info');
-            document.getElementById('setHcInterval').textContent = (data.health_check_interval || 60) + 's';
-            document.getElementById('setHcTimeout').textContent = (data.health_check_timeout || 10) + 's';
-            document.getElementById('setHcConcurrency').textContent = data.health_check_concurrency || 200;
-            document.getElementById('setHttpPort').textContent = data.proxy_http_port || 9080;
-            document.getElementById('setSocksPort').textContent = data.proxy_socks5_port || 9081;
-            document.getElementById('setPrometheus').textContent = data.prometheus_enabled ? 'Enabled (/metrics)' : 'Disabled';
-            document.getElementById('setLogRetention').textContent = (data.request_log_retention_days || 7) + ' days';
-            document.getElementById('set5minRetention').textContent = (data.metrics_5min_retention_days || 7) + ' days';
-            document.getElementById('set1hourRetention').textContent = (data.metrics_1hour_retention_days || 90) + ' days';
-            document.getElementById('setRollupInterval').textContent = (data.metrics_rollup_interval || 300) + 's';
-            document.getElementById('setBwFlush').textContent = (data.bandwidth_flush_interval || 30) + 's';
-        } catch (e) {
-            // Fallback: fill with defaults if system/info not available
-            document.getElementById('setHcInterval').textContent = '60s';
-            document.getElementById('setHcTimeout').textContent = '10s';
-            document.getElementById('setHcConcurrency').textContent = '200';
-            document.getElementById('setHttpPort').textContent = '9080';
-            document.getElementById('setSocksPort').textContent = '9081';
-            document.getElementById('setPrometheus').textContent = 'Disabled';
-            document.getElementById('setLogRetention').textContent = '7 days';
-            document.getElementById('set5minRetention').textContent = '7 days';
-            document.getElementById('set1hourRetention').textContent = '90 days';
-            document.getElementById('setRollupInterval').textContent = '300s';
-            document.getElementById('setBwFlush').textContent = '30s';
-        }
-    }
-
-    function alertStatusBadge(enabled) {
-        return enabled
-            ? '<span class="badge badge-healthy">Active</span>'
-            : '<span class="badge badge-unknown">Paused</span>';
-    }
-
-    async function loadAlerts() {
-        try {
-            const alerts = await apiCall('GET', '/api/v1/alerts');
-            const tbody = document.getElementById('alertsList');
-            const table = document.getElementById('alertsTable');
-            const empty = document.getElementById('alertsEmpty');
-
-            if (!alerts || alerts.length === 0) {
-                tbody.innerHTML = '';
-                table.style.display = 'none';
-                empty.style.display = 'block';
-                return;
-            }
-
-            table.style.display = '';
-            empty.style.display = 'none';
-
-            tbody.innerHTML = alerts.map(a => {
-                const condLabel = formatCondType(a.condition_type);
-                const actionLabel = formatActionType(a.action_type);
-                const lastTriggered = a.last_triggered_at ? fmtDate(a.last_triggered_at) : 'Never';
-
-                return `<tr>
-                    <td><span class="strong">${esc(a.name)}</span></td>
-                    <td>${esc(condLabel)}</td>
-                    <td><span class="tag-neutral">${esc(actionLabel)}</span></td>
-                    <td class="mono">${lastTriggered}</td>
-                    <td id="alertStatus-${a.id}">${alertStatusBadge(a.is_enabled)}</td>
-                    <td>
-                        <span class="alert-actions">
-                            <label class="switch" title="${a.is_enabled ? 'Disable' : 'Enable'}">
-                                <input type="checkbox" ${a.is_enabled ? 'checked' : ''} onchange="toggleAlert('${a.id}', this.checked)">
-                                <span class="track"><span class="knob"></span></span>
-                            </label>
-                            <button class="btn btn-outline btn-sm" onclick="editAlert('${a.id}')">Edit</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteAlert('${a.id}')">Delete</button>
-                        </span>
-                    </td>
-                </tr>`;
-            }).join('');
-        } catch (e) {
-            showToast('Failed to load alerts: ' + e.message, 'error');
-        }
-    }
-
-    function formatCondType(t) {
-        const map = {
-            'error_rate_above': 'Error Rate',
-            'pool_below_min_healthy': 'Pool Health',
-            'bandwidth_exceeded': 'Bandwidth',
-            'all_proxies_dead': 'All Dead',
-        };
-        return map[t] || t;
-    }
-
-    function formatActionType(t) {
-        const map = {
-            'webhook': 'Webhook',
-        };
-        return map[t] || t;
-    }
-
-    // Typed condition fields ------------------------------------------------
-    const COND_FIELD_GROUPS = {
-        'error_rate_above': ['grpErrThreshold', 'grpErrWindow'],
-        'pool_below_min_healthy': ['grpPool', 'grpMinHealthy'],
-        'bandwidth_exceeded': ['grpBwLimit'],
-        'all_proxies_dead': ['grpAllDeadHint'],
-    };
-    const ALL_COND_GROUPS = [...new Set(Object.values(COND_FIELD_GROUPS).flat())];
-    const BYTES_PER_GB = 1e9;
-
-    // Originals of the rule being edited, so unknown config keys are preserved.
-    let origCondType = null;
-    let origCondConfig = {};
-    let origActionConfig = {};
-    let poolOptionsPromise = null;
-
-    function updateCondFields() {
-        const type = document.getElementById('alertCondType').value;
-        const visible = COND_FIELD_GROUPS[type] || [];
-        ALL_COND_GROUPS.forEach(id => {
-            document.getElementById(id).style.display = visible.includes(id) ? '' : 'none';
-        });
-    }
-
-    function loadPoolOptions() {
-        if (!poolOptionsPromise) {
-            poolOptionsPromise = apiCall('GET', '/api/v1/pools?per_page=100').then(resp => {
-                const pools = (resp && resp.data) || [];
-                const sel = document.getElementById('alertPoolSelect');
-                sel.innerHTML = pools.length
-                    ? pools.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')
-                    : '<option value="">No pools available</option>';
-                return pools;
-            }).catch(e => {
-                poolOptionsPromise = null; // allow retry next time
-                throw e;
-            });
-        }
-        return poolOptionsPromise;
-    }
-
-    function openCreateAlert() {
-        document.getElementById('alertModalTitle').textContent = 'Create Alert Rule';
-        document.getElementById('alertEditId').value = '';
-        document.getElementById('alertName').value = '';
-        document.getElementById('alertCondType').value = 'error_rate_above';
-        origCondType = null;
-        origCondConfig = {};
-        origActionConfig = {};
-        document.getElementById('alertErrThreshold').value = '';
-        document.getElementById('alertErrWindow').value = '300';
-        document.getElementById('alertMinHealthy').value = '';
-        document.getElementById('alertBwLimit').value = '';
-        document.getElementById('alertWebhookUrl').value = '';
-        document.getElementById('alertActionType').value = 'webhook';
-        document.getElementById('alertEnabled').checked = true;
-        loadPoolOptions().catch(() => {});
-        updateCondFields();
-        openModal('alertModal');
-    }
-
-    async function editAlert(id) {
-        try {
-            const rule = await apiCall('GET', `/api/v1/alerts/${id}`);
-            document.getElementById('alertModalTitle').textContent = 'Edit Alert Rule';
-            document.getElementById('alertEditId').value = id;
-            document.getElementById('alertName').value = rule.name;
-            document.getElementById('alertCondType').value = rule.condition_type;
-            document.getElementById('alertActionType').value = rule.action_type;
-
-            origCondType = rule.condition_type;
-            origCondConfig = rule.condition_config || {};
-            origActionConfig = rule.action_config || {};
-            const cfg = origCondConfig;
-
-            document.getElementById('alertErrThreshold').value =
-                cfg.threshold != null ? parseFloat((cfg.threshold * 100).toFixed(4)) : '';
-            document.getElementById('alertErrWindow').value =
-                cfg.window_seconds != null ? cfg.window_seconds : '300';
-            document.getElementById('alertMinHealthy').value =
-                cfg.min_healthy != null ? cfg.min_healthy : '';
-            document.getElementById('alertBwLimit').value =
-                cfg.limit_bytes != null ? parseFloat((cfg.limit_bytes / BYTES_PER_GB).toFixed(4)) : '';
-
-            try { await loadPoolOptions(); } catch { /* pool list optional */ }
-            const poolSel = document.getElementById('alertPoolSelect');
-            if (cfg.pool_id) {
-                if (![...poolSel.options].some(o => o.value === String(cfg.pool_id))) {
-                    const opt = document.createElement('option');
-                    opt.value = cfg.pool_id;
-                    opt.textContent = cfg.pool_id + ' (unknown pool)';
-                    poolSel.appendChild(opt);
-                }
-                poolSel.value = cfg.pool_id;
-            }
-
-            document.getElementById('alertWebhookUrl').value = origActionConfig.url != null ? origActionConfig.url : '';
-            document.getElementById('alertEnabled').checked = rule.is_enabled;
-            updateCondFields();
-            openModal('alertModal');
-        } catch (e) {
-            showToast('Failed to load alert: ' + e.message, 'error');
-        }
-    }
-
-    async function saveAlert() {
-        const name = document.getElementById('alertName').value.trim();
-        if (!name) { showToast('Please enter a name', 'error'); return; }
-
-        const condType = document.getElementById('alertCondType').value;
-        // Preserve unknown keys from the original config when the type is unchanged.
-        const condConfig = condType === origCondType ? { ...origCondConfig } : {};
-
-        if (condType === 'error_rate_above') {
-            const pct = parseFloat(document.getElementById('alertErrThreshold').value);
-            const win = parseInt(document.getElementById('alertErrWindow').value, 10);
-            if (!isFinite(pct) || pct <= 0 || pct > 100) { showToast('Enter an error rate threshold between 0 and 100%', 'error'); return; }
-            if (!isFinite(win) || win <= 0) { showToast('Enter a window in seconds (greater than 0)', 'error'); return; }
-            condConfig.threshold = pct / 100;
-            condConfig.window_seconds = win;
-        } else if (condType === 'pool_below_min_healthy') {
-            const poolId = document.getElementById('alertPoolSelect').value;
-            const minHealthy = parseInt(document.getElementById('alertMinHealthy').value, 10);
-            if (!poolId) { showToast('Select a pool', 'error'); return; }
-            if (!isFinite(minHealthy) || minHealthy < 1) { showToast('Enter a min healthy count of at least 1', 'error'); return; }
-            condConfig.pool_id = poolId;
-            condConfig.min_healthy = minHealthy;
-        } else if (condType === 'bandwidth_exceeded') {
-            const gb = parseFloat(document.getElementById('alertBwLimit').value);
-            if (!isFinite(gb) || gb <= 0) { showToast('Enter a bandwidth limit in GB (greater than 0)', 'error'); return; }
-            condConfig.limit_bytes = Math.round(gb * BYTES_PER_GB);
-        }
-        // all_proxies_dead: no fields.
-
-        const webhookUrl = document.getElementById('alertWebhookUrl').value.trim();
-        if (!/^https?:\/\/\S+$/i.test(webhookUrl)) { showToast('Enter a valid webhook URL (http:// or https://)', 'error'); return; }
-        const actionConfig = { ...origActionConfig, url: webhookUrl };
-
-        const body = {
-            name: name,
-            condition_type: condType,
-            condition_config: condConfig,
-            action_type: document.getElementById('alertActionType').value,
-            action_config: actionConfig,
-            is_enabled: document.getElementById('alertEnabled').checked,
-        };
-
-        const editId = document.getElementById('alertEditId').value;
-        const btn = document.querySelector('#alertModal .btn-primary');
-        btnLoading(btn);
-
-        try {
-            if (editId) {
-                await apiCall('PATCH', `/api/v1/alerts/${editId}`, body);
-                showToast('Alert updated', 'success');
-            } else {
-                await apiCall('POST', '/api/v1/alerts', body);
-                showToast('Alert created', 'success');
-            }
-            btnReset(btn);
-            closeModal('alertModal');
-            loadAlerts();
-        } catch (e) {
-            btnReset(btn);
-            showToast('Failed to save alert: ' + e.message, 'error');
-        }
-    }
-
-    async function toggleAlert(id, enabled) {
-        try {
-            await apiCall('PATCH', `/api/v1/alerts/${id}`, { is_enabled: enabled });
-            const statusCell = document.getElementById(`alertStatus-${id}`);
-            if (statusCell) statusCell.innerHTML = alertStatusBadge(enabled);
-            showToast(enabled ? 'Alert enabled' : 'Alert disabled', 'success');
-        } catch (e) {
-            showToast('Failed to toggle alert: ' + e.message, 'error');
-            loadAlerts(); // Revert UI state
-        }
-    }
-
-    async function deleteAlert(id) {
-        if (!(await confirmAction('Delete this alert rule? This cannot be undone.'))) return;
-        try {
-            await apiCall('DELETE', `/api/v1/alerts/${id}`);
-            showToast('Alert deleted', 'success');
-            loadAlerts();
-        } catch (e) {
-            showToast('Failed to delete alert: ' + e.message, 'error');
-        }
-    }
-
-    // Scrollspy for side nav
-    (function () {
-        const links = {};
-        document.querySelectorAll('#settingsNav a').forEach(a => {
-            links[a.getAttribute('href').slice(1)] = a;
-        });
-        const obs = new IntersectionObserver(entries => {
-            entries.forEach(e => {
-                if (e.isIntersecting) {
-                    Object.values(links).forEach(a => a.classList.remove('active'));
-                    links[e.target.id].classList.add('active');
-                }
-            });
-        }, { rootMargin: '-80px 0px -65% 0px' });
-        Object.keys(links).forEach(id => {
-            const el = document.getElementById(id);
-            if (el) obs.observe(el);
-        });
-    })();
-
-    loadSystemInfo();
-    loadAlerts();
-</script>
+<script src="/static/js/pages/settings.js?v={{ asset_version }}"></script>
 {% endblock %}
