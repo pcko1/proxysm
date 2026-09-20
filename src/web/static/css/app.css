@@ -541,10 +541,19 @@ input::placeholder, textarea::placeholder { color: var(--text-3); opacity: 0.75;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
     opacity: 0;
     pointer-events: none;
+    /* visibility, not opacity alone: an invisible button stays in the tab order, so a
+       keyboard user would land on the empty bar (which is also aria-hidden). */
+    visibility: hidden;
     transform: translate(-50%, 80px);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s, visibility 0s linear 0.3s;
 }
-.bulk-bar.visible { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.bulk-bar.visible {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    transform: translate(-50%, 0);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s, visibility 0s;
+}
 .bulk-bar .btn { height: 34px; background: rgba(0, 0, 0, 0.10); color: var(--on-paper); }
 .bulk-bar .btn-danger { background: var(--coral); color: var(--on-coral); }
 .pagination { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 14px; color: var(--text-3); }

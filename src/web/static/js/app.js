@@ -238,7 +238,35 @@ function confirmAction(message, title, okLabel) {
     });
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]),'
+    + ' textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// Keeps Tab inside the open dialog: without this, Tab walks on to the page behind the
+// overlay and a keyboard user loses their place.
+function trapFocus(e) {
+    const modal = document.querySelector('.modal-overlay.active .modal');
+    if (!modal) return;
+    const items = Array.from(modal.querySelectorAll(FOCUSABLE)).filter((el) => el.offsetParent !== null);
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (!modal.contains(document.activeElement)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+    } else if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+    }
+}
+
 document.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+        trapFocus(e);
+        return;
+    }
     if (e.key === 'Escape') {
         const confirmModal = document.getElementById('confirmModal');
         if (confirmModal && confirmModal.classList.contains('active')) {

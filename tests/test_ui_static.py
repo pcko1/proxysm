@@ -239,3 +239,25 @@ def test_page_scripts_never_use_jinja_or_localhost():
         text = src.read_text()
         assert "{{" not in text and "{%" not in text, f"{src.name}: no Jinja in static files"
         assert "localhost" not in text, f"{src.name}: use APP.host"
+
+
+def test_hidden_bulk_bar_is_not_a_tab_stop():
+    """The bulk bar is aria-hidden when empty; opacity alone keeps its buttons focusable, so
+    Tab lands on an invisible control. visibility:hidden takes them out of the tab order."""
+    css = CSS.read_text()
+    rule = css[css.index("\n.bulk-bar {"):]
+    assert "visibility: hidden" in rule[:rule.index("}")]
+    shown = css[css.index(".bulk-bar.visible {"):]
+    assert "visibility: visible" in shown[:shown.index("}")]
+
+
+def test_modals_trap_focus():
+    """Spec, Frontend architecture: 'palette and modals trap focus'. Without a Tab handler,
+    Tab from the last control in an open modal moves behind the overlay."""
+    js = APP_JS.read_text()
+    assert "function trapFocus(" in js
+    body = js[js.index("function trapFocus("):]
+    body = body[:body.index("\n}") + 2]
+    assert "e.shiftKey" in body, "Shift+Tab must wrap backwards"
+    assert "preventDefault" in body and "focus()" in body
+    assert "e.key === 'Tab'" in js, "the keydown listener must route Tab into trapFocus"
