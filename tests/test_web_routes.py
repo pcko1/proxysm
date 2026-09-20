@@ -207,7 +207,7 @@ async def test_shell_uses_versioned_static_assets(client, path):
 
 # Pages already rebuilt in Blocks. Each page task appends its path as its first failing test;
 # Task 13 asserts this equals PAGES.
-RESTYLED_PAGES: list[str] = ["/dashboard"]
+RESTYLED_PAGES: list[str] = ["/dashboard", "/proxies"]
 
 
 @pytest.mark.asyncio
@@ -241,47 +241,6 @@ async def test_static_assets_are_served(client):
 # ---------------------------------------------------------------------------
 # Proxies page feature tests
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-@patch("src.web.routes.settings", _fake_settings)
-async def test_proxies_has_source_click_to_copy(client):
-    """Proxies page should have click-to-copy for source names."""
-    resp = await client.get("/proxies")
-    body = resp.text
-    assert "copySourceName" in body
-
-
-@pytest.mark.asyncio
-@patch("src.web.routes.settings", _fake_settings)
-async def test_proxies_has_pool_conflict_modal(client):
-    """Proxies page should have pool conflict modal for overwrite/merge."""
-    resp = await client.get("/proxies")
-    body = resp.text
-    assert "poolConflictModal" in body
-    assert "poolConflictMerge" in body
-    assert "poolConflictOverwrite" in body
-
-
-@pytest.mark.asyncio
-@patch("src.web.routes.settings", _fake_settings)
-async def test_proxies_has_dynamic_pool_placeholder(client):
-    """Proxies page should have dynamic pool name placeholder."""
-    resp = await client.get("/proxies")
-    body = resp.text
-    assert "updatePoolPlaceholder" in body
-
-
-@pytest.mark.asyncio
-@patch("src.web.routes.settings", _fake_settings)
-async def test_proxies_sources_table_no_url_column(client):
-    """Sources table should not have a dedicated URL column header."""
-    resp = await client.get("/proxies")
-    body = resp.text
-    # The sources table headers should be: Name, Type, Provider, Date Added, Last Polled, Count
-    assert "Date Added" in body
-    # Should not have a standalone URL header in the sources table
-    # (URL is now shown as part of the Type column)
 
 
 # ---------------------------------------------------------------------------
@@ -513,3 +472,178 @@ def test_overview_escapes_api_text_with_esc_everywhere():
         "${esc(strategy)}",
     ):
         assert needle in js, needle
+
+
+# ---------------------------------------------------------------------------
+# Proxies page (Blocks)
+# ---------------------------------------------------------------------------
+
+_PROXIES_JS = _STATIC / "js" / "pages" / "proxies.js"
+_PROXIES_MODALS = {
+    "sourcesModal": "sourcesTitle",
+    "addSourceModal": "addSourceTitle",
+    "deleteSourceModal": "deleteSourceTitle",
+    "importModal": "importTitle",
+    "poolConflictModal": "poolConflictTitle",
+    "moveToPoolModal": "movePoolTitle",
+}
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_proxies_page_structure(client):
+    body = (await client.get("/proxies")).text
+    assert re.search(r'<script src="/static/js/pages/proxies\.js\?v=[0-9a-f]+"></script>', body)
+    hooks = [
+        "proxyStats", "proxySearch", "statusFilters", "proxyTableWrap", "proxyTableBody",
+        "selectAll", "emptyState", "noMatchState", "loadError", "pagination",
+    ]
+    for hook in hooks:
+        assert f'id="{hook}"' in body, hook
+    assert 'onclick="openSources()"' in body, "Sources button in the page head"
+    assert body.count("openModal('importModal')") == 2, "page head button + empty state button"
+    assert "No proxies yet" in body and "No proxies match" in body
+    assert "Proxies could not be loaded" in body
+    for legacy in ("fpill", "sourcesPanel", "toggleSources", "page-header", "search-field"):
+        assert legacy not in body, legacy
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_proxies_script_ids_exist_in_the_page(client):
+    body = (await client.get("/proxies")).text
+    assert_js_ids_exist("proxies.js", body)
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_proxies_status_pills_and_search(client):
+    """All / Healthy / Degraded / Dead / Unknown, each with a dot and a count; labelled search."""
+    body = (await client.get("/proxies")).text
+    pills = re.findall(r'<button class="pill[^"]*" type="button" data-status="([a-z]*)"', body)
+    assert pills == ["", "healthy", "degraded", "dead", "unknown"]
+    for count_id in ("ctAll", "ctHealthy", "ctDegraded", "ctDead", "ctUnknown"):
+        assert f'<span class="count" id="{count_id}"></span>' in body, count_id
+    for status in ("healthy", "degraded", "dead", "unknown"):
+        assert f'<span class="dot dot--{status}"></span>' in body, status
+    assert '<label for="proxySearch" class="sr-only">' in body
+    assert re.search(r'<input type="search" id="proxySearch" class="on-ground"', body)
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_proxies_table_columns(client):
+    body = (await client.get("/proxies")).text
+    sortable = re.findall(r'<th class="sortable[^"]*" data-sort="([a-z]+)" tabindex="0"', body)
+    assert sortable == ["host", "protocol", "provider", "status", "latency"]
+    assert '<th class="num">Last check</th>' in body
+    assert "Success" not in body, "the success column belongs to milestone 3"
+    assert 'aria-label="Proxy detail"' not in body, "the detail panel belongs to milestone 3"
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_proxies_sources_live_in_a_modal(client):
+    """The always-visible sources panel is gone; the same table sits in a wide modal."""
+    body = (await client.get("/proxies")).text
+    start = body.index('id="sourcesModal"')
+    modal = body[start:body.index('id="addSourceModal"')]
+    assert 'class="modal modal--wide"' in modal
+    headers = re.findall(r"<th(?:\s[^>]*)?>(?:<span[^>]*>)?([^<]+)", modal)
+    assert headers == [
+        "Name", "Type", "Provider", "Date added", "Last polled", "Proxies", "Actions",
+    ], "no URL column: the type links to the feed"
+    assert 'id="sourcesTableBody"' in modal and 'id="sourcesEmpty"' in modal
+    assert 'onclick="openAddSource()"' in modal
+    js = _PROXIES_JS.read_text()
+    assert "/api/v1/sources?per_page=100" in js
+    assert "/poll`" in js and "function pollSource(" in js
+    assert "function confirmDeleteSource(" in js and "function createSource(" in js
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_proxies_has_source_click_to_copy(client):
+    """Clicking a source name copies it; the name is looked up by id, never interpolated."""
+    body = (await client.get("/proxies")).text
+    assert 'id="sourcesTableBody"' in body
+    assert "Click a name to copy it" in body
+    js = _PROXIES_JS.read_text()
+    assert "function copySourceName(id, btn)" in js
+    assert "copyToClipboard(source.name)" in js
+    assert 'data-action="copy"' in js
+    assert "copySourceName('${" not in js, "names never go into inline handlers"
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_proxies_has_pool_conflict_modal(client):
+    """Importing into an existing pool asks: Cancel, Merge or Overwrite."""
+    body = (await client.get("/proxies")).text
+    for hook in ("poolConflictModal", "poolConflictMsg", "poolConflictCancel",
+                 "poolConflictMerge", "poolConflictOverwrite"):
+        assert f'id="{hook}"' in body, hook
+    js = _PROXIES_JS.read_text()
+    assert "function askPoolConflict(" in js
+    for action in ("'merge'", "'overwrite'", "'cancel'"):
+        assert f"finish({action})" in js, action
+    assert js.index("askPoolConflict(poolName") < js.index("'/api/v1/ips/bulk'"), (
+        "the question is asked before anything is imported, so Cancel cancels everything"
+    )
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_proxies_has_dynamic_pool_placeholder(client):
+    """Typing a provider updates the suggested pool name."""
+    body = (await client.get("/proxies")).text
+    assert re.search(r'id="importProvider"[^>]*oninput="updatePoolPlaceholder\(\)"', body)
+    assert 'id="importPoolName" placeholder="my-provider-001"' in body
+    js = _PROXIES_JS.read_text()
+    assert "function updatePoolPlaceholder()" in js
+    assert "+ '-001'" in js and "'my-provider-001'" in js
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_proxies_modals_are_labelled_dialogs(client):
+    body = (await client.get("/proxies")).text
+    for modal_id, title_id in _PROXIES_MODALS.items():
+        assert re.search(
+            rf'id="{modal_id}" role="dialog" aria-modal="true" aria-labelledby="{title_id}"', body
+        ), modal_id
+        assert f'<h2 id="{title_id}">' in body, title_id
+    import_fields = [
+        "importProvider", "importProtocol", "importText", "importFile", "importUrl",
+        "importCreatePool", "importPoolName", "importPoolStrategy",
+    ]
+    source_fields = ["sourceName", "sourceType", "sourceProtocol", "sourceUrl", "sourceProvider"]
+    for field in [*import_fields, *source_fields, "movePoolSelect"]:
+        assert f'id="{field}"' in body, field
+        assert f'for="{field}"' in body, f"{field} needs a <label for>"
+
+
+def test_proxies_script_contract():
+    js = _PROXIES_JS.read_text()
+    assert "'use strict';" in js
+    assert not re.search(r"^\s*(import|export)\s", js, re.M), "classic script"
+    assert "{{" not in js and "{%" not in js, "no Jinja in static files"
+    for shared in ("function esc(", "function apiCall(", "function timeAgo(", "function showToast(",
+                   "function fmtNum(", "function statusBadge(", "function protoTag("):
+        assert shared not in js, f"{shared} belongs to app.js"
+    assert "Poller.start(refresh, 15000)" in js
+    assert "openModalFromQuery({ import: 'importModal' })" in js
+    assert "history.replaceState" in js and "params.get('status')" in js
+    assert "selectedIds.size > 0" in js and ".modal-overlay.active" in js, "quiet refresh"
+    assert "setTimeout(" in js and "}, 300);" in js, "search keeps its 300 ms debounce"
+    assert "i += 10" in js, "bulk recheck stays chunked, 10 at a time"
+    for needle in ("recheckBtn.className = 'btn btn-sm'", "moveBtn.className = 'btn btn-sm'",
+                   "insertBefore(recheckBtn, deleteBtn)", "insertBefore(moveBtn, deleteBtn)",
+                   "deleteBtn.onclick = bulkDelete"):
+        assert needle in js, needle
+    for endpoint in ("/api/v1/stats/overview", "/api/v1/ips?page=", "/api/v1/ips/bulk",
+                     "/api/v1/pools?per_page=100", "/api/v1/sources"):
+        assert endpoint in js, endpoint
+    assert "&status=${encodeURIComponent(statusFilter)}" in js
+    assert "&search=${encodeURIComponent(searchQuery)}" in js
+    assert "&sort_by=${sortColumn}&sort_dir=${sortDir}" in js
