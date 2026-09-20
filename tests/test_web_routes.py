@@ -9,6 +9,7 @@ from httpx import ASGITransport, AsyncClient
 
 from src.web.auth import SESSION_COOKIE, create_session_token
 from src.web.routes import router as web_router
+from tests.test_ui_static import assert_js_ids_exist
 
 # ---------------------------------------------------------------------------
 # Test app — web router + static files, no DB/Redis startup events.
@@ -206,7 +207,7 @@ async def test_shell_uses_versioned_static_assets(client, path):
 
 # Pages already rebuilt in Blocks. Each page task appends its path as its first failing test;
 # Task 13 asserts this equals PAGES.
-RESTYLED_PAGES: list[str] = []
+RESTYLED_PAGES: list[str] = ["/dashboard"]
 
 
 @pytest.mark.asyncio
@@ -235,53 +236,6 @@ async def test_static_assets_are_served(client):
 # ---------------------------------------------------------------------------
 # Dashboard chart tests
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-@patch("src.web.routes.settings", _fake_settings)
-async def test_dashboard_has_provider_health_chart(client):
-    """Dashboard should have Provider Health Overview chart."""
-    resp = await client.get("/dashboard")
-    body = resp.text
-    assert "Provider Health Overview" in body
-    assert "providerHealthBody" in body
-    assert "loadProviderHealth" in body
-
-
-@pytest.mark.asyncio
-@patch("src.web.routes.settings", _fake_settings)
-async def test_dashboard_has_pool_utilization_chart(client):
-    """Dashboard should have Pool Utilization chart."""
-    resp = await client.get("/dashboard")
-    body = resp.text
-    assert "Pool Utilization" in body
-    assert "poolUtilBody" in body
-    assert "loadPoolUtilization" in body
-
-
-@pytest.mark.asyncio
-@patch("src.web.routes.settings", _fake_settings)
-async def test_dashboard_has_onboarding_card(client):
-    """Dashboard should have the first-run onboarding card with setup steps."""
-    resp = await client.get("/dashboard")
-    body = resp.text
-    assert 'id="onboardingCard"' in body
-    assert "onboardingStepProxies" in body
-    assert "onboardingStepPools" in body
-    assert "onboardingStepProjects" in body
-    assert 'href="/setup"' in body
-
-
-@pytest.mark.asyncio
-@patch("src.web.routes.settings", _fake_settings)
-async def test_dashboard_no_old_charts(client):
-    """Dashboard should not have the old failing/ranking charts."""
-    resp = await client.get("/dashboard")
-    body = resp.text
-    assert "Top Failing Proxies" not in body
-    assert "Worst Performing Proxies" not in body
-    assert "loadFailingProxies" not in body
-    assert "loadProxyRanking" not in body
 
 
 # ---------------------------------------------------------------------------
@@ -427,3 +381,135 @@ async def test_login_error_is_announced(anon_client):
     resp = await anon_client.post("/login", data={"password": "nope"})
     assert resp.status_code == 401
     assert 'class="auth__error" role="alert"' in resp.text
+
+
+# ---------------------------------------------------------------------------
+# Overview page (/dashboard)
+# ---------------------------------------------------------------------------
+
+OVERVIEW_JS = _STATIC / "js" / "pages" / "overview.js"
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_overview_loads_its_script_and_every_id_it_needs(client):
+    body = (await client.get("/dashboard")).text
+    assert re.search(r'<script src="/static/js/pages/overview\.js\?v=[0-9a-f]+"></script>', body)
+    assert_js_ids_exist("overview.js", body)
+    served = await client.get("/static/js/pages/overview.js")
+    assert served.status_code == 200
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_overview_head_tiles_and_traffic(client):
+    body = (await client.get("/dashboard")).text
+    assert "<title>Overview - Proxysm</title>" in body
+    assert "<h1>Overview</h1>" in body
+    assert 'id="rangeSeg"' in body
+    for value in ("1h", "24h", "7d"):
+        assert f'data-range="{value}"' in body
+    for tile in ("tile--lime", "tile--amber", "tile--coral"):
+        assert f'class="tile {tile} kpi"' in body
+    for stat_id in ("statHealthy", "statDegraded", "statDead", "statRpm",
+                    "kpiHealthyFoot", "kpiDeadFoot", "kpiRpmFoot"):
+        assert f'id="{stat_id}"' in body, stat_id
+    assert "rechecked every 15 seconds" in body
+    assert 'class="bars" id="trafficBars" role="img"' in body
+    assert 'id="trafficAxis"' in body and 'id="trafficSummary"' in body
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_overview_has_providers_and_pools_tables(client):
+    """The two table bodies keep their old ids; each table has an empty state with its fix."""
+    body = (await client.get("/dashboard")).text
+    assert 'id="providerHealthBody"' in body and 'id="providerHealthEmpty"' in body
+    assert 'id="poolUtilBody"' in body and 'id="poolUtilEmpty"' in body
+    assert body.count('<table class="tbl"') == 3
+    assert body.count('class="empty-state"') == 3
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_overview_projects_table_has_open_column_and_no_quota(client):
+    body = (await client.get("/dashboard")).text
+    assert 'id="projectStatsBody"' in body and 'id="projectStatsEmpty"' in body
+    assert "quota" not in body.lower(), "the quota column arrives in milestone 4"
+    # /projects/{id}/stats is not a 24h window; only the Pools table (pool-metrics) is.
+    tooltip = "Since the oldest 5-minute metrics still kept (7 days by default)"
+    assert f'title="{tooltip}">Requests</th>' in body
+    assert body.count("Req 24h") == 1
+    assert "Needs attention" not in body and "vs 1h ago" not in body, "milestone 3"
+    js = OVERVIEW_JS.read_text()
+    assert "/projects?project=${encodeURIComponent(p.id)}" in js
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_overview_onboarding_card_deep_links(client):
+    body = (await client.get("/dashboard")).text
+    card = body[body.index('id="onboardingCard"'):]
+    card = card[: card.index("</section>")]
+    assert " hidden" in card[: card.index(">")], "hidden until the script knows a step is open"
+    for step_id, href in (
+        ("onboardingStepProxies", "/proxies?import=1"),
+        ("onboardingStepPools", "/pools?new=1"),
+        ("onboardingStepProjects", "/projects?new=1"),
+    ):
+        link = f'<a href="{href}" class="onboarding-step" id="{step_id}">'
+        assert link in card, link
+    assert "/setup" not in body
+    assert "Guided setup" not in body
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_overview_drops_the_old_dashboard(client):
+    body = (await client.get("/dashboard")).text
+    haystack = body + OVERVIEW_JS.read_text()
+    for gone in (
+        "Top Failing Proxies", "Worst Performing Proxies", "loadFailingProxies", "loadProxyRanking",
+        "switchTab", "dash-tab", "section-projects", "projectDetail", "selectProject",
+        'id="donut"', "drawDonut", "drawLineChart", "latencyTrendChart", "bandwidthOverviewChart",
+        "statusCodeContainer", "errorBreakdownContainer", "topDomainsBody", "latencyHistContainer",
+        "rotationBarsContainer", "throughputNum",
+        "loadStats()",  # the old Refresh button
+    ):
+        assert gone not in haystack, gone
+
+
+def test_overview_script_contract():
+    js = OVERVIEW_JS.read_text()
+    assert "'use strict';" in js
+    assert not re.search(r"^\s*(import|export)\s", js, re.M), "classic script"
+    assert "{{" not in js and "{%" not in js, "no Jinja in static files"
+    assert not re.search(r"https?://", js)
+    for shared in ("esc", "apiCall", "showToast", "fmtNum", "fmtPct", "fmtMs", "fmtBytes"):
+        assert not re.search(rf"function\s+{shared}\s*\(", js), f"{shared} belongs to app.js"
+    assert "Poller.start(loadOverview, 10000)" in js
+    assert js.count("Promise.allSettled(") >= 2, "one failing endpoint must not blank the rest"
+    assert "'proxysm.overview.range'" in js
+    for line in (
+        "'1h': { granularity: '5min', step: 5 * MINUTE_MS, buckets: 12,",
+        "'24h': { granularity: '1hour', step: 60 * MINUTE_MS, buckets: 24,",
+        "'7d': { granularity: '1day', step: 1440 * MINUTE_MS, buckets: 7,",
+    ):
+        assert line in js, line
+    assert "/api/v1/stats/timeseries?entity_type=proxy&granularity=" in js
+    assert "'/api/v1/stats/throughput'" in js, "global throughput, no project_id"
+    # Polling must stay silent: the only toast is the operator's own range switch.
+    assert js.count("showToast(") == 1
+
+
+def test_overview_escapes_api_text_with_esc_everywhere():
+    """One rule on every page: esc() for element content and for quoted attribute values."""
+    js = OVERVIEW_JS.read_text()
+    assert "function attr(" not in js, "esc() is attribute-safe since Task 2; no local escaper"
+    for needle in (
+        'title="${esc(p.provider)}">${esc(p.provider)}<',
+        'title="${esc(p.name)}">${esc(p.name)}<',
+        'aria-label="Open project ${esc(p.name)}"',
+        "${esc(strategy)}",
+    ):
+        assert needle in js, needle
