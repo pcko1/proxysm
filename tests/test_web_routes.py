@@ -408,3 +408,22 @@ def test_retired_templates_are_gone():
     templates = pathlib.Path(__file__).parent.parent / "src" / "web" / "templates"
     assert not (templates / "api-docs.html").exists()
     assert not (templates / "setup.html").exists()
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_login_page_uses_the_stylesheet_and_nothing_external(anon_client):
+    body = (await anon_client.get("/login")).text
+    assert re.search(r'href="/static/css/app\.css\?v=[0-9a-f]+"', body)
+    assert "<style" not in body and "geist" not in body.lower()
+    assert not re.search(r'(?:src|href)="https?://', body)
+    assert 'class="shell-nav"' not in body, "no app navigation before sign-in"
+    assert '<label for="password"' in body and 'id="password"' in body
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_login_error_is_announced(anon_client):
+    resp = await anon_client.post("/login", data={"password": "nope"})
+    assert resp.status_code == 401
+    assert 'class="auth__error" role="alert"' in resp.text

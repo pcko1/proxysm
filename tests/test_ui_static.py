@@ -168,6 +168,8 @@ TEMPLATES = STATIC.parent / "templates"
 # Task 13 asserts this covers every template on disk.
 RESTYLED_TEMPLATES: list[str] = [
     "base.html",
+    "login.html",
+    "404.html",
 ]
 
 _CLASS_ATTR = re.compile(r'class\s*=\s*"([^"]*)"')
