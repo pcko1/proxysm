@@ -982,3 +982,20 @@ def test_settings_script_keeps_the_alert_rule_contract():
     assert "apiCall('GET', '/api/v1/system/info')" in js
     assert "apiCall('GET', '/api/v1/pools?per_page=100')" in js
     assert "confirmAction(" in js
+
+
+def test_every_page_is_restyled():
+    assert sorted(RESTYLED_PAGES) == sorted(PAGES)
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_sidebar_links_keep_an_accessible_name_in_the_icon_rail(client):
+    """Below 1100px the shell hides `.label`, so a link's visible text is gone and its icon
+    is aria-hidden: without an aria-label every sidebar link becomes an unnamed icon."""
+    body = (await client.get("/dashboard")).text
+    nav = body[body.index('<aside class="shell-nav"') : body.index("</aside>")]
+    links = re.findall(r"<a [^>]*>", nav)
+    assert len(links) >= 7, f"expected brand + 6 nav links, found {len(links)}"
+    unnamed = [link for link in links if "aria-label=" not in link]
+    assert not unnamed, f"sidebar links without an accessible name: {unnamed}"

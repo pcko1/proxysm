@@ -205,3 +205,37 @@ def test_template_and_script_use_only_defined_classes(template):
     for src in sources:
         unknown = sorted(_used_classes(src.read_text()) - defined)
         assert not unknown, f"{src.name} uses classes app.css does not define: {unknown}"
+
+
+LEGACY_NAMES = [
+    "dash-card", "dash-tab", "dash-section", "metrics-table", "dashboard-grid", "kpi-grid",
+    "navbar", "live-pill", "api-banner", "table-card", "stat-pill", "panel-head", "panel-body",
+    "throughput-badge", "usage-tab", "hljs", "language-", "Geist", "cdnjs", "showApiBanner",
+    '"/setup"', '"/api-docs"',
+]
+
+
+def test_every_template_is_restyled():
+    on_disk = sorted(p.name for p in TEMPLATES.glob("*.html"))
+    assert on_disk == sorted(RESTYLED_TEMPLATES)
+
+
+def test_no_legacy_names_survive():
+    sources = list(TEMPLATES.glob("*.html")) + list(PAGES_JS.glob("*.js"))
+    sources += [STATIC / "js" / "app.js", STATIC / "css" / "app.css"]
+    for src in sources:
+        text = src.read_text()
+        found = [name for name in LEGACY_NAMES if name in text]
+        assert not found, f"{src.name} still contains legacy names: {found}"
+
+
+def test_only_the_three_blocks_fonts_ship():
+    fonts = sorted(p.name for p in FONTS.glob("*.woff2"))
+    assert fonts == ["bricolage-grotesque.woff2", "figtree.woff2", "jetbrains-mono.woff2"]
+
+
+def test_page_scripts_never_use_jinja_or_localhost():
+    for src in PAGES_JS.glob("*.js"):
+        text = src.read_text()
+        assert "{{" not in text and "{%" not in text, f"{src.name}: no Jinja in static files"
+        assert "localhost" not in text, f"{src.name}: use APP.host"

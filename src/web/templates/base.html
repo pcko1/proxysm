@@ -12,7 +12,7 @@
 </head>
 {% set path = request.url.path %}
 {% macro nav(href, id, label, icon) -%}
-<a href="{{ href }}" id="{{ id }}" class="nav-item{{ ' active' if path.startswith(href) }}"{% if path.startswith(href) %} aria-current="page"{% endif %}>
+<a href="{{ href }}" id="{{ id }}" class="nav-item{{ ' active' if path.startswith(href) }}" aria-label="{{ label }}"{% if path.startswith(href) %} aria-current="page"{% endif %}>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ icon }}"/></svg>
     <span class="label">{{ label }}</span>
 </a>
@@ -20,7 +20,7 @@
 <body data-http-port="{{ http_port }}" data-socks5-port="{{ socks5_port }}">
 <div class="app">
     <aside class="shell-nav" id="sideNav">
-        <a href="/dashboard" class="shell-nav__brand">
+        <a href="/dashboard" class="shell-nav__brand" aria-label="Proxysm, back to Overview">
             <span class="shell-nav__mark">
                 <svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><g fill="#0E0E10"><polygon points="16,30 13.5,12 16,4 18.5,12"/><polygon points="16,30 13.5,12 16,4 18.5,12" transform="rotate(-24 16 30)"/><polygon points="16,30 13.5,12 16,4 18.5,12" transform="rotate(24 16 30)"/></g></svg>
             </span>
