@@ -121,14 +121,14 @@ async def projects_page(request: Request, _: None = Depends(require_session)):
     return templates.TemplateResponse(request, "projects.html", _ctx())
 
 
-@router.get("/api-docs", response_class=HTMLResponse)
-async def api_docs_page(request: Request, _: None = Depends(require_session)):
-    return templates.TemplateResponse(request, "api-docs.html", _ctx())
+@router.get("/api-docs", response_class=RedirectResponse)
+async def api_docs_redirect():
+    return RedirectResponse(url="/docs")
 
 
-@router.get("/setup", response_class=HTMLResponse)
-async def setup_page(request: Request, _: None = Depends(require_session)):
-    return templates.TemplateResponse(request, "setup.html", _ctx())
+@router.get("/setup", response_class=RedirectResponse)
+async def setup_redirect():
+    return RedirectResponse(url="/dashboard")
 
 
 @router.get("/providers", response_class=RedirectResponse)

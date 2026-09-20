@@ -153,22 +153,6 @@ async def test_settings_alert_modal_has_typed_fields(client):
 
 @pytest.mark.asyncio
 @patch("src.web.routes.settings", _fake_settings)
-async def test_setup_returns_html(client):
-    resp = await client.get("/setup")
-    assert resp.status_code == 200
-    assert "text/html" in resp.headers["content-type"]
-
-
-@pytest.mark.asyncio
-@patch("src.web.routes.settings", _fake_settings)
-async def test_api_docs_returns_html(client):
-    resp = await client.get("/api-docs")
-    assert resp.status_code == 200
-    assert "text/html" in resp.headers["content-type"]
-
-
-@pytest.mark.asyncio
-@patch("src.web.routes.settings", _fake_settings)
 async def test_dashboard_contains_html_structure(client):
     resp = await client.get("/dashboard")
     assert resp.status_code == 200
@@ -354,7 +338,7 @@ async def test_proxies_sources_table_no_url_column(client):
 @pytest.mark.asyncio
 @patch("src.web.routes.settings", _fake_settings)
 async def test_pages_redirect_to_login_without_session(anon_client):
-    pages = ["/dashboard", "/proxies", "/pools", "/projects", "/settings", "/api-docs", "/setup"]
+    pages = PAGES
     for path in pages:
         resp = await anon_client.get(path)
         assert resp.status_code == 302, path
@@ -410,3 +394,17 @@ async def test_admin_password_not_embedded_in_pages(client):
     for path in ["/dashboard", "/proxies", "/api-docs"]:
         resp = await client.get(path)
         assert "testpassword" not in resp.text, path
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("path", "target"), [("/api-docs", "/docs"), ("/setup", "/dashboard")])
+async def test_retired_pages_redirect(client, path, target):
+    resp = await client.get(path)
+    assert resp.status_code in (302, 307)
+    assert resp.headers["location"] == target
+
+
+def test_retired_templates_are_gone():
+    templates = pathlib.Path(__file__).parent.parent / "src" / "web" / "templates"
+    assert not (templates / "api-docs.html").exists()
+    assert not (templates / "setup.html").exists()
