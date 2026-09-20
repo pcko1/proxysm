@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Command palette</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:Geist,system-ui,sans-serif;background:#050608}
+a{color:#6B9BFF}a:hover{color:#9DBBFF}
+</style>
+</helmet>
+<div style="width: 720px; height: 480px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 32px; background: #050608; color: #E8EBF0; font-family: Geist, system-ui, sans-serif; font-size: 13px;">
+<div role="dialog" aria-label="Command palette" style="width: 100%; display: flex; flex-direction: column; background: #0F1115; border: 1px solid #2A2F3A; border-radius: 12px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 18px; border-bottom: 1px solid #1C2028; color: #8A93A0;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+<label for="paletteInput" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Command or search</label>
+<input id="paletteInput" type="text" value="{{query}}" onChange="{{setQuery}}" style="flex-grow: 1; height: 32px; background: transparent; border: 0; color: #E8EBF0; font-family: inherit; font-size: 15px; outline: none;">
+<span style="padding: 1px 6px; border: 1px solid #2A2F3A; border-radius: 4px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px;">esc</span>
+</div>
+<div style="display: flex; flex-direction: column; padding: 8px;">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+<div style="padding: 10px 10px 6px; font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #8A93A0;">{{g.title}}</div>
+<sc-for list="{{g.items}}" as="i" hint-placeholder-count="2">
+<a href="{{i.href}}" style="display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 10px; border-radius: 7px; background: {{i.bg}}; color: #E8EBF0; text-decoration: none;">
+<span style="flex-grow: 1; font-family: {{i.font}};">{{i.label}}</span>
+<span style="font-size: 12px; color: #8A93A0;">{{i.hint}}</span>
+</a>
+</sc-for>
+</sc-for>
+</div>
+<div style="display: flex; gap: 18px; height: 38px; align-items: center; padding: 0 18px; border-top: 1px solid #1C2028; font-size: 12px; color: #8A93A0;">
+<span>↑↓ to move</span><span>↵ to open</span><span style="flex-grow: 1;"></span><span>Type an address to find a proxy</span>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":720,"height":480}}'>
+class Component extends DCLogic {
+renderVals() {
+const st = this.state || {};
+const query = st.query === undefined ? '203.0' : st.query;
+const sans = 'Geist, system-ui, sans-serif';
+const mono = "'Geist Mono', ui-monospace, monospace";
+return {
+query: query,
+setQuery: (e) => this.setState({ query: e.target.value }),
+groups: [
+{ title: 'Proxies', items: [
+{ label: '203.0.113.42:8080', hint: 'degraded · proxyscrape', href: 'Proxies.dc.html', bg: '#1C2028', font: mono },
+{ label: '203.0.113.18:8080', hint: 'healthy · webshare', href: 'Proxies.dc.html', bg: 'transparent', font: mono }
+] },
+{ title: 'Actions', items: [
+{ label: 'Import proxies', hint: 'I', href: 'Proxies.dc.html', bg: 'transparent', font: sans },
+{ label: 'Recheck all dead proxies', hint: '812', href: 'Proxies.dc.html', bg: 'transparent', font: sans },
+{ label: 'New project', hint: 'N', href: 'Projects.dc.html', bg: 'transparent', font: sans }
+] },
+{ title: 'Go to', items: [
+{ label: 'Requests', hint: 'G then R', href: 'Requests.dc.html', bg: 'transparent', font: sans },
+{ label: 'Overview', hint: 'G then O', href: 'Main.dc.html', bg: 'transparent', font: sans }
+] }
+]
+};
+}
+}
+</script>
+</body>
+</html>

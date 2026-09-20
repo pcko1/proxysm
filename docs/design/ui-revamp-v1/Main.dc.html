@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Overview</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:Geist,system-ui,sans-serif;background:#090A0D}
+a{color:#6B9BFF}a:hover{color:#9DBBFF}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1080px; box-sizing: border-box; display: flex; flex-direction: column; background: #090A0D; color: #E8EBF0; font-family: Geist, system-ui, sans-serif; font-size: 13px;">
+<dc-import name="Nav" active="overview" hint-size="1440px,52px"></dc-import>
+<main style="display: flex; flex-direction: column; gap: 20px; padding: 28px 32px 32px;">
+
+<div style="display: flex; align-items: flex-end; justify-content: space-between;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<h1 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.02em;">Overview</h1>
+<div style="color: #8A93A0;">2,162 proxies · 4 providers · 3 projects</div>
+</div>
+<div style="display: flex; gap: 2px; padding: 3px; background: #0F1115; border: 1px solid #1C2028; border-radius: 8px;">
+<sc-for list="{{ranges}}" as="r" hint-placeholder-count="3">
+<button onClick="{{r.pick}}" style="height: 26px; padding: 0 12px; border: 0; border-radius: 5px; background: {{r.bg}}; color: {{r.fg}}; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer;">{{r.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<section aria-label="Fleet and traffic" style="background: #0F1115; border: 1px solid #1C2028; border-radius: 10px; overflow: hidden;">
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="6">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border-right: {{k.border}};">
+<div style="font-size: 12px; color: #8A93A0;">{{k.label}}</div>
+<div style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 26px; font-weight: 500; letter-spacing: -0.03em; color: {{k.color}};">{{k.value}}</div>
+<div style="display: flex; gap: 6px; font-size: 12px; color: #8A93A0;"><span style="font-family: 'Geist Mono', ui-monospace, monospace; color: {{k.dcolor}};">{{k.delta}}</span><span>vs 1h ago</span></div>
+</div>
+</sc-for>
+</div>
+<div aria-hidden="true" style="display: flex; gap: 2px; height: 3px;">
+<div style="flex-grow: 384; background: #3FCF8E;"></div>
+<div style="flex-grow: 173; background: #E6B450;"></div>
+<div style="flex-grow: 812; background: #F26B6B;"></div>
+<div style="flex-grow: 793; background: #2A2F3A;"></div>
+</div>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+<section style="grid-column: span 2; display: flex; flex-direction: column; background: #0F1115; border: 1px solid #1C2028; border-radius: 10px;">
+<div style="display: flex; align-items: center; gap: 16px; height: 48px; padding: 0 18px; border-bottom: 1px solid #1C2028;">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600;">Traffic</h2>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #A3ACB9;"><span style="width: 8px; height: 2px; background: #6B9BFF;"></span>Requests</div>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #A3ACB9;"><span style="width: 8px; height: 2px; background: #F26B6B;"></span>Errors</div>
+<div style="flex-grow: 1;"></div>
+<div style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #A3ACB9;">{{summary}}</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 18px;">
+<svg viewBox="0 0 880 220" preserveAspectRatio="none" role="img" aria-label="Requests and errors over time" style="width: 100%; height: 220px; display: block;">
+<path d="M0 55H880M0 110H880M0 165H880" stroke="#1C2028" stroke-width="1" vector-effect="non-scaling-stroke"></path>
+<path d="M0,150 38,146 77,152 115,140 153,128 191,118 230,96 268,84 306,70 344,76 383,62 421,58 459,66 497,54 536,60 574,72 612,64 650,80 689,92 727,88 765,104 803,116 842,110 880,122 L880,220 L0,220 Z" fill="#6B9BFF" fill-opacity="0.07"></path>
+<polyline points="0,150 38,146 77,152 115,140 153,128 191,118 230,96 268,84 306,70 344,76 383,62 421,58 459,66 497,54 536,60 574,72 612,64 650,80 689,92 727,88 765,104 803,116 842,110 880,122" fill="none" stroke="#6B9BFF" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+<polyline points="0,204 38,203 77,204 115,202 153,200 191,199 230,196 268,193 306,190 344,192 383,188 421,170 459,160 497,186 536,190 574,192 612,191 650,194 689,196 727,195 765,198 803,200 842,199 880,201" fill="none" stroke="#F26B6B" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+</svg>
+<div style="display: flex; justify-content: space-between; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #8A93A0;">
+<sc-for list="{{ticks}}" as="t" hint-placeholder-count="5"><span>{{t}}</span></sc-for>
+</div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; background: #0F1115; border: 1px solid #1C2028; border-radius: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 18px; border-bottom: 1px solid #1C2028;">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600;">Needs attention</h2>
+<span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #8A93A0;">4</span>
+</div>
+<div style="display: flex; flex-direction: column;">
+<sc-for list="{{attention}}" as="a" hint-placeholder-count="4">
+<div style="display: flex; align-items: flex-start; gap: 12px; padding: 14px 18px; border-bottom: {{a.border}};">
+<span style="flex-shrink: 0; width: 7px; height: 7px; margin-top: 5px; border-radius: 50%; background: {{a.dot}};"></span>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 3px;">
+<div style="font-weight: 500; color: #E8EBF0;">{{a.title}}</div>
+<div style="font-size: 12px; color: #8A93A0;">{{a.detail}}</div>
+</div>
+<a href="{{a.href}}" style="flex-shrink: 0; font-size: 12px; font-weight: 500; text-decoration: none;">{{a.action}}</a>
+</div>
+</sc-for>
+</div>
+</section>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+<section style="background: #0F1115; border: 1px solid #1C2028; border-radius: 10px;">
+<div style="display: flex; align-items: center; height: 48px; padding: 0 18px; border-bottom: 1px solid #1C2028;">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600;">Providers</h2>
+</div>
+<div style="display: grid; grid-template-columns: 1.4fr 0.7fr 0.7fr 1.6fr; gap: 16px; align-items: center; height: 34px; padding: 0 18px; border-bottom: 1px solid #1C2028; font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #8A93A0;">
+<span>Provider</span><span style="text-align: right;">Total</span><span style="text-align: right;">Healthy</span><span>Availability</span>
+</div>
+<sc-for list="{{providers}}" as="p" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: 1.4fr 0.7fr 0.7fr 1.6fr; gap: 16px; align-items: center; height: 40px; padding: 0 18px; border-bottom: {{p.border}}; color: #A3ACB9;">
+<span style="font-weight: 500; color: #E8EBF0;">{{p.name}}</span>
+<span style="text-align: right; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px;">{{p.total}}</span>
+<span style="text-align: right; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px;">{{p.healthy}}</span>
+<div style="display: flex; align-items: center; gap: 10px;">
+<div style="flex-grow: 1; height: 4px; border-radius: 2px; background: #1C2028;"><div style="width: {{p.w}}; height: 4px; border-radius: 2px; background: {{p.c}};"></div></div>
+<span style="width: 34px; text-align: right; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px;">{{p.w}}</span>
+</div>
+</div>
+</sc-for>
+</section>
+
+<section style="background: #0F1115; border: 1px solid #1C2028; border-radius: 10px;">
+<div style="display: flex; align-items: center; height: 48px; padding: 0 18px; border-bottom: 1px solid #1C2028;">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600;">Pools</h2>
+</div>
+<div style="display: grid; grid-template-columns: 1.4fr 1.3fr 0.9fr 0.8fr 0.7fr 0.8fr; gap: 16px; align-items: center; height: 34px; padding: 0 18px; border-bottom: 1px solid #1C2028; font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #8A93A0;">
+<span>Pool</span><span>Strategy</span><span style="text-align: right;">Healthy</span><span style="text-align: right;">Req 24h</span><span style="text-align: right;">Errors</span><span style="text-align: right;">p50</span>
+</div>
+<sc-for list="{{pools}}" as="p" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: 1.4fr 1.3fr 0.9fr 0.8fr 0.7fr 0.8fr; gap: 16px; align-items: center; height: 40px; padding: 0 18px; border-bottom: {{p.border}}; color: #A3ACB9; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px;">
+<span style="font-family: Geist, system-ui, sans-serif; font-size: 13px; font-weight: 500; color: #E8EBF0;">{{p.name}}</span>
+<span>{{p.strategy}}</span>
+<span style="text-align: right; color: {{p.hc}};">{{p.health}}</span>
+<span style="text-align: right;">{{p.req}}</span>
+<span style="text-align: right; color: {{p.ec}};">{{p.err}}</span>
+<span style="text-align: right;">{{p.p50}}</span>
+</div>
+</sc-for>
+</section>
+</div>
+
+<section style="background: #0F1115; border: 1px solid #1C2028; border-radius: 10px;">
+<div style="display: flex; align-items: center; height: 48px; padding: 0 18px; border-bottom: 1px solid #1C2028;">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600;">Projects</h2>
+</div>
+<div style="display: grid; grid-template-columns: 1.6fr 0.8fr 0.8fr 0.8fr 0.8fr 2fr 60px; gap: 16px; align-items: center; height: 34px; padding: 0 18px; border-bottom: 1px solid #1C2028; font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #8A93A0;">
+<span>Project</span><span style="text-align: right;">Req 24h</span><span style="text-align: right;">Req / min</span><span style="text-align: right;">Errors</span><span style="text-align: right;">p50</span><span>Bandwidth quota</span><span></span>
+</div>
+<sc-for list="{{projects}}" as="p" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: 1.6fr 0.8fr 0.8fr 0.8fr 0.8fr 2fr 60px; gap: 16px; align-items: center; height: 40px; padding: 0 18px; border-bottom: {{p.border}}; color: #A3ACB9; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px;">
+<span style="font-family: Geist, system-ui, sans-serif; font-size: 13px; font-weight: 500; color: #E8EBF0;">{{p.name}}</span>
+<span style="text-align: right;">{{p.req}}</span>
+<span style="text-align: right;">{{p.rpm}}</span>
+<span style="text-align: right; color: {{p.ec}};">{{p.err}}</span>
+<span style="text-align: right;">{{p.p50}}</span>
+<div style="display: flex; align-items: center; gap: 10px;">
+<div style="flex-grow: 1; height: 4px; border-radius: 2px; background: #1C2028;"><div style="width: {{p.w}}; height: 4px; border-radius: 2px; background: {{p.c}};"></div></div>
+<span style="width: 96px; text-align: right;">{{p.bw}}</span>
+</div>
+<a href="Projects.dc.html" style="text-align: right; font-family: Geist, system-ui, sans-serif; font-weight: 500; text-decoration: none;">Open</a>
+</div>
+</sc-for>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+renderVals() {
+const range = (this.state && this.state.range) || '24h';
+const line = '1px solid #1C2028';
+const last = (arr) => arr.map((x, i) => Object.assign({}, x, { border: i === arr.length - 1 ? '0' : line }));
+const ranges = ['1h', '24h', '7d'].map((label) => ({
+label: label,
+bg: label === range ? '#1C2028' : 'transparent',
+fg: label === range ? '#E8EBF0' : '#8A93A0',
+pick: () => this.setState({ range: label })
+}));
+const summaries = {
+'1h': '76.9K requests · 4.1% errors',
+'24h': '1.84M requests · 3.2% errors',
+'7d': '11.2M requests · 2.9% errors'
+};
+const tickSets = {
+'1h': ['−60m', '−45m', '−30m', '−15m', 'now'],
+'24h': ['−24h', '−18h', '−12h', '−6h', 'now'],
+'7d': ['−7d', '−5d', '−3d', '−1d', 'now']
+};
+return {
+ranges: ranges,
+summary: summaries[range],
+ticks: tickSets[range],
+kpis: last([
+{ label: 'Healthy', value: '384', color: '#3FCF8E', delta: '+12', dcolor: '#3FCF8E' },
+{ label: 'Degraded', value: '173', color: '#E6B450', delta: '−2', dcolor: '#3FCF8E' },
+{ label: 'Dead', value: '812', color: '#F26B6B', delta: '+5', dcolor: '#F26B6B' },
+{ label: 'Requests / min', value: '1,284', color: '#E8EBF0', delta: '+8%', dcolor: '#A3ACB9' },
+{ label: 'Error rate', value: '3.2%', color: '#E8EBF0', delta: '+0.4 pt', dcolor: '#F26B6B' },
+{ label: 'Latency p50', value: '412 ms', color: '#E8EBF0', delta: '−18 ms', dcolor: '#3FCF8E' }
+]),
+attention: last([
+{ dot: '#F26B6B', title: 'Pool residential-eu below minimum', detail: '2 healthy, 5 required', action: 'Open pool', href: '#pools' },
+{ dot: '#E6B450', title: 'scraper-prod at 91% of bandwidth quota', detail: '45.5 of 50 GB used', action: 'Edit limit', href: 'Projects.dc.html' },
+{ dot: '#E6B450', title: 'Error spike on catalog.example.com', detail: '38% failed in the last hour, mostly 403', action: 'View requests', href: 'Requests.dc.html' },
+{ dot: '#8A93A0', title: '812 dead proxies', detail: 'No successful check in over 24 hours', action: 'Review', href: 'Proxies.dc.html' }
+]),
+providers: last([
+{ name: 'webshare', total: '212', healthy: '118', w: '56%', c: '#3FCF8E' },
+{ name: 'manual', total: '100', healthy: '30', w: '30%', c: '#E6B450' },
+{ name: 'proxyscrape', total: '610', healthy: '140', w: '23%', c: '#E6B450' },
+{ name: 'thespeedx', total: '1,240', healthy: '96', w: '8%', c: '#F26B6B' }
+]),
+pools: last([
+{ name: 'residential-eu', strategy: 'weighted_random', health: '2 / 14', hc: '#F26B6B', req: '412K', err: '11.8%', ec: '#F26B6B', p50: '890 ms' },
+{ name: 'datacenter-us', strategy: 'round_robin', health: '118 / 212', hc: '#A3ACB9', req: '1.21M', err: '1.4%', ec: '#A3ACB9', p50: '310 ms' },
+{ name: 'public-mix', strategy: 'random', health: '264 / 1,936', hc: '#A3ACB9', req: '218K', err: '6.9%', ec: '#E6B450', p50: '1,120 ms' }
+]),
+projects: last([
+{ name: 'scraper-prod', req: '1.31M', rpm: '912', err: '2.1%', ec: '#A3ACB9', p50: '340 ms', w: '91%', c: '#E6B450', bw: '45.5 / 50 GB' },
+{ name: 'price-monitor', req: '486K', rpm: '338', err: '6.4%', ec: '#E6B450', p50: '610 ms', w: '38%', c: '#6B9BFF', bw: '7.6 / 20 GB' },
+{ name: 'seo-audit', req: '44K', rpm: '34', err: '0.9%', ec: '#A3ACB9', p50: '280 ms', w: '6%', c: '#6B9BFF', bw: '0.6 / 10 GB' }
+])
+};
+}
+}
+</script>
+</body>
+</html>
