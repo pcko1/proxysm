@@ -1,0 +1,198 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "A-Daylight.dc.html": {
+      "h": 1000,
+      "page": "modern",
+      "title": "A · Daylight",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "B-Aurora.dc.html": {
+      "h": 1000,
+      "page": "modern",
+      "title": "B · Aurora",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "C-Blocks.dc.html": {
+      "h": 1000,
+      "page": "modern",
+      "title": "C · Blocks",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "Main.dc.html": {
+      "h": 1080,
+      "is_interactive": true,
+      "title": "Overview",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Nav.dc.html": {
+      "h": 52,
+      "title": "Navigation bar",
+      "w": 1440,
+      "x": 800,
+      "y": 1200
+    },
+    "Palette.dc.html": {
+      "h": 480,
+      "is_interactive": true,
+      "title": "Command palette",
+      "w": 720,
+      "x": 0,
+      "y": 1200
+    },
+    "Projects.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Projects with detail",
+      "w": 1440,
+      "x": 4560,
+      "y": 0
+    },
+    "Proxies.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Proxies with detail drawer",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Requests.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Requests log (new)",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "BlocksOverview.dc.html": {
+      "h": 1160,
+      "is_interactive": true,
+      "page": "blocks",
+      "title": "Overview",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "BlocksProxies.dc.html": {
+      "h": 1000,
+      "is_interactive": true,
+      "page": "blocks",
+      "title": "Proxies with detail",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "BlocksRequests.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "blocks",
+      "title": "Requests log (new)",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "BlocksProjects.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "blocks",
+      "title": "Projects with detail",
+      "w": 1440,
+      "x": 4560,
+      "y": 0
+    },
+    "BlocksPalette.dc.html": {
+      "h": 560,
+      "is_interactive": true,
+      "page": "blocks",
+      "title": "Command palette",
+      "w": 760,
+      "x": 0,
+      "y": 1280
+    },
+    "BlocksNav.dc.html": {
+      "h": 900,
+      "page": "blocks",
+      "title": "Sidebar",
+      "w": 248,
+      "x": 840,
+      "y": 1280
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-09-20T20:23:09Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "page": "blocks",
+    "view": "canvas"
+  },
+  "notes": {
+    "heading": {
+      "kind": "title1",
+      "maxW": 6000,
+      "text": "Proxysm, minimal revamp",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "headingModern": {
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "modern",
+      "text": "Three modern looks, same Overview",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "headingBlocks": {
+      "kind": "title1",
+      "maxW": 6000,
+      "page": "blocks",
+      "text": "Proxysm in Blocks",
+      "x": 0,
+      "y": -300
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Proxies.dc.html",
+    "Requests.dc.html",
+    "Projects.dc.html",
+    "Palette.dc.html",
+    "Nav.dc.html",
+    "A-Daylight.dc.html",
+    "B-Aurora.dc.html",
+    "C-Blocks.dc.html",
+    "BlocksOverview.dc.html",
+    "BlocksProxies.dc.html",
+    "BlocksRequests.dc.html",
+    "BlocksProjects.dc.html",
+    "BlocksPalette.dc.html",
+    "BlocksNav.dc.html"
+  ],
+  "pages": [
+    {
+      "id": "v1",
+      "name": "V1 minimal"
+    },
+    {
+      "id": "modern",
+      "name": "Modern directions"
+    },
+    {
+      "id": "blocks",
+      "name": "Blocks (chosen)"
+    }
+  ],
+  "title": "Proxysm UI Revamp"
+}

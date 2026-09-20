@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Projects with detail, Blocks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Figtree:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0;font-family:Figtree,system-ui,sans-serif;background:#0E0E10}
+a{color:#D4F26A}a:hover{color:#E6FA9C}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; background: #0E0E10; color: #FAFAF7; font-family: Figtree, system-ui, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums;">
+<dc-import name="BlocksNav" active="projects" tall="900" hint-size="248px,900px"></dc-import>
+<div style="flex-grow: 1; min-width: 0; display: flex; gap: 14px; padding: 28px 36px 32px 12px;">
+
+<main style="flex-shrink: 0; width: 380px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between;">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 44px; font-weight: 700; letter-spacing: -0.045em; line-height: 1;">Projects</h1>
+<button style="height: 40px; padding: 0 20px; border: 0; border-radius: 999px; background: #D4F26A; color: #12160A; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;">New project</button>
+</div>
+<sc-for list="{{projects}}" as="p" hint-placeholder-count="3">
+<button onClick="{{p.pick}}" style="display: flex; flex-direction: column; gap: 16px; padding: 20px 24px; border: 0; border-radius: 28px; background: {{p.bg}}; color: {{p.fg}}; font-family: inherit; font-size: 14px; text-align: left; cursor: pointer;">
+<span style="display: flex; flex-direction: column; gap: 4px;">
+<span style="font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.03em;">{{p.name}}</span>
+<span style="font-weight: 600; opacity: 0.75;">{{p.stats}}</span>
+</span>
+<span style="display: flex; align-items: center; gap: 12px;">
+<span style="flex-grow: 1; height: 12px; border-radius: 6px; background: {{p.track}};"><span style="display: block; width: {{p.w}}; height: 12px; border-radius: 6px; background: {{p.c}};"></span></span>
+<span style="font-weight: 600;">{{p.bw}}</span>
+</span>
+</button>
+</sc-for>
+</main>
+
+<aside aria-label="Project detail" style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; height: 44px;">
+<div style="display: flex; align-items: baseline; gap: 14px;">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 30px; font-weight: 700; letter-spacing: -0.04em;">{{sel.name}}</h2>
+<span style="color: #B5B5BD;">created {{sel.created}}</span>
+</div>
+<button style="height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: #1C1C21; color: #FF8A7A; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">Delete project</button>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 16px; padding: 22px 26px; border-radius: 28px; background: #1C1C21;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.03em;">Connect</h3>
+<span style="flex-grow: 1;"></span>
+<div style="display: flex; gap: 4px;">
+<sc-for list="{{protos}}" as="o" hint-placeholder-count="2">
+<button onClick="{{o.pick}}" style="height: 34px; padding: 0 14px; border: 0; border-radius: 999px; background: {{o.bg}}; color: {{o.fg}}; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">{{o.label}}</button>
+</sc-for>
+</div>
+<span style="width: 1px; height: 20px; background: #2A2A31;"></span>
+<div style="display: flex; gap: 4px;">
+<sc-for list="{{langs}}" as="o" hint-placeholder-count="3">
+<button onClick="{{o.pick}}" style="height: 34px; padding: 0 14px; border: 0; border-radius: 999px; background: {{o.bg}}; color: {{o.fg}}; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">{{o.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; border-radius: 20px; background: #0E0E10;">
+<pre style="flex-grow: 1; margin: 0; min-height: 138px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 500; line-height: 1.75; color: #E4E4E0; white-space: pre; overflow: hidden;">{{snippet}}</pre>
+<button style="flex-shrink: 0; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: #FAFAF7; color: #0E0E10; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;">Copy</button>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; font-weight: 500; color: #B5B5BD;">
+<span>API key</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; color: #FAFAF7;">{{sel.key}}</span>
+<button style="height: 30px; padding: 0 14px; border: 0; border-radius: 999px; background: #2A2A31; color: #FAFAF7; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">Reveal</button>
+<button style="height: 30px; padding: 0 14px; border: 0; border-radius: 999px; background: #2A2A31; color: #FAFAF7; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">Rotate</button>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 16px; padding: 22px 26px; border-radius: 28px; background: #1C1C21;">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.03em;">Limits</h3>
+<div style="display: flex; align-items: flex-end; gap: 14px;">
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<label for="bjRpm" style="font-weight: 600; color: #B5B5BD;">Rate limit, requests per minute</label>
+<input id="bjRpm" type="text" inputmode="numeric" value="{{rpm}}" onChange="{{setRpm}}" style="width: 240px; height: 44px; box-sizing: border-box; padding: 0 18px; background: #0E0E10; border: 0; border-radius: 999px; color: #FAFAF7; font-family: inherit; font-size: 16px; font-weight: 600; outline: none;">
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<label for="bjBw" style="font-weight: 600; color: #B5B5BD;">Bandwidth quota, GB per month</label>
+<input id="bjBw" type="text" inputmode="numeric" value="{{quota}}" onChange="{{setQuota}}" style="width: 240px; height: 44px; box-sizing: border-box; padding: 0 18px; background: #0E0E10; border: 0; border-radius: 999px; color: #FAFAF7; font-family: inherit; font-size: 16px; font-weight: 600; outline: none;">
+</div>
+<button style="height: 44px; padding: 0 24px; border: 0; border-radius: 999px; background: {{saveBg}}; color: {{saveFg}}; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;">Save</button>
+</div>
+</section>
+
+<section style="flex-grow: 1; display: flex; flex-direction: column; padding: 22px 26px 8px; border-radius: 28px; background: #1C1C21;">
+<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px;">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.03em;">Pools, tried in order</h3>
+<button style="height: 34px; padding: 0 16px; border: 0; border-radius: 999px; background: #2A2A31; color: #FAFAF7; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">Add pool</button>
+</div>
+<sc-for list="{{sel.pools}}" as="q" hint-placeholder-count="2">
+<div style="display: grid; grid-template-columns: 30px 1fr 130px 160px 70px; gap: 16px; align-items: center; height: 54px; border-top: 1px solid #2A2A31; font-weight: 500; color: #E4E4E0;">
+<span style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #2A2A31; font-weight: 700;">{{q.n}}</span>
+<span style="font-weight: 700; color: #FAFAF7;">{{q.name}}</span>
+<span style="color: #B5B5BD;">{{q.strategy}}</span>
+<span style="justify-self: start; padding: 3px 11px; border-radius: 999px; background: {{q.hbg}}; color: {{q.hfg}}; font-size: 13px; font-weight: 600;">{{q.health}}</span>
+<button style="justify-self: end; height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: #B5B5BD; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">Remove</button>
+</div>
+</sc-for>
+</section>
+</aside>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const st = this.state || {};
+const selId = st.sel || 'scraper-prod';
+const proto = st.proto || 'http';
+const lang = st.lang || 'curl';
+const ok = ['#2A2A31', '#E4E4E0'];
+const bad = ['#FF8A7A', '#1F0A07'];
+const pool = (n, name, strategy, health, t) => ({ n: n, name: name, strategy: strategy, health: health, hbg: t[0], hfg: t[1] });
+const data = [
+{ name: 'scraper-prod', created: 'Mar 9', key: 'pk_••••••••••••3f9a', rpm: '912', err: '2.1%', w: '91%', c: '#FFC95C', bw: '45.5 / 50 GB', limRpm: '1200', limBw: '50',
+pools: [pool('1', 'datacenter-us', 'round_robin', '118 / 212 healthy', ok), pool('2', 'public-mix', 'random', '264 / 1,936 healthy', ok), pool('3', 'residential-eu', 'weighted_random', '2 / 14 healthy', bad)] },
+{ name: 'price-monitor', created: 'Apr 22', key: 'pk_••••••••••••a07c', rpm: '338', err: '6.4%', w: '38%', c: '#D4F26A', bw: '7.6 / 20 GB', limRpm: '600', limBw: '20',
+pools: [pool('1', 'public-mix', 'random', '264 / 1,936 healthy', ok)] },
+{ name: 'seo-audit', created: 'Jun 2', key: 'pk_••••••••••••91be', rpm: '34', err: '0.9%', w: '6%', c: '#D4F26A', bw: '0.6 / 10 GB', limRpm: '120', limBw: '10',
+pools: [pool('1', 'datacenter-us', 'round_robin', '118 / 212 healthy', ok)] }
+];
+const sel = data.find((p) => p.name === selId);
+const base = (proto === 'http' ? 'http' : 'socks5') + '://' + sel.name + ':';
+const host = '@proxysm.local:' + (proto === 'http' ? '9080' : '9081');
+const snippets = {
+curl: ['curl --proxy ' + base + '$PROXYSM_KEY' + host + ' \\', '     https://httpbin.org/ip'],
+python: ['import os, requests', '', 'key = os.environ["PROXYSM_KEY"]', 'proxy = f"' + base + '{key}' + host + '"', 'r = requests.get("https://httpbin.org/ip", proxies={"all": proxy})'],
+node: proto === 'http'
+? ['import { ProxyAgent, fetch } from "undici";', '', 'const key = process.env.PROXYSM_KEY;', 'const url = `' + base + '${key}' + host + '`;', 'const dispatcher = new ProxyAgent(url);', 'const res = await fetch("https://httpbin.org/ip", { dispatcher });']
+: ['import { SocksProxyAgent } from "socks-proxy-agent";', '', 'const key = process.env.PROXYSM_KEY;', 'const url = `' + base + '${key}' + host + '`;', 'const agent = new SocksProxyAgent(url);', 'const res = await fetch("https://httpbin.org/ip", { agent });']
+};
+const seg = (defs, cur, key) => defs.map((d) => ({
+label: d[1],
+bg: d[0] === cur ? '#FAFAF7' : '#2A2A31',
+fg: d[0] === cur ? '#0E0E10' : '#B5B5BD',
+pick: () => this.setState({ [key]: d[0] })
+}));
+const rpm = st.rpm === undefined ? sel.limRpm : st.rpm;
+const quota = st.quota === undefined ? sel.limBw : st.quota;
+const dirty = rpm !== sel.limRpm || quota !== sel.limBw;
+const digits = (e) => e.target.value.replace(/[^0-9]/g, '');
+return {
+projects: data.map((p) => {
+const on = p.name === selId;
+return Object.assign({}, p, {
+stats: p.rpm + ' req / min · ' + p.err + ' errors',
+bg: on ? '#FAFAF7' : '#1C1C21',
+fg: on ? '#0E0E10' : '#FAFAF7',
+track: on ? '#DEDED8' : '#2A2A31',
+c: on && p.c === '#D4F26A' ? '#0E0E10' : p.c,
+pick: () => this.setState({ sel: p.name, rpm: undefined, quota: undefined })
+});
+}),
+sel: sel,
+protos: seg([['http', 'HTTP'], ['socks5', 'SOCKS5']], proto, 'proto'),
+langs: seg([['curl', 'curl'], ['python', 'Python'], ['node', 'Node']], lang, 'lang'),
+snippet: snippets[lang].join('\n'),
+rpm: rpm,
+quota: quota,
+setRpm: (e) => this.setState({ rpm: digits(e) }),
+setQuota: (e) => this.setState({ quota: digits(e) }),
+saveBg: dirty ? '#D4F26A' : '#2A2A31',
+saveFg: dirty ? '#12160A' : '#B5B5BD'
+};
+}
+}
+</script>
+</body>
+</html>

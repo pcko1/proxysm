@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Requests log, Blocks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Figtree:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0;font-family:Figtree,system-ui,sans-serif;background:#0E0E10}
+a{color:#D4F26A}a:hover{color:#E6FA9C}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; background: #0E0E10; color: #FAFAF7; font-family: Figtree, system-ui, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums;">
+<dc-import name="BlocksNav" active="requests" tall="900" hint-size="248px,900px"></dc-import>
+<main style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 28px 36px 32px 12px;">
+
+<div style="display: flex; align-items: flex-end; justify-content: space-between;">
+<div style="display: flex; align-items: center; gap: 16px;">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 44px; font-weight: 700; letter-spacing: -0.045em; line-height: 1;">Requests</h1>
+<span style="display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px; border-radius: 999px; background: {{liveBg}}; color: {{liveFg}}; font-size: 13px; font-weight: 700;"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{liveFg}};"></span>{{liveLabel}}</span>
+<span style="color: #B5B5BD;">last 15 minutes</span>
+</div>
+<button onClick="{{toggleLive}}" style="height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: #1C1C21; color: #FAFAF7; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{liveButton}}</button>
+</div>
+
+<div style="display: flex; align-items: center; gap: 6px;">
+<label for="brSearch" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Search requests</label>
+<input id="brSearch" type="search" placeholder="Filter by domain, proxy or error" style="width: 290px; height: 40px; box-sizing: border-box; padding: 0 18px; background: #1C1C21; border: 0; border-radius: 999px; color: #FAFAF7; font-family: inherit; font-size: 14px; outline: none;">
+<label for="brProject" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Project</label>
+<select id="brProject" style="height: 40px; margin-right: 6px; padding: 0 16px; background: #1C1C21; border: 0; border-radius: 999px; color: #FAFAF7; font-family: inherit; font-size: 14px; font-weight: 600;">
+<option>All projects</option><option>scraper-prod</option><option>price-monitor</option><option>seo-audit</option>
+</select>
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="5">
+<button onClick="{{c.pick}}" style="height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: {{c.bg}}; color: {{c.fg}}; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{c.label}}</button>
+</sc-for>
+</div>
+
+<section style="flex-grow: 1; display: flex; flex-direction: column; padding: 10px 24px; border-radius: 28px; background: #1C1C21;">
+<div style="display: grid; grid-template-columns: 70px 110px 1.5fr 166px 118px 58px 76px 62px 1fr; gap: 14px; align-items: center; height: 40px; font-size: 13px; font-weight: 600; color: #B5B5BD;">
+<span>Time</span><span>Project</span><span>Target</span><span>Proxy</span><span>Pool</span><span>Status</span><span style="text-align: right;">Latency</span><span style="text-align: right;">Size</span><span>Error</span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="14">
+<div style="display: grid; grid-template-columns: 70px 110px 1.5fr 166px 118px 58px 76px 62px 1fr; gap: 14px; align-items: center; height: 46px; border-top: 1px solid #2A2A31; font-weight: 500; color: #E4E4E0;">
+<span style="color: #B5B5BD;">{{r.t}}</span>
+<span>{{r.project}}</span>
+<span style="font-weight: 600; color: #FAFAF7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{r.target}}</span>
+<a href="BlocksProxies.dc.html" style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; color: #E4E4E0; text-decoration: none;">{{r.proxy}}</a>
+<span>{{r.pool}}</span>
+<span style="justify-self: start; min-width: 30px; padding: 3px 10px; border-radius: 999px; background: {{r.cbg}}; color: {{r.cfg}}; font-size: 13px; font-weight: 700; text-align: center;">{{r.code}}</span>
+<span style="text-align: right;">{{r.lat}}</span>
+<span style="text-align: right;">{{r.size}}</span>
+<span style="font-weight: 600; color: #FF8A7A;">{{r.err}}</span>
+</div>
+</sc-for>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const st = this.state || {};
+const filter = st.filter || 'all';
+const paused = !!st.paused;
+const all = [
+['14:02:41', 'scraper-prod', 'catalog.example.com', '203.0.113.42:8080', 'public-mix', '—', '30.0 s', '—', 'timeout'],
+['14:02:41', 'scraper-prod', 'catalog.example.com', '203.0.113.18:8080', 'datacenter-us', '200', '212 ms', '48 KB', ''],
+['14:02:40', 'price-monitor', 'shop.example.net', '192.0.2.14:8888', 'public-mix', '200', '344 ms', '112 KB', ''],
+['14:02:40', 'scraper-prod', 'catalog.example.com', '198.51.100.7:1080', 'public-mix', '403', '418 ms', '2 KB', ''],
+['14:02:39', 'scraper-prod', 'catalog.example.com', '203.0.113.27:3128', 'datacenter-us', '200', '198 ms', '51 KB', ''],
+['14:02:39', 'seo-audit', 'www.example.org', '203.0.113.101:8080', 'datacenter-us', '200', '104 ms', '18 KB', ''],
+['14:02:38', 'price-monitor', 'shop.example.net', '192.0.2.33:3128', 'public-mix', '502', '1,012 ms', '0 KB', 'bad_gateway'],
+['14:02:38', 'scraper-prod', 'api.example.org', '203.0.113.18:8080', 'datacenter-us', '200', '176 ms', '6 KB', ''],
+['14:02:37', 'scraper-prod', 'catalog.example.com', '198.51.100.200:8080', 'public-mix', '403', '366 ms', '2 KB', ''],
+['14:02:37', 'price-monitor', 'shop.example.net', '192.0.2.14:8888', 'public-mix', '200', '301 ms', '109 KB', ''],
+['14:02:36', 'scraper-prod', 'api.example.org', '203.0.113.42:8080', 'residential-eu', '—', '—', '—', 'conn_reset'],
+['14:02:36', 'seo-audit', 'www.example.org', '203.0.113.27:3128', 'datacenter-us', '301', '88 ms', '1 KB', ''],
+['14:02:35', 'scraper-prod', 'catalog.example.com', '203.0.113.18:8080', 'datacenter-us', '200', '224 ms', '47 KB', ''],
+['14:02:35', 'price-monitor', 'shop.example.net', '198.51.100.7:1080', 'public-mix', '429', '290 ms', '1 KB', '']
+];
+const kind = (r) => (r[5] === '—' ? 'failed' : r[5] >= '500' ? '5xx' : r[5] >= '400' ? '4xx' : 'ok');
+const tone = { ok: ['#2A2A31', '#E4E4E0'], '4xx': ['#FFC95C', '#1A1204'], '5xx': ['#FF8A7A', '#1F0A07'], failed: ['#FF8A7A', '#1F0A07'] };
+const rows = all
+.filter((r) => filter === 'all' || (filter === 'errors' ? kind(r) !== 'ok' : kind(r) === filter))
+.map((r) => ({ t: r[0], project: r[1], target: r[2], proxy: r[3], pool: r[4], code: r[5], cbg: tone[kind(r)][0], cfg: tone[kind(r)][1], lat: r[6], size: r[7], err: r[8] }));
+const chipDefs = [['all', 'All'], ['errors', 'Errors only'], ['4xx', '4xx'], ['5xx', '5xx'], ['failed', 'No response']];
+return {
+rows: rows,
+chips: chipDefs.map((c) => ({
+label: c[1],
+bg: c[0] === filter ? '#FAFAF7' : '#1C1C21',
+fg: c[0] === filter ? '#0E0E10' : '#B5B5BD',
+pick: () => this.setState({ filter: c[0] })
+})),
+liveBg: paused ? '#2A2A31' : '#D4F26A',
+liveFg: paused ? '#B5B5BD' : '#12160A',
+liveLabel: paused ? 'Paused' : 'Streaming',
+liveButton: paused ? 'Resume' : 'Pause',
+toggleLive: () => this.setState({ paused: !paused })
+};
+}
+}
+</script>
+</body>
+</html>
