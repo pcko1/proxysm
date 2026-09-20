@@ -98,3 +98,50 @@ def test_font_licenses_documented():
     for family in ("Bricolage Grotesque", "Figtree", "JetBrains Mono"):
         assert family in text
     assert "SIL Open Font License" in text
+
+
+APP_JS = STATIC / "js" / "app.js"
+
+APP_JS_GLOBALS = [
+    "const APP =", "async function apiCall(", "const Status =", "const Poller =",
+    "function showToast(", "function openModal(", "function closeModal(",
+    "function openModalFromQuery(", "function confirmAction(", "function btnLoading(",
+    "function btnReset(", "async function copyToClipboard(", "function addCopyButtons(",
+    "function esc(", "function fmtNum(", "function fmtBytes(", "function fmtMs(",
+    "function fmtPct(", "function fmtDate(", "function timeAgo(", "function protoTag(",
+    "function statusBadge(", "let selectedIds", "function toggleRowSelection(",
+    "function toggleSelectAll(", "function updateSelectAll(", "function clearSelection(",
+    "function updateBulkBar(", "function updateFileInput(",
+]
+
+
+@pytest.mark.parametrize("needle", APP_JS_GLOBALS)
+def test_app_js_defines_global(needle):
+    assert needle in APP_JS.read_text(), f"app.js is missing `{needle}`"
+
+
+def test_app_js_is_a_classic_script_with_no_external_requests():
+    js = APP_JS.read_text()
+    assert not re.search(r"^\s*(import|export)\s", js, re.M), "must stay a classic script"
+    assert not re.search(r"https?://", js)
+    assert "hljs" not in js
+
+
+def test_app_js_handles_session_expiry_and_outage():
+    js = APP_JS.read_text()
+    assert "resp.status === 401" in js and "/login" in js
+    assert "Status.offline()" in js and "Status.ok()" in js
+    assert "document.hidden" in js, "poller must pause in background tabs"
+
+
+def test_esc_is_safe_inside_quoted_attributes():
+    """A name like `x" onmouseover="alert(1)` must not break out of title="..."."""
+    js = APP_JS.read_text()
+    body = js[js.index("function esc("):js.index("function fmtNum(")]
+    for entity in ("&amp;", "&lt;", "&gt;", "&quot;", "&#39;"):
+        assert entity in body, f"esc() does not produce {entity}"
+
+
+def test_app_js_keeps_plain_http_clipboard_fallback():
+    js = APP_JS.read_text()
+    assert "isSecureContext" in js and "execCommand('copy')" in js
