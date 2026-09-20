@@ -145,3 +145,56 @@ def test_esc_is_safe_inside_quoted_attributes():
 def test_app_js_keeps_plain_http_clipboard_fallback():
     js = APP_JS.read_text()
     assert "isSecureContext" in js and "execCommand('copy')" in js
+
+
+PAGES_JS = STATIC / "js" / "pages"
+
+
+def assert_js_ids_exist(js_name: str, html: str) -> None:
+    """Every id a page script looks up must exist in the rendered page or be created by the script.
+
+    Catches the most common break in a markup rewrite: template and script drifting apart.
+    """
+    js = (PAGES_JS / js_name).read_text()
+    wanted = set(re.findall(r"getElementById\(\s*'([^'$]+)'\s*\)", js))
+    created = set(re.findall(r'id="([^"$]+)"', js)) | set(re.findall(r"\.id\s*=\s*'([^']+)'", js))
+    missing = sorted(i for i in wanted - created if f'id="{i}"' not in html)
+    assert not missing, f"{js_name} looks up ids the page does not render: {missing}"
+
+
+TEMPLATES = STATIC.parent / "templates"
+
+# Templates already rebuilt in Blocks. Each task that rewrites a template appends its file name;
+# Task 13 asserts this covers every template on disk.
+RESTYLED_TEMPLATES: list[str] = [
+    "base.html",
+]
+
+_CLASS_ATTR = re.compile(r'class\s*=\s*"([^"]*)"')
+_INTERPOLATION = re.compile(r"\{\{.*?\}\}|\{%.*?%\}|\$\{[^}]*\}")
+
+
+def _used_classes(text: str) -> set[str]:
+    used: set[str] = set()
+    for value in _CLASS_ATTR.findall(text):
+        value = _INTERPOLATION.sub(" ", value)  # drop Jinja and ${...} first (they may hold quotes)
+        value = value.split("'")[0]  # JS built with + concatenation: keep the literal prefix only
+        for token in value.split():
+            if re.fullmatch(r"[_a-zA-Z][\w-]*", token) and not token.endswith("-"):
+                used.add(token)
+    return used
+
+
+@pytest.mark.parametrize("template", RESTYLED_TEMPLATES)
+def test_template_and_script_use_only_defined_classes(template):
+    """A class that app.css does not define is a typo or a leftover from the old design."""
+    defined = set(re.findall(r"\.([_a-zA-Z][\w-]*)", CSS.read_text()))
+    script_name = template.replace(".html", ".js")
+    if template == "dashboard.html":
+        script_name = "overview.js"
+    sources = [TEMPLATES / template]
+    if (PAGES_JS / script_name).exists():
+        sources.append(PAGES_JS / script_name)
+    for src in sources:
+        unknown = sorted(_used_classes(src.read_text()) - defined)
+        assert not unknown, f"{src.name} uses classes app.css does not define: {unknown}"

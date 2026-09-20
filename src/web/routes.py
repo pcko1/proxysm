@@ -18,10 +18,22 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(pathlib.Path(__file__).parent / "templates"))
 
 
+_STATIC_DIR = pathlib.Path(__file__).parent / "static"
+
+
+def _asset_version() -> str:
+    """Cache-busting token that changes whenever any static file changes."""
+    newest = max(
+        (p.stat().st_mtime_ns for p in _STATIC_DIR.rglob("*") if p.is_file()), default=0
+    )
+    return format(newest, "x")[-8:]
+
+
 def _ctx() -> dict:
     return {
         "http_port": settings.proxy_http_port,
         "socks5_port": settings.proxy_socks5_port,
+        "asset_version": _asset_version(),
     }
 
 
@@ -44,7 +56,7 @@ def _password_ok(password: str) -> bool:
 async def login_page(request: Request):
     if verify_session_token(request.cookies.get(SESSION_COOKIE)):
         return RedirectResponse(url="/dashboard")
-    return templates.TemplateResponse(request, "login.html", {"error": None})
+    return templates.TemplateResponse(request, "login.html", {**_ctx(), "error": None})
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -53,7 +65,7 @@ async def login_submit(request: Request, password: str = Form(...)):
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "Wrong password. Check PM_ADMIN_PASSWORD in your .env."},
+            {**_ctx(), "error": "Wrong password. Check PM_ADMIN_PASSWORD in your .env."},
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
     response = RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
