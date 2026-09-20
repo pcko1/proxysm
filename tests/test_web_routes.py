@@ -207,7 +207,7 @@ async def test_shell_uses_versioned_static_assets(client, path):
 
 # Pages already rebuilt in Blocks. Each page task appends its path as its first failing test;
 # Task 13 asserts this equals PAGES.
-RESTYLED_PAGES: list[str] = ["/dashboard", "/proxies", "/pools"]
+RESTYLED_PAGES: list[str] = ["/dashboard", "/proxies", "/pools", "/projects"]
 
 
 @pytest.mark.asyncio
@@ -738,3 +738,124 @@ def test_pools_save_never_removes_a_proxy_that_was_not_listed():
     """The modal lists one page of proxies. A member that had no checkbox must survive Save."""
     js = _POOLS_JS.read_text()
     assert "listed.has(id) && !wanted.has(id)" in js
+
+
+# ---------------------------------------------------------------------------
+# Projects page (Blocks): list + detail, Connect
+# ---------------------------------------------------------------------------
+
+_PROJECTS_JS = _STATIC / "js" / "pages" / "projects.js"
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_projects_page_structure(client):
+    body = (await client.get("/projects")).text
+    assert re.search(r'<script src="/static/js/pages/projects\.js\?v=[0-9a-f]+"></script>', body)
+    assert 'class="split"' in body
+    assert 'class="split-list" id="projectList"' in body
+    assert re.search(r'class="split-detail" id="projectDetail"[^>]*style="display:none"', body)
+    hooks = [
+        "apiKeyAlert", "apiKeyProject", "apiKeyValue", "detailName", "detailCreated",
+        "deleteProjectBtn", "connectTile", "protoSeg", "langSeg", "connectCode", "connectUser",
+        "keyValue", "keyRevealBtn", "keyCopyBtn", "keyRotateBtn", "poolsTile",
+        "projectPoolsTable", "projectPoolsBody", "projectPoolsEmpty", "projectsEmpty",
+        "projectsError", "createProjectModal", "projectName", "createProjectBtn",
+        "managePoolsModal", "managePoolsInfo", "poolCheckboxes", "savePoolsBtn",
+    ]
+    for hook in hooks:
+        assert f'id="{hook}"' in body, hook
+    assert '<table class="tbl">' in body and 'class="table-scroll"' in body
+    for text in ("No projects yet", "Could not load projects", "No pools assigned"):
+        assert text in body, text
+    assert body.count("openModal('createProjectModal')") == 2, "page head + empty state"
+    assert body.count("openManagePools()") == 2, "Pools tile head + its empty state"
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_projects_connect_block_has_both_switches_and_one_code_block(client):
+    body = (await client.get("/projects")).text
+    assert re.findall(r'data-proto="([a-z0-9]+)"', body) == ["http", "socks5"]
+    assert re.findall(r'data-lang="([a-z]+)"', body) == ["curl", "python", "node"]
+    assert body.count('class="code-block"') == 1
+    # The code lives in a child element so the Copy button app.js appends to the block survives.
+    assert re.search(
+        r'<pre class="code-block"[^>]*><code class="mono" id="connectCode"></code></pre>', body
+    )
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_projects_page_drops_the_snippet_matrix_and_bulk_selection(client):
+    body = (await client.get("/projects")).text
+    legacy = [
+        "lang-panel", "lang-tabs", "usage-tab", "usage-section", "switchLangTab", "toggleUsage",
+        "language-", "proj-card", "selectAll", "row-checkbox", "X-API-Key", "/api/v1/rotate/",
+        "YOUR_API_KEY", "localhost",
+    ]
+    for name in legacy:
+        assert name not in body, name
+    for lang in ("Rust", "C#", "Java", "C++", ">Go<"):
+        assert lang not in body, lang
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_projects_modals_are_labelled_dialogs(client):
+    body = (await client.get("/projects")).text
+    for modal_id, title_id in (
+        ("createProjectModal", "createProjectTitle"),
+        ("managePoolsModal", "managePoolsTitle"),
+    ):
+        pattern = (
+            rf'id="{modal_id}" role="dialog" aria-modal="true" aria-labelledby="{title_id}"'
+        )
+        assert re.search(pattern, body), modal_id
+        assert f'<h2 id="{title_id}">' in body
+    assert '<label for="projectName">' in body
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_projects_script_ids_exist_in_page(client):
+    body = (await client.get("/projects")).text
+    assert_js_ids_exist("projects.js", body)
+
+
+def test_projects_snippets_use_the_viewing_host_and_never_the_key():
+    """Review Focus 4: a copied snippet must work from the machine it was copied on."""
+    js = _PROJECTS_JS.read_text()
+    assert "localhost" not in js and "127.0.0.1" not in js
+    assert "{{" not in js and "{%" not in js, "Jinja does not run in static files"
+    builder = re.search(r"\nfunction buildSnippet\(.*?\n}\n", js, re.S)
+    assert builder, "projects.js must define buildSnippet()"
+    body = builder.group(0)
+    for needle in ("APP.host", "APP.httpPort", "APP.socks5Port", "$PROXYSM_KEY",
+                   'os.environ["PROXYSM_KEY"]', "process.env.PROXYSM_KEY"):
+        assert needle in body, needle
+    assert "api_key" not in body, "the real key must never be written into a snippet"
+    assert "window.location" not in body, "host comes from APP.host"
+
+
+def test_projects_script_talks_to_the_existing_endpoints_only():
+    js = _PROJECTS_JS.read_text()
+    assert not re.search(r"^\s*(import|export)\s", js, re.M), "must stay a classic script"
+    assert "'use strict';" in js
+    found = re.findall(r"'(/api/v1/[^'?]*)", js) + re.findall(r"`(/api/v1/[^`]*)`", js)
+    urls = {re.sub(r"\$\{[^}]*\}", "{id}", url) for url in found}
+    assert urls == {
+        "/api/v1/projects",
+        "/api/v1/pools",
+        "/api/v1/projects/{id}",
+        "/api/v1/projects/{id}/stats",
+        "/api/v1/projects/{id}/rotate-key",
+        "/api/v1/projects/{id}/pools",
+        "/api/v1/projects/{id}/pools/{id}",
+    }
+    snippet_fn = js[js.index("function renderSnippet("):js.index("function renderKey(")]
+    assert "innerHTML" not in snippet_fn
+    assert "proxysm.connect.proto" in js and "proxysm.connect.lang" in js
+    assert "history.replaceState" in js and "get('project')" in js
+    assert "openModalFromQuery({ new: 'createProjectModal' })" in js
+    assert "bulkDeleteBtn" not in js and "selectedIds" not in js, "no bulk bar on this page"
