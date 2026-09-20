@@ -1,0 +1,100 @@
+"""Contracts for the static UI assets (stylesheet, shared script, fonts)."""
+
+import pathlib
+import re
+
+import pytest
+
+STATIC = pathlib.Path(__file__).parent.parent / "src" / "web" / "static"
+CSS = STATIC / "css" / "app.css"
+FONTS = STATIC / "fonts"
+
+SPEC_TOKENS = {
+    "--ground": "#0E0E10",
+    "--tile": "#1C1C21",
+    "--tile-2": "#2A2A31",
+    "--text": "#FAFAF7",
+    "--text-2": "#E4E4E0",
+    "--text-3": "#B5B5BD",
+    "--lime": "#D4F26A",
+    "--on-lime": "#12160A",
+    "--amber": "#FFC95C",
+    "--on-amber": "#1A1204",
+    "--coral": "#FF8A7A",
+    "--on-coral": "#1F0A07",
+    "--lavender": "#C9B8FF",
+    "--on-lavender": "#17122B",
+    "--paper": "#FAFAF7",
+    "--on-paper": "#0E0E10",
+}
+
+REQUIRED_SELECTORS = [
+    ".app", ".shell-nav", ".content", ".page-head", ".tile", ".tile--lime", ".tile--amber",
+    ".tile--coral", ".tile--lavender", ".tile--paper", ".tile--flush", ".tile-head", ".grid-4",
+    ".grid-2", ".grid-2-1", ".kpi-val", ".chip", ".btn", ".btn-primary", ".btn-secondary",
+    ".btn-outline", ".btn-danger", ".btn-ghost", ".btn-sm", ".btn-loading", ".pill", ".seg",
+    ".badge-healthy", ".badge-degraded", ".badge-dead", ".badge-unknown", ".badge-quiet",
+    ".badge-warn", ".badge-bad", ".tag", "table.tbl", ".meter", ".bars", ".bars__req",
+    ".bars__err", ".legend", ".form-group", ".on-ground", ".modal-overlay", ".modal",
+    ".modal-actions", ".confirm-modal", ".modal--wide", ".toast", ".toast-success",
+    ".toast-error", ".empty-state", ".code-block", ".copy-btn", ".bulk-bar", ".pagination",
+    ".alert-warning", ".split", ".split-list", ".split-detail", ".list-tile", ".onboarding",
+    ".onboarding-step", ".kv", ".skeleton", ".mono", ".muted", ".sr-only", ".truncate",
+    ".tile-head--wrap", "td .sub", ".check", ".check-list", ".check-list__group", ".text-warn",
+    ".text-bad", ".filter-row", ".dot--healthy", ".dot--dead", ".modal-head", ".nowrap",
+]
+
+
+def test_stylesheet_defines_every_spec_token():
+    css = CSS.read_text()
+    for name, value in SPEC_TOKENS.items():
+        assert re.search(rf"{re.escape(name)}:\s*{value}\s*;", css, re.I), f"{name} != {value}"
+
+
+@pytest.mark.parametrize("selector", REQUIRED_SELECTORS)
+def test_stylesheet_defines_component(selector):
+    assert selector in CSS.read_text(), f"app.css has no rule for {selector}"
+
+
+def test_stylesheet_makes_no_external_requests():
+    assert not re.search(r"https?://", CSS.read_text())
+
+
+def test_sidebar_footer_stays_reachable_in_short_windows():
+    """The rail is viewport-pinned: without its own scrolling, Settings / Sign out get cut off."""
+    css = CSS.read_text()
+    rule = css[css.index("\n.shell-nav {"):]
+    rule = rule[:rule.index("}")]
+    assert "overflow-y: auto" in rule
+    assert "100dvh" in rule
+
+
+def test_nothing_widens_the_page_on_narrow_screens():
+    """Two real overflow bugs found in a 390px browser while planning; keep them fixed."""
+    css = CSS.read_text()
+    scroll_rule = css[css.index("\n.table-scroll {"):]
+    assert "position: relative" in scroll_rule[:scroll_rule.index("}")]
+    narrow = css[css.index("@media (max-width: 1100px)"):]
+    assert ".split { flex-direction: column; align-items: stretch; }" in narrow
+
+
+def test_stylesheet_has_focus_ring_and_reduced_motion():
+    css = CSS.read_text()
+    assert ":focus-visible" in css
+    assert "prefers-reduced-motion" in css
+
+
+@pytest.mark.parametrize(
+    "name", ["bricolage-grotesque.woff2", "figtree.woff2", "jetbrains-mono.woff2"]
+)
+def test_font_is_a_real_woff2(name):
+    data = (FONTS / name).read_bytes()
+    assert data[:4] == b"wOF2", f"{name} is not a woff2 file"
+    assert len(data) > 10_000
+
+
+def test_font_licenses_documented():
+    text = (FONTS / "LICENSES.md").read_text()
+    for family in ("Bricolage Grotesque", "Figtree", "JetBrains Mono"):
+        assert family in text
+    assert "SIL Open Font License" in text
