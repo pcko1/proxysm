@@ -207,7 +207,7 @@ async def test_shell_uses_versioned_static_assets(client, path):
 
 # Pages already rebuilt in Blocks. Each page task appends its path as its first failing test;
 # Task 13 asserts this equals PAGES.
-RESTYLED_PAGES: list[str] = ["/dashboard", "/proxies"]
+RESTYLED_PAGES: list[str] = ["/dashboard", "/proxies", "/pools"]
 
 
 @pytest.mark.asyncio
@@ -647,3 +647,94 @@ def test_proxies_script_contract():
     assert "&status=${encodeURIComponent(statusFilter)}" in js
     assert "&search=${encodeURIComponent(searchQuery)}" in js
     assert "&sort_by=${sortColumn}&sort_dir=${sortDir}" in js
+
+
+# ---------------------------------------------------------------------------
+# Pools page (Blocks)
+# ---------------------------------------------------------------------------
+
+_POOLS_JS = _STATIC / "js" / "pages" / "pools.js"
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_pools_page_structure(client):
+    body = (await client.get("/pools")).text
+    assert re.search(r'<script src="/static/js/pages/pools\.js\?v=[0-9a-f]+"></script>', body)
+    hooks = [
+        "poolsSub", "poolsTableWrap", "poolsBody", "selectAll", "poolsEmpty", "poolsError",
+        "createPoolModal", "poolName", "poolStrategy", "createPoolBtn", "manageProxiesModal",
+        "manageProxiesInfo", "proxyCheckboxes", "manageProxiesNote", "saveProxiesBtn",
+    ]
+    for hook in hooks:
+        assert f'id="{hook}"' in body, hook
+    assert '<table class="tbl">' in body and 'class="table-scroll"' in body
+    assert "No pools yet" in body and "Could not load pools" in body
+    assert body.count("openModal('createPoolModal')") == 2, "page head button + empty state button"
+    for legacy in ("pool-grid", "pool-card", "pc-stat", "Create Pool"):
+        assert legacy not in body, legacy
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_pools_create_modal_offers_exactly_the_supported_strategies(client):
+    """least_connections is implemented in the engine but never fed; it must not be offered."""
+    body = (await client.get("/pools")).text
+    assert re.findall(r'<option value="([a-z_]+)"', body) == [
+        "round_robin", "random", "weighted_random",
+    ]
+    for hint in ("sequential through healthy", "random healthy proxy", "weight-proportional"):
+        assert hint in body, hint
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_pools_modals_are_labelled_dialogs(client):
+    body = (await client.get("/pools")).text
+    for modal_id, title_id in (
+        ("createPoolModal", "createPoolTitle"),
+        ("manageProxiesModal", "manageProxiesTitle"),
+    ):
+        pattern = (
+            rf'id="{modal_id}" role="dialog" aria-modal="true" aria-labelledby="{title_id}"'
+        )
+        assert re.search(pattern, body), modal_id
+        assert f'<h2 id="{title_id}">' in body
+    assert '<label for="poolName">' in body and '<label for="poolStrategy">' in body
+    assert 'aria-label="Select all pools"' in body
+
+
+@pytest.mark.asyncio
+@patch("src.web.routes.settings", _fake_settings)
+async def test_pools_script_ids_exist_in_page(client):
+    body = (await client.get("/pools")).text
+    assert_js_ids_exist("pools.js", body)
+
+
+def test_pools_script_contract():
+    js = _POOLS_JS.read_text()
+    assert "'use strict';" in js
+    assert not re.search(r"^\s*(import|export)\s", js, re.M), "classic script"
+    for shared in ("function esc(", "function apiCall(", "function fmtDate(", "function showToast(",
+                   "function openModal(", "function confirmAction(", "let selectedIds"):
+        assert shared not in js, f"pools.js must use the app.js global, not redefine `{shared}`"
+    # every endpoint the old page called
+    assert "'/api/v1/pools?per_page='" in js
+    assert "apiCall('POST', '/api/v1/pools'," in js
+    assert "apiCall('DELETE', '/api/v1/pools/' + encodeURIComponent(id))" in js
+    assert "'/api/v1/ips?per_page='" in js and "/api/v1/ips?pool_id=" in js
+    assert "apiCall('POST', membersUrl, { proxy_ids: toAdd })" in js
+    assert "apiCall('DELETE', membersUrl, { proxy_ids: toRemove })" in js
+    # onboarding deep link /pools?new=1
+    assert "openModalFromQuery({ new: 'createPoolModal' })" in js
+    # loading must not toast; the status line reports outages
+    load = js[js.index("async function loadPools()"):js.index("async function retryPools(")]
+    assert "showToast" not in load
+    # a pool name must never reach an inline handler
+    assert not re.search(r"on(?:click|change)=\"[^\"]*name", js)
+
+
+def test_pools_save_never_removes_a_proxy_that_was_not_listed():
+    """The modal lists one page of proxies. A member that had no checkbox must survive Save."""
+    js = _POOLS_JS.read_text()
+    assert "listed.has(id) && !wanted.has(id)" in js

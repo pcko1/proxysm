@@ -172,6 +172,7 @@ RESTYLED_TEMPLATES: list[str] = [
     "404.html",
     "dashboard.html",
     "proxies.html",
+    "pools.html",
 ]
 
 _CLASS_ATTR = re.compile(r'class\s*=\s*"([^"]*)"')
