@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Proxies with detail, Blocks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Figtree:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0;font-family:Figtree,system-ui,sans-serif;background:#0E0E10}
+a{color:#D4F26A}a:hover{color:#E6FA9C}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1000px; box-sizing: border-box; display: flex; background: #0E0E10; color: #FAFAF7; font-family: Figtree, system-ui, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums;">
+<dc-import name="BlocksNav" active="proxies" tall="1000" hint-size="248px,1000px"></dc-import>
+<main style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 28px 36px 32px 12px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between;">
+<div style="display: flex; align-items: baseline; gap: 14px;">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 44px; font-weight: 700; letter-spacing: -0.045em; line-height: 1;">Proxies</h1>
+<span style="color: #B5B5BD;">2,162 from 3 sources</span>
+</div>
+<div style="display: flex; gap: 6px;">
+<button style="height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: #1C1C21; color: #FAFAF7; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">Sources</button>
+<button style="height: 40px; padding: 0 20px; border: 0; border-radius: 999px; background: #D4F26A; color: #12160A; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;">Import</button>
+</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 6px;">
+<label for="bpSearch" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Search proxies</label>
+<input id="bpSearch" type="search" placeholder="Filter by host, provider or pool" style="width: 270px; height: 40px; box-sizing: border-box; margin-right: 6px; padding: 0 18px; background: #1C1C21; border: 0; border-radius: 999px; color: #FAFAF7; font-family: inherit; font-size: 14px; outline: none;">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="5">
+<button onClick="{{c.pick}}" style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: {{c.bg}}; color: {{c.fg}}; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{c.dot}};"></span><span>{{c.label}}</span><span style="opacity: 0.65;">{{c.count}}</span></button>
+</sc-for>
+</div>
+
+<div style="flex-grow: 1; min-height: 0; display: flex; gap: 14px;">
+<section style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; padding: 10px 24px 6px; border-radius: 28px; background: #1C1C21;">
+<div style="display: grid; grid-template-columns: 18px 1.6fr 50px 0.9fr 100px 74px 62px 52px; gap: 12px; align-items: center; height: 40px; font-size: 13px; font-weight: 600; color: #B5B5BD;">
+<input type="checkbox" aria-label="Select all" style="width: 16px; height: 16px; margin: 0; accent-color: #D4F26A;">
+<span>Host : port</span><span>Proto</span><span>Provider</span><span>Status</span><span style="text-align: right;">Latency</span><span style="text-align: right;">Success</span><span style="text-align: right;">Checked</span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+<div style="display: grid; grid-template-columns: 18px 1.6fr 50px 0.9fr 100px 74px 62px 52px; gap: 12px; align-items: center; height: 48px; margin: 0 -12px; padding: 0 12px; border-top: 1px solid #2A2A31; border-radius: {{r.radius}}; background: {{r.bg}}; font-weight: 500; color: #E4E4E0;">
+<input type="checkbox" aria-label="Select proxy" style="width: 16px; height: 16px; margin: 0; accent-color: #D4F26A;">
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; color: #FAFAF7;">{{r.host}}</span>
+<span style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #B5B5BD;">{{r.proto}}</span>
+<span>{{r.provider}}</span>
+<span style="justify-self: start; padding: 3px 11px; border-radius: 999px; background: {{r.sbg}}; color: {{r.sfg}}; font-size: 13px; font-weight: 700;">{{r.status}}</span>
+<span style="text-align: right;">{{r.lat}}</span>
+<span style="text-align: right;">{{r.succ}}</span>
+<span style="text-align: right; color: #B5B5BD;">{{r.checked}}</span>
+</div>
+</sc-for>
+<div style="flex-grow: 1;"></div>
+<div style="display: flex; align-items: center; justify-content: space-between; height: 56px; border-top: 1px solid #2A2A31; color: #B5B5BD;">
+<span>{{showing}}</span>
+<div style="display: flex; gap: 6px;">
+<button style="height: 34px; padding: 0 16px; border: 0; border-radius: 999px; background: #2A2A31; color: #FAFAF7; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">Previous</button>
+<button style="height: 34px; padding: 0 16px; border: 0; border-radius: 999px; background: #2A2A31; color: #FAFAF7; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">Next</button>
+</div>
+</div>
+</section>
+
+<aside aria-label="Proxy detail" style="flex-shrink: 0; width: 390px; display: flex; flex-direction: column; gap: 14px;">
+<section style="display: flex; flex-direction: column; gap: 18px; padding: 22px 24px; border-radius: 28px; background: #FFC95C; color: #1A1204;">
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<span style="padding: 4px 12px; border-radius: 999px; background: rgba(26,18,4,0.12); font-size: 13px; font-weight: 700;">degraded for 41 minutes</span>
+<button aria-label="Close detail" style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: rgba(26,18,4,0.12); color: #1A1204; cursor: pointer;">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+</button>
+</div>
+<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 26px; font-weight: 600; letter-spacing: -0.04em;">203.0.113.42:8080</div>
+<div style="display: flex; gap: 6px;">
+<button style="height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: #1A1204; color: #FAFAF7; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;">Recheck now</button>
+<button style="height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: rgba(26,18,4,0.12); color: #1A1204; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;">Disable</button>
+<span style="flex-grow: 1;"></span>
+<button style="height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: rgba(26,18,4,0.12); color: #1A1204; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;">Delete</button>
+</div>
+</section>
+
+<section style="flex-grow: 1; display: flex; flex-direction: column; gap: 22px; padding: 22px 24px; border-radius: 28px; background: #1C1C21;">
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; justify-content: space-between; font-weight: 600; color: #B5B5BD;"><span>Health checks, last 24h</span><span style="color: #FAFAF7;">89% up</span></div>
+<div style="display: flex; gap: 3px; height: 30px;">
+<sc-for list="{{timeline}}" as="t" hint-placeholder-count="48"><span style="flex-grow: 1; border-radius: 3px; background: {{t}};"></span></sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; justify-content: space-between; font-weight: 600; color: #B5B5BD;"><span>Latency</span><span style="color: #FAFAF7;">1,240 ms now · 410 ms median</span></div>
+<div role="img" aria-label="Latency over the last 24 hours" style="display: flex; align-items: flex-end; gap: 3px; height: 56px;">
+<sc-for list="{{latency}}" as="l" hint-placeholder-count="24"><span style="flex-grow: 1; height: {{l.h}}; border-radius: 4px; background: {{l.c}};"></span></sc-for>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: 110px 1fr; row-gap: 14px; align-items: center; font-weight: 500;">
+<span style="color: #B5B5BD;">Protocol</span><span>socks5</span>
+<span style="color: #B5B5BD;">Provider</span><span>proxyscrape</span>
+<span style="color: #B5B5BD;">Location</span><span>DE · AS24940</span>
+<span style="color: #B5B5BD;">Pools</span>
+<div style="display: flex; gap: 6px;">
+<span style="padding: 4px 12px; border-radius: 999px; background: #2A2A31; font-size: 13px; font-weight: 600;">public-mix</span>
+<span style="padding: 4px 12px; border-radius: 999px; background: #2A2A31; font-size: 13px; font-weight: 600;">residential-eu</span>
+</div>
+<label for="bpWeight" style="color: #B5B5BD;">Weight</label>
+<input id="bpWeight" type="text" inputmode="numeric" value="{{weight}}" onChange="{{setWeight}}" style="width: 80px; height: 36px; box-sizing: border-box; padding: 0 14px; background: #0E0E10; border: 0; border-radius: 999px; color: #FAFAF7; font-family: inherit; font-size: 14px; font-weight: 600; outline: none;">
+</div>
+
+<div style="display: flex; flex-direction: column;">
+<div style="display: flex; justify-content: space-between; padding-bottom: 8px; font-weight: 600; color: #B5B5BD;"><span>Recent failures</span><a href="BlocksRequests.dc.html" style="text-decoration: none; font-weight: 600;">All requests</a></div>
+<sc-for list="{{failures}}" as="f" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: 50px 1fr auto; gap: 12px; align-items: center; height: 42px; border-top: 1px solid #2A2A31; font-weight: 500;">
+<span style="color: #B5B5BD;">{{f.t}}</span><span>{{f.domain}}</span><span style="padding: 3px 10px; border-radius: 999px; background: #FF8A7A; color: #1F0A07; font-size: 12px; font-weight: 700;">{{f.err}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+</aside>
+</div>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+const st = this.state || {};
+const filter = st.filter || 'all';
+const tone = {
+healthy: ['#D4F26A', '#12160A'],
+degraded: ['#FFC95C', '#1A1204'],
+dead: ['#FF8A7A', '#1F0A07'],
+unknown: ['#2A2A31', '#B5B5BD']
+};
+const all = [
+['203.0.113.18:8080', 'http', 'webshare', 'healthy', '182 ms', '99.1%', '12s'],
+['203.0.113.27:3128', 'http', 'webshare', 'healthy', '204 ms', '98.6%', '14s'],
+['203.0.113.42:8080', 'socks5', 'proxyscrape', 'degraded', '1,240 ms', '71.4%', '8s'],
+['198.51.100.7:1080', 'socks5', 'thespeedx', 'healthy', '388 ms', '94.0%', '31s'],
+['198.51.100.61:4145', 'socks5', 'thespeedx', 'dead', '—', '—', '6m'],
+['198.51.100.88:80', 'http', 'thespeedx', 'dead', '—', '—', '9m'],
+['192.0.2.14:8888', 'https', 'proxyscrape', 'healthy', '296 ms', '96.8%', '22s'],
+['192.0.2.33:3128', 'http', 'proxyscrape', 'degraded', '960 ms', '80.2%', '11s'],
+['192.0.2.90:1080', 'socks5', 'thespeedx', 'unknown', '—', '—', 'never'],
+['203.0.113.101:8080', 'http', 'manual', 'healthy', '96 ms', '99.8%', '9s'],
+['203.0.113.140:9050', 'socks5', 'thespeedx', 'dead', '—', '—', '10m'],
+['198.51.100.200:8080', 'http', 'proxyscrape', 'healthy', '344 ms', '93.1%', '27s']
+];
+const rows = all
+.filter((r) => filter === 'all' || r[3] === filter)
+.map((r) => {
+const on = r[0] === '203.0.113.42:8080';
+return {
+host: r[0], proto: r[1], provider: r[2], status: r[3], sbg: tone[r[3]][0], sfg: tone[r[3]][1],
+lat: r[4], succ: r[5], w: r[5] === '—' ? '0%' : r[5], checked: r[6],
+bg: on ? '#2A2A31' : 'transparent', radius: on ? '14px' : '0'
+};
+});
+const chipDefs = [['all', 'All', '2,162', '#FAFAF7'], ['healthy', 'Healthy', '384', '#D4F26A'], ['degraded', 'Degraded', '173', '#FFC95C'], ['dead', 'Dead', '812', '#FF8A7A'], ['unknown', 'Unknown', '793', '#6A6A74']];
+const chips = chipDefs.map((c) => ({
+label: c[1], count: c[2],
+dot: c[0] === filter && c[0] === 'all' ? '#0E0E10' : c[3],
+bg: c[0] === filter ? '#FAFAF7' : '#1C1C21',
+fg: c[0] === filter ? '#0E0E10' : '#B5B5BD',
+pick: () => this.setState({ filter: c[0] })
+}));
+const pattern = 'h'.repeat(12) + 'dd' + 'h'.repeat(16) + 'xx' + 'ddd' + 'h'.repeat(9) + 'dddd';
+const tl = { h: '#D4F26A', d: '#FFC95C', x: '#FF8A7A' };
+const lat = [12, 13, 11, 14, 12, 15, 13, 26, 30, 16, 14, 13, 15, 12, 14, 13, 18, 34, 42, 38, 46, 44, 48, 47];
+return {
+rows: rows,
+chips: chips,
+showing: 'Showing ' + rows.length + ' of ' + chipDefs.find((c) => c[0] === filter)[2],
+timeline: pattern.split('').map((ch) => tl[ch]),
+latency: lat.map((v) => ({ h: v + 'px', c: v > 30 ? '#FFC95C' : '#FAFAF7' })),
+weight: st.weight === undefined ? '10' : st.weight,
+setWeight: (e) => this.setState({ weight: e.target.value.replace(/[^0-9]/g, '') }),
+failures: [
+{ t: '14:02', domain: 'catalog.example.com', err: 'timeout' },
+{ t: '13:58', domain: 'catalog.example.com', err: '403' },
+{ t: '13:41', domain: 'api.example.org', err: 'conn_reset' }
+]
+};
+}
+}
+</script>
+</body>
+</html>

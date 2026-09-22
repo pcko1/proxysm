@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Blocks sidebar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Figtree:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="flex-shrink: 0; width: 248px; height: {{tall}}; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px; padding: 28px 16px 28px 20px; background: #0E0E10; color: #FAFAF7; font-family: Figtree, system-ui, sans-serif; font-size: 14px;">
+<a href="BlocksOverview.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 0 8px; color: #FAFAF7; text-decoration: none; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.04em;">
+<span style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 12px; background: #D4F26A;">
+<svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><g fill="#0E0E10"><polygon points="16,30 13.5,12 16,4 18.5,12"></polygon><polygon points="16,30 13.5,12 16,4 18.5,12" transform="rotate(-24 16 30)"></polygon><polygon points="16,30 13.5,12 16,4 18.5,12" transform="rotate(24 16 30)"></polygon></g></svg>
+</span>
+proxysm
+</a>
+<a href="BlocksPalette.dc.html" style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 10px 0 16px; border-radius: 999px; background: #1C1C21; color: #B5B5BD; text-decoration: none; font-weight: 500;">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+<span style="flex-grow: 1;">Search</span>
+<span style="padding: 3px 9px; border-radius: 999px; background: #2A2A31; font-size: 12px; font-weight: 600;">⌘K</span>
+</a>
+<nav aria-label="Primary" style="display: flex; flex-direction: column; gap: 4px;">
+<sc-for list="{{items}}" as="n" hint-placeholder-count="5">
+<a href="{{n.href}}" style="display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 16px; border-radius: 999px; background: {{n.bg}}; color: {{n.fg}}; text-decoration: none; font-weight: 600;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.icon}}"></path></svg>
+{{n.label}}
+</a>
+</sc-for>
+</nav>
+<span style="flex-grow: 1;"></span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 0 16px; color: #B5B5BD;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #D4F26A;"></span>Updated 4s ago</span>
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<a href="#settings" style="display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 16px; border-radius: 999px; color: #B5B5BD; text-decoration: none; font-weight: 600;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 18h10M18 18h2M4 12h2M10 12h10"></path><circle cx="16" cy="6" r="2"></circle><circle cx="16" cy="18" r="2"></circle><circle cx="8" cy="12" r="2"></circle></svg>
+Settings
+</a>
+<a href="#signout" style="display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 16px; border-radius: 999px; color: #B5B5BD; text-decoration: none; font-weight: 600;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
+Sign out
+</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["overview","proxies","pools","projects","requests"],"default":"overview"},"tall":{"editor":"int","default":900,"min":600,"max":2000,"unit":"px"},"$preview":{"width":248,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const active = this.props.active ?? 'overview';
+const defs = [
+['overview', 'Overview', 'BlocksOverview.dc.html', 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'],
+['proxies', 'Proxies', 'BlocksProxies.dc.html', 'M4 5h16v6H4zM4 13h16v6H4zM8 8h.01M8 16h.01'],
+['pools', 'Pools', '#pools', 'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17l9 5 9-5'],
+['projects', 'Projects', 'BlocksProjects.dc.html', 'M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
+['requests', 'Requests', 'BlocksRequests.dc.html', 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01']
+];
+return {
+tall: Number(this.props.tall ?? 900) + 'px',
+items: defs.map((d) => ({
+label: d[1],
+href: d[2],
+icon: d[3],
+bg: d[0] === active ? '#FAFAF7' : 'transparent',
+fg: d[0] === active ? '#0E0E10' : '#B5B5BD'
+}))
+};
+}
+}
+</script>
+</body>
+</html>

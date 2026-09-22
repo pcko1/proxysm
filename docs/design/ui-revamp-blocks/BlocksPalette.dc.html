@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Command palette, Blocks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Figtree:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0;font-family:Figtree,system-ui,sans-serif;background:#060607}
+a{color:#D4F26A}a:hover{color:#E6FA9C}
+</style>
+</helmet>
+<div style="width: 760px; height: 560px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 32px; background: #060607; color: #FAFAF7; font-family: Figtree, system-ui, sans-serif; font-size: 14px;">
+<div role="dialog" aria-label="Command palette" style="width: 100%; display: flex; flex-direction: column; border-radius: 28px; background: #1C1C21; box-shadow: 0 32px 80px rgba(0,0,0,0.6); overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 14px; height: 68px; padding: 0 24px; border-bottom: 1px solid #2A2A31; color: #B5B5BD;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+<label for="bkInput" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Command or search</label>
+<input id="bkInput" type="text" value="{{query}}" onChange="{{setQuery}}" style="flex-grow: 1; height: 40px; background: transparent; border: 0; color: #FAFAF7; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.02em; outline: none;">
+<span style="padding: 3px 10px; border-radius: 999px; background: #2A2A31; font-size: 12px; font-weight: 600;">esc</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 10px 12px;">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+<div style="padding: 10px 14px 4px; font-size: 13px; font-weight: 600; color: #B5B5BD;">{{g.title}}</div>
+<sc-for list="{{g.items}}" as="i" hint-placeholder-count="2">
+<a href="{{i.href}}" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 14px; border-radius: 16px; background: {{i.bg}}; color: {{i.fg}}; text-decoration: none; font-weight: 600;">
+<span style="flex-grow: 1; font-family: {{i.font}};">{{i.label}}</span>
+<span style="font-size: 13px; font-weight: 500; opacity: 0.7;">{{i.hint}}</span>
+</a>
+</sc-for>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 18px; height: 46px; padding: 0 26px; border-top: 1px solid #2A2A31; font-size: 13px; color: #B5B5BD;">
+<span>↑↓ to move</span><span>↵ to open</span><span style="flex-grow: 1;"></span><span>Type an address to find a proxy</span>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":760,"height":560}}'>
+class Component extends DCLogic {
+renderVals() {
+const st = this.state || {};
+const query = st.query === undefined ? '203.0' : st.query;
+const sans = 'Figtree, system-ui, sans-serif';
+const mono = "'JetBrains Mono', ui-monospace, monospace";
+const item = (label, hint, href, font, on) => ({ label: label, hint: hint, href: href, font: font, bg: on ? '#D4F26A' : 'transparent', fg: on ? '#12160A' : '#FAFAF7' });
+return {
+query: query,
+setQuery: (e) => this.setState({ query: e.target.value }),
+groups: [
+{ title: 'Proxies', items: [
+item('203.0.113.42:8080', 'degraded · proxyscrape', 'BlocksProxies.dc.html', mono, true),
+item('203.0.113.18:8080', 'healthy · webshare', 'BlocksProxies.dc.html', mono, false)
+] },
+{ title: 'Actions', items: [
+item('Import proxies', 'I', 'BlocksProxies.dc.html', sans, false),
+item('Recheck all dead proxies', '812', 'BlocksProxies.dc.html', sans, false),
+item('New project', 'N', 'BlocksProjects.dc.html', sans, false)
+] },
+{ title: 'Go to', items: [
+item('Requests', 'G then R', 'BlocksRequests.dc.html', sans, false),
+item('Overview', 'G then O', 'BlocksOverview.dc.html', sans, false)
+] }
+]
+};
+}
+}
+</script>
+</body>
+</html>

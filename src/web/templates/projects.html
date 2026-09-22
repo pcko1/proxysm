@@ -2,704 +2,140 @@
 {% block title %}Projects — Proxysm{% endblock %}
 
 {% block content %}
-<style>
-    /* Project cards */
-    .proj-list { display: flex; flex-direction: column; gap: 16px; }
-    .proj-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        overflow: hidden;
-        transition: border-color 0.15s;
-    }
-    .proj-card.selected { border-color: var(--accent-line); }
-    .proj-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px; }
-    .proj-name { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); }
-    .proj-slug { font-family: "Geist Mono", monospace; font-size: 12px; color: var(--text-muted); margin-top: 3px; }
-    .proj-pools { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
-    .chip {
-        display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px;
-        background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 7px;
-        font-family: "Geist Mono", monospace; font-size: 11px; color: var(--text-secondary);
-        white-space: nowrap; cursor: pointer; transition: border-color 0.15s, color 0.15s;
-    }
-    .chip:hover { border-color: var(--border-strong); color: var(--text-primary); }
-    .chip.chip-empty { font-family: inherit; color: var(--text-muted); border-style: dashed; }
-    .key-label {
-        font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-        color: var(--text-muted); flex-shrink: 0; white-space: nowrap;
-    }
-    .keyfield { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .keyfield .km {
-        font-family: "Geist Mono", monospace; font-size: 12px; color: var(--text-secondary);
-        background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 7px;
-        padding: 5px 10px; letter-spacing: 1px; word-break: break-all;
-    }
-    .proj-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; flex-shrink: 0; }
-    .proj-created { font-size: 11px; color: var(--text-muted); }
-    .proj-conn {
-        background: var(--sunken); border-top: 1px solid var(--border);
-        padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-    }
-    .conn-code {
-        flex: 1; font-family: "Geist Mono", monospace; font-size: 12px; color: var(--text-secondary);
-        white-space: nowrap; overflow-x: auto;
-    }
-    .conn-code .tok-cmd { color: var(--accent); }
-    .conn-code .tok-flag { color: #56C8D8; }
-    .conn-code .tok-str { color: var(--green); }
-    .conn-code .tok-dim { color: var(--text-muted); }
-    .proj-usage { border-top: 1px solid var(--border); padding: 14px 20px; }
-    @media (max-width: 720px) {
-        .proj-top { flex-direction: column; }
-        .proj-meta { align-items: flex-start; }
-    }
-    /* Usage panels */
-    .usage-tab {
-        background: transparent;
-        border: 1px solid transparent;
-        color: var(--text-muted);
-        cursor: pointer;
-        padding: 4px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 500;
-    }
-    .usage-tab:hover { color: var(--text-secondary); }
-    .usage-tab.active {
-        background: var(--accent);
-        color: #fff;
-        border-color: var(--accent);
-    }
-    .usage-section {
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        margin-bottom: 8px;
-        overflow: hidden;
-    }
-    .usage-section summary {
-        padding: 10px 14px;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 13px;
-        color: var(--text-primary);
-        background: var(--sunken);
-        list-style: none;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        user-select: none;
-    }
-    .usage-section summary::-webkit-details-marker { display: none; }
-    .usage-section summary::before {
-        content: '\25B6';
-        font-size: 9px;
-        color: var(--text-muted);
-        transition: transform 0.15s;
-    }
-    .usage-section[open] summary::before { transform: rotate(90deg); }
-    .usage-section summary:hover { background: var(--surface-2); }
-    .usage-desc {
-        font-weight: 400;
-        font-size: 11px;
-        color: var(--text-muted);
-    }
-    .usage-section-body {
-        padding: 10px 14px;
-    }
-</style>
-<div class="page-header">
-    <div class="title-block">
-        <h1>Projects</h1>
-        <span class="sub">Each project gets an isolated API key &amp; pool assignments</span>
+<div class="alert-warning" id="apiKeyAlert" role="status" style="display:none">
+    <div class="spacer" style="min-width:0">
+        <strong>Your new API key for <span id="apiKeyProject"></span></strong>
+        <div class="row" style="flex-wrap:wrap">
+            <code id="apiKeyValue"></code>
+            <button class="copy-btn" type="button" onclick="copyApiKey(this)">Copy</button>
+        </div>
+        <div>Export it as <code>PROXYSM_KEY</code> where your client runs. The snippets below read it from there.</div>
     </div>
-    <div class="page-header-actions">
-        <button class="btn btn-primary" onclick="openModal('createProjectModal')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            New Project
-        </button>
-    </div>
+    <button class="btn btn-sm" type="button" onclick="dismissApiKeyAlert()">Dismiss</button>
 </div>
 
-<!-- API Key display -->
-<div id="apiKeyAlert" class="alert-warning" style="display:none">
-    <div class="alert-warning-content">
-        <strong>Your new API key:</strong><br>
-        <code id="apiKeyValue"></code>
-        <button class="copy-btn" onclick="copyApiKey()">Copy</button>
+<div class="split">
+    <div class="split-list" id="projectList">
+        <div class="page-head">
+            <h1>Projects</h1>
+            <div class="page-head__actions">
+                <button class="btn btn-primary" type="button" onclick="openModal('createProjectModal')">New project</button>
+            </div>
+        </div>
+        <div class="skeleton" style="height:92px"></div>
+        <div class="skeleton" style="height:92px"></div>
     </div>
-    <button class="alert-dismiss" onclick="this.closest('.alert-warning').style.display='none'" aria-label="Dismiss">&times;</button>
+
+    <section class="split-detail" id="projectDetail" aria-label="Project detail" style="display:none">
+        <div class="row" style="flex-wrap:wrap;min-height:44px">
+            <div class="row" style="flex:1 1 240px;min-width:0">
+                <h2 class="truncate" id="detailName" style="font-size:30px;letter-spacing:-0.04em"></h2>
+                <span class="muted" id="detailCreated" style="flex-shrink:0"></span>
+            </div>
+            <button class="btn btn-danger" type="button" id="deleteProjectBtn" onclick="deleteProject()">Delete project</button>
+        </div>
+
+        <section class="tile" id="connectTile" aria-labelledby="connectTitle">
+            <div class="tile-head tile-head--wrap">
+                <h2 id="connectTitle">Connect</h2>
+                <div class="row" style="flex-wrap:wrap;justify-content:flex-end">
+                    <div class="seg" id="protoSeg" role="group" aria-label="Proxy protocol">
+                        <button type="button" class="active" data-proto="http" aria-pressed="true">HTTP</button>
+                        <button type="button" data-proto="socks5" aria-pressed="false">SOCKS5</button>
+                    </div>
+                    <div class="seg" id="langSeg" role="group" aria-label="Snippet language">
+                        <button type="button" class="active" data-lang="curl" aria-pressed="true">curl</button>
+                        <button type="button" data-lang="python" aria-pressed="false">Python</button>
+                        <button type="button" data-lang="node" aria-pressed="false">Node</button>
+                    </div>
+                </div>
+            </div>
+            <pre class="code-block" id="connectBlock"><code class="mono" id="connectCode"></code></pre>
+            <dl class="kv" style="margin-top:16px">
+                <dt>Username</dt>
+                <dd class="mono truncate" id="connectUser"></dd>
+                <dt>API key</dt>
+                <dd class="row" style="flex-wrap:wrap">
+                    <span class="mono" id="keyValue" style="word-break:break-all"></span>
+                    <button class="btn btn-sm" type="button" id="keyRevealBtn" aria-pressed="false" onclick="toggleKeyReveal()">Reveal</button>
+                    <button class="btn btn-sm" type="button" id="keyCopyBtn" style="display:none" onclick="copyKey(this)">Copy</button>
+                    <button class="btn btn-sm" type="button" id="keyRotateBtn" onclick="rotateKey()">Rotate</button>
+                </dd>
+            </dl>
+        </section>
+
+        <section class="tile" id="poolsTile" aria-labelledby="poolsTitle">
+            <div class="tile-head">
+                <h2 id="poolsTitle">Pools</h2>
+                <button class="btn btn-sm" type="button" onclick="openManagePools()">Add pool</button>
+            </div>
+            <div class="table-scroll" id="projectPoolsTable">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>Pool</th>
+                            <th>Strategy</th>
+                            <th>Health</th>
+                            <th aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="projectPoolsBody"></tbody>
+                </table>
+            </div>
+            <div class="empty-state" id="projectPoolsEmpty" style="display:none">
+                <h3>No pools assigned</h3>
+                <p>Requests for this project will fail until you add one.</p>
+                <button class="btn btn-primary" type="button" onclick="openManagePools()">Add pool</button>
+            </div>
+        </section>
+    </section>
 </div>
 
-<!-- Create Modal -->
-<div class="modal-overlay" id="createProjectModal">
+<section class="tile" id="projectsEmpty" style="display:none">
+    <div class="empty-state">
+        <div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+        <h3>No projects yet</h3>
+        <p>A project gives your client a username and an API key for the rotating proxy.</p>
+        <button class="btn btn-primary" type="button" onclick="openModal('createProjectModal')">New project</button>
+    </div>
+</section>
+
+<section class="tile" id="projectsError" style="display:none">
+    <div class="empty-state">
+        <h3>Could not load projects</h3>
+        <p>The API did not answer. This page keeps retrying on its own.</p>
+        <button class="btn" type="button" onclick="retryLoad(this)">Retry now</button>
+    </div>
+</section>
+
+<div class="modal-overlay" id="createProjectModal" role="dialog" aria-modal="true" aria-labelledby="createProjectTitle">
     <div class="modal">
-        <h2>New Project</h2>
-        <p style="color:var(--text-muted);margin-bottom:14px;font-size:12px">A slug and API key are generated automatically.</p>
+        <h2 id="createProjectTitle">New project</h2>
         <div class="form-group">
-            <label for="projectName">Project Name</label>
-            <input type="text" id="projectName" placeholder="e.g. price-monitor" />
+            <label for="projectName">Project name</label>
+            <input type="text" id="projectName" placeholder="e.g. price-monitor" maxlength="255" autocomplete="off">
+            <div class="form-hint">A slug and an API key are generated automatically.</div>
         </div>
         <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeModal('createProjectModal')">Cancel</button>
-            <button class="btn btn-primary" onclick="createProject()">Create</button>
+            <button class="btn btn-outline" type="button" onclick="closeModal('createProjectModal')">Cancel</button>
+            <button class="btn btn-primary" type="button" id="createProjectBtn" onclick="createProject()">Create</button>
         </div>
     </div>
 </div>
 
-<!-- Manage Pools Modal -->
-<div class="modal-overlay" id="managePoolsModal">
+<div class="modal-overlay" id="managePoolsModal" role="dialog" aria-modal="true" aria-labelledby="managePoolsTitle">
     <div class="modal">
-        <h2>Manage Pools</h2>
-        <p style="color:var(--text-muted);margin-bottom:14px;font-size:12px" id="managePoolsInfo"></p>
-        <div id="poolCheckboxes"></div>
+        <h2 id="managePoolsTitle">Manage pools</h2>
+        <div class="form-group"><p class="muted" id="managePoolsInfo"></p></div>
+        <div class="check-list" id="poolCheckboxes" role="group" aria-labelledby="managePoolsTitle"></div>
         <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeModal('managePoolsModal')">Close</button>
-            <button class="btn btn-primary" onclick="savePoolAssignments()">Save</button>
+            <button class="btn btn-outline" type="button" onclick="closeModal('managePoolsModal')">Cancel</button>
+            <button class="btn btn-primary" type="button" id="savePoolsBtn" onclick="savePoolAssignments()">Save</button>
         </div>
     </div>
-</div>
-
-<div class="row" id="listTools" style="margin-bottom:12px;display:none;gap:10px">
-    <label class="row" style="gap:8px;font-size:12px;color:var(--text-muted);cursor:pointer">
-        <input type="checkbox" class="row-checkbox" id="selectAll" onchange="toggleSelectAllCards(this)" style="width:auto;accent-color:var(--accent)">
-        Select all
-    </label>
-    <span class="spacer"></span>
-    <span class="mono" style="font-size:12px;color:var(--text-muted)" id="projCount"></span>
-</div>
-
-<div class="proj-list" id="projList"></div>
-
-<div id="emptyState" class="empty-state" style="display:none;">
-    <div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
-    <h3>No projects yet</h3>
-    <p>Create a project to get an API key for proxy rotation.</p>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-    let currentProjectId = null;
-    let allPools = [];
-
-    // Connection examples target the host you're viewing the dashboard on, not
-    // a hardcoded localhost — so a copied command runs as-is from anywhere.
-    const PROXY_URL_HOST = window.location.hostname + ':{{ http_port }}';
-    const API_BASE = window.location.origin;
-
-    const COPY_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-    const ROTATE_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
-
-    function copyText(text, el, msg) {
-        copyToClipboard(text).then(ok => {
-            if (!ok) { showToast('Copy failed — select the text manually', 'error'); return; }
-            const target = (el.querySelector && el.querySelector('.copy-label')) || el;
-            const orig = target.textContent;
-            target.textContent = 'Copied!';
-            target.style.color = 'var(--green)';
-            setTimeout(() => { target.textContent = orig; target.style.color = ''; }, 1500);
-            showToast(msg || 'API key copied', 'success');
-        });
-    }
-
-    function maskKey(key) {
-        return '••••••••••••' + key.slice(-4);
-    }
-
-    function toggleKeyReveal(id, key, btn) {
-        const el = document.getElementById('key-' + id);
-        if (btn.textContent.trim() === 'Reveal') {
-            el.textContent = key;
-            btn.textContent = 'Hide';
-        } else {
-            el.textContent = maskKey(key);
-            btn.textContent = 'Reveal';
-        }
-    }
-
-    function switchLangTab(group, lang, btn) {
-        const tabs = btn.closest('.lang-tabs');
-        tabs.querySelectorAll('.usage-tab').forEach(t => t.classList.remove('active'));
-        btn.classList.add('active');
-        document.querySelectorAll(`.lang-panel[data-group="${group}"]`).forEach(el => {
-            el.style.display = el.dataset.lang === lang ? '' : 'none';
-        });
-    }
-
-    function toggleCardSelection(id, checkbox) {
-        const card = checkbox.closest('.proj-card');
-        if (checkbox.checked) {
-            selectedIds.add(id);
-            card.classList.add('selected');
-        } else {
-            selectedIds.delete(id);
-            card.classList.remove('selected');
-        }
-        const boxes = Array.from(document.querySelectorAll('#projList .row-checkbox'));
-        const allChecked = boxes.length > 0 && boxes.every(cb => cb.checked);
-        const someChecked = boxes.some(cb => cb.checked);
-        const master = document.getElementById('selectAll');
-        master.checked = allChecked;
-        master.indeterminate = someChecked && !allChecked;
-        updateBulkBar();
-    }
-
-    function toggleSelectAllCards(masterCheckbox) {
-        document.querySelectorAll('#projList .row-checkbox').forEach(cb => {
-            cb.checked = masterCheckbox.checked;
-            const card = cb.closest('.proj-card');
-            if (masterCheckbox.checked) {
-                selectedIds.add(cb.dataset.id);
-                card.classList.add('selected');
-            } else {
-                selectedIds.delete(cb.dataset.id);
-                card.classList.remove('selected');
-            }
-        });
-        updateBulkBar();
-    }
-
-    async function loadProjects() {
-        try {
-            const data = await apiCall('GET', '/api/v1/projects');
-            const items = data.data || [];
-            const list = document.getElementById('projList');
-            const empty = document.getElementById('emptyState');
-            const tools = document.getElementById('listTools');
-
-            if (items.length === 0) {
-                list.innerHTML = '';
-                list.style.display = 'none';
-                tools.style.display = 'none';
-                empty.style.display = 'block';
-            } else {
-                empty.style.display = 'none';
-                list.style.display = '';
-                tools.style.display = 'flex';
-                document.getElementById('projCount').textContent = items.length + (items.length === 1 ? ' project' : ' projects');
-                list.innerHTML = items.map(p => {
-                    const pools = p.pools || [];
-                    const poolChips = pools.length > 0
-                        ? pools.map(pl => `<button class="chip" title="Manage pools" onclick="managePools('${p.id}', '${esc(p.name)}')">${esc(pl.name)}</button>`).join('')
-                        : `<button class="chip chip-empty" onclick="managePools('${p.id}', '${esc(p.name)}')">+ Assign pools</button>`;
-                    const keyHtml = p.api_key
-                        ? `<span class="keyfield">
-                                <span class="km" id="key-${p.id}">${maskKey(esc(p.api_key))}</span>
-                                <button class="copy-btn" onclick="copyText('${esc(p.api_key)}', this)">${COPY_ICON}<span class="copy-label">Copy</span></button>
-                                <button class="copy-btn" onclick="toggleKeyReveal('${p.id}', '${esc(p.api_key)}', this)">Reveal</button>
-                                <button class="copy-btn" title="Rotate key" onclick="rotateKey('${p.id}')">${ROTATE_ICON}Rotate</button>
-                            </span>`
-                        : `<span class="keyfield">
-                                <span style="color:var(--text-muted);font-size:12px">Rotate to reveal</span>
-                                <button class="copy-btn" title="Rotate key" onclick="rotateKey('${p.id}')">${ROTATE_ICON}Rotate</button>
-                            </span>`;
-                    return `<div class="proj-card">
-                        <div class="proj-top">
-                            <div style="min-width:0;flex:1">
-                                <div class="row" style="gap:12px;align-items:flex-start">
-                                    <input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="toggleCardSelection('${p.id}', this)" style="width:auto;margin-top:4px;accent-color:var(--accent)">
-                                    <div style="min-width:0">
-                                        <div class="proj-name">${esc(p.name)}</div>
-                                        <div class="proj-slug">/${esc(p.slug)}</div>
-                                    </div>
-                                </div>
-                                <div class="proj-pools">${poolChips}</div>
-                                <div class="row" style="gap:10px;margin-top:14px;flex-wrap:wrap">
-                                    <span class="key-label">API Key</span>
-                                    ${keyHtml}
-                                </div>
-                            </div>
-                            <div class="proj-meta">
-                                <span class="proj-created">Created ${fmtDate(p.created_at)}</span>
-                                <div class="row" style="gap:8px">
-                                    <button class="btn btn-outline btn-sm" onclick="toggleUsage('${p.id}')">Usage</button>
-                                    <button class="btn btn-outline btn-sm" onclick="managePools('${p.id}', '${esc(p.name)}')">Pools</button>
-                                    <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="proj-conn">
-                            <span class="tag tag-http" style="flex-shrink:0">curl</span>
-                            <code class="conn-code"><span class="tok-dim">curl -x</span> <span class="tok-cmd">http://${esc(p.slug)}:\${API_KEY}@</span><span class="tok-flag">${PROXY_URL_HOST}</span> <span class="tok-str">https://httpbin.org/ip</span></code>
-                            <button class="copy-btn" onclick="copyText('curl -x http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST} https://httpbin.org/ip', this, 'Command copied')">${COPY_ICON}<span class="copy-label">Copy</span></button>
-                        </div>
-                        <div class="proj-usage" id="usage-${p.id}" style="display:none">
-
-                                <details class="usage-section" open>
-                                    <summary>Proxy Rotator <span class="usage-desc">Point your client at port 9080 &mdash; rotates proxies automatically</span></summary>
-                                    <div class="usage-section-body">
-                                        <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap" class="lang-tabs" data-group="http-${p.id}">
-                                            <button class="btn btn-sm usage-tab active" onclick="switchLangTab('http-${p.id}','curl',this)">cURL</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','python',this)">Python</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','javascript',this)">JavaScript</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','go',this)">Go</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','rust',this)">Rust</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','csharp',this)">C#</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','java',this)">Java</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('http-${p.id}','cpp',this)">C++</button>
-                                        </div>
-                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="curl">
-                                            <pre class="code-block"><code class="language-bash">curl -x http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST} \\
-  https://httpbin.org/ip</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="python" style="display:none">
-                                            <pre class="code-block"><code class="language-python">import requests
-
-result = requests.get(
-    "https://httpbin.org/ip",
-    proxies={
-        "http": "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST}",
-        "https": "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST}",
-    },
-    timeout=10
-)
-print(result.json())</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="javascript" style="display:none">
-                                            <pre class="code-block"><code class="language-javascript">import { ProxyAgent } from "proxy-agent";
-
-const agent = new ProxyAgent(
-  "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST}"
-);
-
-const resp = await fetch("https://httpbin.org/ip", { agent });
-console.log(await resp.json());</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="go" style="display:none">
-                                            <pre class="code-block"><code class="language-go">proxyURL, _ := url.Parse(
-    "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST}",
-)
-client := &http.Client{
-    Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)},
-}
-resp, _ := client.Get("https://httpbin.org/ip")
-defer resp.Body.Close()
-body, _ := io.ReadAll(resp.Body)
-fmt.Println(string(body))</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="rust" style="display:none">
-                                            <pre class="code-block"><code class="language-rust">let client = reqwest::Client::builder()
-    .proxy(reqwest::Proxy::all(
-        "http://${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}@${PROXY_URL_HOST}"
-    )?)
-    .build()?;
-let body = client.get("https://httpbin.org/ip")
-    .send().await?.text().await?;
-println!("{body}");</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="csharp" style="display:none">
-                                            <pre class="code-block"><code class="language-csharp">var handler = new HttpClientHandler {
-    Proxy = new WebProxy("http://${PROXY_URL_HOST}") {
-        Credentials = new NetworkCredential(
-            "${esc(p.slug)}", "${esc(p.api_key || 'YOUR_API_KEY')}"
-        )
-    }
-};
-using var client = new HttpClient(handler);
-var result = await client.GetStringAsync("https://httpbin.org/ip");
-Console.WriteLine(result);</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="java" style="display:none">
-                                            <pre class="code-block"><code class="language-java">var client = HttpClient.newBuilder()
-    .proxy(ProxySelector.of(
-        new InetSocketAddress("${window.location.hostname}", {{ http_port }})))
-    .authenticator(new Authenticator() {
-        protected PasswordAuthentication getPasswordAuthentication() {
-            return new PasswordAuthentication(
-                "${esc(p.slug)}", "${esc(p.api_key || 'YOUR_API_KEY')}".toCharArray());
-        }
-    })
-    .build();
-var req = HttpRequest.newBuilder()
-    .uri(URI.create("https://httpbin.org/ip")).build();
-var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-System.out.println(resp.body());</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="http-${p.id}" data-lang="cpp" style="display:none">
-                                            <pre class="code-block"><code class="language-cpp">CURL* curl = curl_easy_init();
-std::string response;
-curl_easy_setopt(curl, CURLOPT_URL, "https://httpbin.org/ip");
-curl_easy_setopt(curl, CURLOPT_PROXY, "http://${PROXY_URL_HOST}");
-curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD,
-    "${esc(p.slug)}:${esc(p.api_key || 'YOUR_API_KEY')}");
-curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
-curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-curl_easy_perform(curl);
-std::cout << response << std::endl;</code></pre>
-                                        </div>
-                                    </div>
-                                </details>
-
-                                <details class="usage-section">
-                                    <summary>Get Proxy <span class="usage-desc">Returns proxy connection details &mdash; you connect to the proxy yourself</span></summary>
-                                    <div class="usage-section-body">
-                                        <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap" class="lang-tabs" data-group="api-${p.id}">
-                                            <button class="btn btn-sm usage-tab active" onclick="switchLangTab('api-${p.id}','curl',this)">cURL</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','python',this)">Python</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','javascript',this)">JavaScript</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','go',this)">Go</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','rust',this)">Rust</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','csharp',this)">C#</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','java',this)">Java</button>
-                                            <button class="btn btn-sm usage-tab" onclick="switchLangTab('api-${p.id}','cpp',this)">C++</button>
-                                        </div>
-                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="curl">
-                                            <pre class="code-block"><code class="language-bash">curl -H "X-API-Key: ${esc(p.api_key || 'YOUR_API_KEY')}" \\
-  ${API_BASE}/api/v1/rotate/${esc(p.slug)}</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="python" style="display:none">
-                                            <pre class="code-block"><code class="language-python">import requests
-
-API_KEY = "${esc(p.api_key || 'YOUR_API_KEY')}"
-BASE = "${API_BASE}"
-
-# Get proxy from pool
-resp = requests.get(
-    f"{BASE}/api/v1/rotate/${esc(p.slug)}",
-    headers={"X-API-Key": API_KEY}
-)
-proxy = resp.json()
-print(proxy)
-# {"host": "1.2.3.4", "port": 8080, "protocol": "http", ...}
-
-# Use it to make a request
-proxy_url = f"{proxy['protocol']}://"
-if proxy.get("username"):
-    proxy_url += f"{proxy['username']}:{proxy['password']}@"
-proxy_url += f"{proxy['host']}:{proxy['port']}"
-
-result = requests.get(
-    "https://httpbin.org/ip",
-    proxies={"http": proxy_url, "https": proxy_url},
-    timeout=10
-)
-print(result.json())</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="javascript" style="display:none">
-                                            <pre class="code-block"><code class="language-javascript">const API_KEY = "${esc(p.api_key || 'YOUR_API_KEY')}";
-const BASE = "${API_BASE}";
-
-// Get proxy from pool
-const resp = await fetch(
-  \`\${BASE}/api/v1/rotate/${esc(p.slug)}\`,
-  { headers: { "X-API-Key": API_KEY } }
-);
-const proxy = await resp.json();
-console.log(proxy);
-// { host: "1.2.3.4", port: 8080, protocol: "http", ... }</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="go" style="display:none">
-                                            <pre class="code-block"><code class="language-go">package main
-
-import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-)
-
-func main() {
-	apiKey := "${esc(p.api_key || 'YOUR_API_KEY')}"
-	base := "${API_BASE}"
-
-	req, _ := http.NewRequest("GET", base+"/api/v1/rotate/${esc(p.slug)}", nil)
-	req.Header.Set("X-API-Key", apiKey)
-	resp, _ := http.DefaultClient.Do(req)
-	defer resp.Body.Close()
-
-	var proxy map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&proxy)
-	fmt.Println(proxy)
-}</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="rust" style="display:none">
-                                            <pre class="code-block"><code class="language-rust">// reqwest = { version = "0.12", features = ["json"] }
-let proxy: serde_json::Value = reqwest::Client::new()
-    .get("${API_BASE}/api/v1/rotate/${esc(p.slug)}")
-    .header("X-API-Key", "${esc(p.api_key || 'YOUR_API_KEY')}")
-    .send().await?
-    .json().await?;
-println!("{proxy}");</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="csharp" style="display:none">
-                                            <pre class="code-block"><code class="language-csharp">using var client = new HttpClient();
-client.DefaultRequestHeaders.Add("X-API-Key", "${esc(p.api_key || 'YOUR_API_KEY')}");
-var proxy = await client.GetFromJsonAsync&lt;Dictionary&lt;string, object&gt;&gt;(
-    "${API_BASE}/api/v1/rotate/${esc(p.slug)}"
-);
-Console.WriteLine(string.Join(", ", proxy!));</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="java" style="display:none">
-                                            <pre class="code-block"><code class="language-java">var client = HttpClient.newHttpClient();
-var req = HttpRequest.newBuilder()
-    .uri(URI.create("${API_BASE}/api/v1/rotate/${esc(p.slug)}"))
-    .header("X-API-Key", "${esc(p.api_key || 'YOUR_API_KEY')}")
-    .build();
-var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-System.out.println(resp.body());</code></pre>
-                                        </div>
-                                        <div class="lang-panel" data-group="api-${p.id}" data-lang="cpp" style="display:none">
-                                            <pre class="code-block"><code class="language-cpp">CURL* curl = curl_easy_init();
-std::string response;
-struct curl_slist* hdrs = nullptr;
-hdrs = curl_slist_append(hdrs, "X-API-Key: ${esc(p.api_key || 'YOUR_API_KEY')}");
-curl_easy_setopt(curl, CURLOPT_URL,
-    "${API_BASE}/api/v1/rotate/${esc(p.slug)}");
-curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdrs);
-curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
-curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-curl_easy_perform(curl);
-std::cout << response << std::endl;</code></pre>
-                                        </div>
-                                    </div>
-                                </details>
-
-                        </div>
-                    </div>`;
-                }).join('');
-            }
-            clearSelection();
-        } catch (e) {
-            showToast('Failed to load projects: ' + e.message, 'error');
-        }
-    }
-
-    function toggleUsage(id) {
-        const row = document.getElementById('usage-' + id);
-        row.style.display = row.style.display === 'none' ? '' : 'none';
-    }
-
-    async function createProject() {
-        const name = document.getElementById('projectName').value.trim();
-        if (!name) { showToast('Project name is required', 'error'); return; }
-        const btn = document.querySelector('#createProjectModal .btn-primary');
-        btnLoading(btn);
-
-        try {
-            const result = await apiCall('POST', '/api/v1/projects', { name });
-            btnReset(btn);
-            closeModal('createProjectModal');
-            document.getElementById('projectName').value = '';
-
-            if (result.api_key) {
-                const alert = document.getElementById('apiKeyAlert');
-                document.getElementById('apiKeyValue').textContent = result.api_key;
-                alert.style.display = 'flex';
-            }
-
-            showToast('Project created', 'success');
-            loadProjects();
-        } catch (e) {
-            btnReset(btn);
-            showToast('Create failed: ' + e.message, 'error');
-        }
-    }
-
-    function copyApiKey() {
-        const key = document.getElementById('apiKeyValue').textContent;
-        copyToClipboard(key).then(ok => {
-            if (!ok) { showToast('Copy failed — select the text manually', 'error'); return; }
-            const btn = document.querySelector('.copy-btn');
-            const orig = btn.textContent;
-            btn.textContent = 'Copied!';
-            setTimeout(() => { btn.textContent = orig; }, 2000);
-            showToast('API key copied to clipboard', 'success');
-        });
-    }
-
-    async function rotateKey(id) {
-        if (!(await confirmAction('Generate a new API key? The old key will stop working immediately.', 'Rotate API Key'))) return;
-        try {
-            const result = await apiCall('POST', `/api/v1/projects/${id}/rotate-key`);
-            if (result.api_key) {
-                document.getElementById('apiKeyValue').textContent = result.api_key;
-                document.getElementById('apiKeyAlert').style.display = 'flex';
-            }
-            showToast('API key rotated', 'success');
-        } catch (e) {
-            showToast('Failed to rotate key: ' + e.message, 'error');
-        }
-    }
-
-    async function managePools(projectId, projectName) {
-        currentProjectId = projectId;
-        document.getElementById('managePoolsInfo').textContent = 'Assign pools to ' + projectName;
-
-        try {
-            const [poolsData, projectData] = await Promise.all([
-                apiCall('GET', '/api/v1/pools'),
-                apiCall('GET', `/api/v1/projects/${projectId}`)
-            ]);
-            allPools = poolsData.data || [];
-            const assignedIds = (projectData.pools || []).map(p => p.id);
-
-            const container = document.getElementById('poolCheckboxes');
-            if (allPools.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No pools available. Create a pool first.</p>';
-            } else {
-                container.innerHTML = allPools.map(p => {
-                    const checked = assignedIds.includes(p.id) ? 'checked' : '';
-                    return `<div style="margin-bottom:6px">
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;transition:background 0.1s">
-                            <input type="checkbox" value="${p.id}" ${checked} style="width:auto;accent-color:var(--accent)" />
-                            <div>
-                                <div style="font-weight:600;font-size:13px;color:var(--text-primary)">${esc(p.name)}</div>
-                                <div style="font-size:11px;color:var(--text-muted)">${p.proxy_count || 0} proxies &middot; ${esc(p.rotation_strategy).replace('_',' ')}</div>
-                            </div>
-                        </label>
-                    </div>`;
-                }).join('');
-            }
-            openModal('managePoolsModal');
-        } catch (e) {
-            showToast('Failed to load pools: ' + e.message, 'error');
-        }
-    }
-
-    async function savePoolAssignments() {
-        const checkboxes = document.querySelectorAll('#poolCheckboxes input[type="checkbox"]');
-        const selectedPoolIds = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
-        const btn = document.querySelector('#managePoolsModal .btn-primary');
-        btnLoading(btn);
-
-        try {
-            await apiCall('POST', `/api/v1/projects/${currentProjectId}/pools`, { pool_ids: selectedPoolIds });
-            btnReset(btn);
-            showToast('Pools updated', 'success');
-            closeModal('managePoolsModal');
-            loadProjects();
-        } catch (e) {
-            btnReset(btn);
-            showToast('Update failed: ' + e.message, 'error');
-        }
-    }
-
-    async function deleteProject(id) {
-        if (!(await confirmAction('Delete this project? Its API key will be revoked.'))) return;
-        try {
-            await apiCall('DELETE', `/api/v1/projects/${id}`);
-            showToast('Project deleted', 'success');
-            loadProjects();
-        } catch (e) {
-            showToast('Delete failed: ' + e.message, 'error');
-        }
-    }
-
-    async function bulkDelete() {
-        const ids = Array.from(selectedIds);
-        if (ids.length === 0) return;
-        if (!(await confirmAction(`Delete ${ids.length} projects? Their API keys will be revoked.`))) return;
-        let deleted = 0;
-        for (const id of ids) {
-            try { await apiCall('DELETE', `/api/v1/projects/${id}`); deleted++; } catch {}
-        }
-        showToast(`Deleted ${deleted} projects`, 'success');
-        clearSelection();
-        loadProjects();
-    }
-
-    document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
-
-    loadProjects();
-</script>
+<script src="/static/js/pages/projects.js?v={{ asset_version }}"></script>
 {% endblock %}

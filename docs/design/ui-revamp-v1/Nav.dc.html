@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Navigation bar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 52px; box-sizing: border-box; display: flex; align-items: center; gap: 28px; padding: 0 32px; background: #090A0D; border-bottom: 1px solid #1C2028; color: #E8EBF0; font-family: Geist, system-ui, sans-serif; font-size: 13px;">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; color: #E8EBF0; text-decoration: none; font-size: 14px; font-weight: 600; letter-spacing: -0.02em;">
+<svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+<defs>
+<linearGradient id="navPrism" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#6B8CF5"></stop>
+<stop offset="0.5" stop-color="#56C8D8"></stop>
+<stop offset="1" stop-color="#7DE49A"></stop>
+</linearGradient>
+</defs>
+<g fill="url(#navPrism)">
+<polygon points="16,30 13.5,12 16,4 18.5,12"></polygon>
+<polygon points="16,30 13.5,12 16,4 18.5,12" opacity="0.85" transform="rotate(-20 16 30)"></polygon>
+<polygon points="16,30 13.5,12 16,4 18.5,12" opacity="0.85" transform="rotate(20 16 30)"></polygon>
+<polygon points="16,30 13.5,12 16,4 18.5,12" opacity="0.6" transform="rotate(-40 16 30)"></polygon>
+<polygon points="16,30 13.5,12 16,4 18.5,12" opacity="0.6" transform="rotate(40 16 30)"></polygon>
+</g>
+</svg>
+Proxysm
+</a>
+<nav aria-label="Primary" style="display: flex; gap: 4px; height: 52px;">
+<sc-for list="{{items}}" as="item" hint-placeholder-count="5">
+<a href="{{item.href}}" style="display: flex; align-items: center; height: 52px; box-sizing: border-box; padding: 2px 12px 0; border-bottom: 2px solid {{item.bar}}; color: {{item.color}}; text-decoration: none; font-size: 13px; font-weight: 500;">{{item.label}}</a>
+</sc-for>
+</nav>
+<div style="flex-grow: 1;"></div>
+<a href="Palette.dc.html" style="display: flex; align-items: center; gap: 10px; width: 260px; height: 32px; box-sizing: border-box; padding: 0 10px; background: #0F1115; border: 1px solid #1C2028; border-radius: 8px; color: #8A93A0; text-decoration: none; font-size: 13px;">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+<span style="flex-grow: 1;">Search or jump to…</span>
+<span style="padding: 1px 6px; border: 1px solid #2A2F3A; border-radius: 4px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #A3ACB9;">⌘K</span>
+</a>
+<div style="display: flex; align-items: center; gap: 8px; color: #8A93A0; font-size: 12px;">
+<span style="width: 6px; height: 6px; border-radius: 50%; background: #3FCF8E;"></span>
+<span>Updated 4s ago</span>
+</div>
+<div style="display: flex; gap: 4px;">
+<a href="#settings" aria-label="Settings" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; color: #8A93A0;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10"></path><path d="M18 6h2"></path><circle cx="16" cy="6" r="2"></circle><path d="M4 18h10"></path><path d="M18 18h2"></path><circle cx="16" cy="18" r="2"></circle><path d="M4 12h2"></path><path d="M10 12h10"></path><circle cx="8" cy="12" r="2"></circle></svg>
+</a>
+<a href="#signout" aria-label="Sign out" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; color: #8A93A0;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>
+</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["overview","proxies","pools","projects","requests"],"default":"overview"},"$preview":{"width":1440,"height":52}}'>
+class Component extends DCLogic {
+renderVals() {
+const active = this.props.active ?? 'overview';
+const defs = [
+['overview', 'Overview', 'Main.dc.html'],
+['proxies', 'Proxies', 'Proxies.dc.html'],
+['pools', 'Pools', '#pools'],
+['projects', 'Projects', 'Projects.dc.html'],
+['requests', 'Requests', 'Requests.dc.html']
+];
+return {
+items: defs.map((d) => ({
+label: d[1],
+href: d[2],
+color: d[0] === active ? '#E8EBF0' : '#8A93A0',
+bar: d[0] === active ? '#6B9BFF' : 'transparent'
+}))
+};
+}
+}
+</script>
+</body>
+</html>

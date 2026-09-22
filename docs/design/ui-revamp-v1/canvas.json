@@ -1,0 +1,20 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-09-20T20:23:09Z" },
+  "title": "Proxysm UI Revamp",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 1080, "title": "Overview", "is_interactive": true },
+    "Proxies.dc.html": { "x": 1520, "y": 0, "w": 1440, "h": 900, "title": "Proxies with detail drawer", "is_interactive": true },
+    "Requests.dc.html": { "x": 3040, "y": 0, "w": 1440, "h": 900, "title": "Requests log (new)", "is_interactive": true },
+    "Projects.dc.html": { "x": 4560, "y": 0, "w": 1440, "h": 900, "title": "Projects with detail", "is_interactive": true },
+    "Palette.dc.html": { "x": 0, "y": 1200, "w": 720, "h": 480, "title": "Command palette", "is_interactive": true },
+    "Nav.dc.html": { "x": 800, "y": 1200, "w": 1440, "h": 52, "title": "Navigation bar" }
+  },
+  "order": ["Main.dc.html", "Proxies.dc.html", "Requests.dc.html", "Projects.dc.html", "Palette.dc.html", "Nav.dc.html"],
+  "notes": {
+    "heading": { "x": 0, "y": -300, "text": "Proxysm, minimal revamp", "kind": "title1", "maxW": 6000 }
+  },
+  "designSystems": []
+}

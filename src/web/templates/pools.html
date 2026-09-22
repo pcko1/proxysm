@@ -1,58 +1,61 @@
 {% extends "base.html" %}
-{% block title %}Pools — Proxysm{% endblock %}
+{% block title %}Pools - Proxysm{% endblock %}
 
 {% block content %}
-<style>
-    .pool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-    .pool-card {
-        position: relative; background: var(--surface); border: 1px solid var(--border);
-        border-radius: 12px; padding: 18px; transition: border-color 0.15s ease, transform 0.15s ease;
-        overflow: hidden;
-    }
-    .pool-card:hover { border-color: var(--border-2); transform: translateY(-1px); }
-    .pool-card:has(.row-checkbox:checked) { border-color: var(--accent-line); }
-    .pool-card .pc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-    .pool-card .pc-title { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
-    .pool-card .pc-title .row-checkbox { margin-top: 2px; flex-shrink: 0; }
-    .pool-card .pc-name { font: 600 15px/1.2 "Geist Mono", monospace; color: var(--text-primary); letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .pool-card .pc-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-    .pc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
-    .pc-stat .v { font: 600 20px/1 "Geist Mono", monospace; color: var(--text-primary); }
-    .pc-stat .l { font-size: 11px; color: var(--text-muted); margin-top: 5px; letter-spacing: -0.01em; }
-    .pc-stat.pc-clickable { cursor: pointer; }
-    .pc-bar { height: 7px; background: var(--sunken); border-radius: 5px; overflow: hidden; display: flex; }
-    .pc-bar i { height: 100%; display: block; transition: width 0.3s ease; }
-    .pc-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 11px; font-size: 12px; color: var(--text-muted); }
-    .pc-actions { display: flex; gap: 6px; flex-shrink: 0; opacity: 0; transition: opacity 0.15s ease; }
-    .pool-card:hover .pc-actions, .pool-card:focus-within .pc-actions, .pool-card:has(.row-checkbox:checked) .pc-actions { opacity: 1; }
-    @media (hover: none) { .pc-actions { opacity: 1; } }
-    @media (max-width: 860px) { .pool-grid { grid-template-columns: 1fr; } }
-</style>
-
-<div class="page-header">
-    <div class="title-block">
+<div class="page-head">
+    <div class="page-head__title">
         <h1>Pools</h1>
-        <span class="sub">Group proxies for rotation &middot; assign pools to projects</span>
+        <span class="page-head__sub" id="poolsSub">Loading</span>
     </div>
-    <div class="page-header-actions">
-        <button class="btn btn-primary btn-sm" onclick="openModal('createPoolModal')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Create Pool
-        </button>
+    <div class="page-head__actions">
+        <button class="btn btn-primary" type="button" onclick="openModal('createPoolModal')">New pool</button>
     </div>
 </div>
 
-<!-- Create Modal -->
-<div class="modal-overlay" id="createPoolModal">
-    <div class="modal" style="max-width:440px">
-        <h2>Create Pool</h2>
-        <p style="color:var(--text-muted);margin-bottom:14px;font-size:12px">Group proxies and pick how requests rotate through them.</p>
+<section class="tile" aria-label="Pools">
+    <div class="table-scroll" id="poolsTableWrap">
+        <table class="tbl">
+            <thead>
+                <tr>
+                    <th class="col-check"><input type="checkbox" class="row-checkbox" id="selectAll" aria-label="Select all pools" onchange="toggleSelectAll(this)"></th>
+                    <th>Pool</th>
+                    <th class="num">Proxies</th>
+                    <th class="num">Healthy</th>
+                    <th style="width:22%;min-width:120px"><span class="sr-only">Healthy share</span></th>
+                    <th>Created</th>
+                    <th><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody id="poolsBody">
+                <tr><td colspan="7"><div class="skeleton" style="height:18px"></div></td></tr>
+                <tr><td colspan="7"><div class="skeleton" style="height:18px"></div></td></tr>
+                <tr><td colspan="7"><div class="skeleton" style="height:18px"></div></td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="empty-state" id="poolsEmpty" hidden>
+        <div class="empty-state-icon" aria-hidden="true"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17l9 5 9-5"/></svg></div>
+        <h3>No pools yet</h3>
+        <p>Create a pool to group proxies for rotation, then assign it to a project.</p>
+        <button class="btn btn-primary" type="button" onclick="openModal('createPoolModal')">New pool</button>
+    </div>
+    <div class="empty-state" id="poolsError" hidden>
+        <h3>Could not load pools</h3>
+        <p>The API did not answer. Nothing was changed.</p>
+        <button class="btn" type="button" onclick="retryPools(this)">Retry</button>
+    </div>
+</section>
+
+<div class="modal-overlay" id="createPoolModal" role="dialog" aria-modal="true" aria-labelledby="createPoolTitle">
+    <div class="modal">
+        <h2 id="createPoolTitle">New pool</h2>
+        <p class="muted form-group">Group proxies and pick how requests rotate through them.</p>
         <div class="form-group">
-            <label for="poolName">Pool Name</label>
-            <input type="text" id="poolName" placeholder="e.g. us-residential" />
+            <label for="poolName">Pool name</label>
+            <input type="text" id="poolName" placeholder="e.g. us-residential" maxlength="255" autocomplete="off">
         </div>
         <div class="form-group">
-            <label for="poolStrategy">Rotation Strategy</label>
+            <label for="poolStrategy">Rotation strategy</label>
             <select id="poolStrategy">
                 <option value="round_robin" selected>Round Robin &mdash; sequential through healthy</option>
                 <option value="random">Random &mdash; random healthy proxy</option>
@@ -60,265 +63,26 @@
             </select>
         </div>
         <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeModal('createPoolModal')">Cancel</button>
-            <button class="btn btn-primary" onclick="createPool()">Create</button>
+            <button class="btn" type="button" onclick="closeModal('createPoolModal')">Cancel</button>
+            <button class="btn btn-primary" type="button" id="createPoolBtn" onclick="createPool()">Create</button>
         </div>
     </div>
 </div>
 
-<!-- Manage Proxies Modal -->
-<div class="modal-overlay" id="manageProxiesModal">
+<div class="modal-overlay" id="manageProxiesModal" role="dialog" aria-modal="true" aria-labelledby="manageProxiesTitle">
     <div class="modal" style="max-width:560px">
-        <h2>Manage Proxies</h2>
-        <p style="color:var(--text-muted);margin-bottom:14px;font-size:12px" id="manageProxiesInfo"></p>
-        <div id="proxyCheckboxes" style="max-height:400px;overflow-y:auto"></div>
+        <h2 id="manageProxiesTitle">Manage proxies</h2>
+        <p class="muted truncate form-group" id="manageProxiesInfo"></p>
+        <div class="check-list" id="proxyCheckboxes" role="group" aria-labelledby="manageProxiesTitle"></div>
+        <p class="form-hint" id="manageProxiesNote" hidden></p>
         <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeModal('manageProxiesModal')">Cancel</button>
-            <button class="btn btn-primary" onclick="saveProxyAssignments()">Save</button>
+            <button class="btn" type="button" onclick="closeModal('manageProxiesModal')">Cancel</button>
+            <button class="btn btn-primary" type="button" id="saveProxiesBtn" onclick="saveProxyAssignments()">Save</button>
         </div>
     </div>
-</div>
-
-<div class="pool-grid" id="poolGrid"></div>
-<div id="emptyState" class="empty-state" style="display:none;">
-    <div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
-    <h3>No pools yet</h3>
-    <p>Create a pool to organize your proxies for rotation.</p>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-    let currentPoolId = null;
-
-    function togglePoolSelection(id, checkbox) {
-        if (checkbox.checked) {
-            selectedIds.add(id);
-        } else {
-            selectedIds.delete(id);
-        }
-        updateBulkBar();
-    }
-
-    async function loadPools() {
-        try {
-            const data = await apiCall('GET', '/api/v1/pools');
-            const items = data.data || [];
-            const grid = document.getElementById('poolGrid');
-            const empty = document.getElementById('emptyState');
-
-            if (items.length === 0) {
-                grid.innerHTML = '';
-                grid.style.display = 'none';
-                empty.style.display = 'block';
-            } else {
-                empty.style.display = 'none';
-                grid.style.display = '';
-                grid.innerHTML = items.map(p => {
-                    const proxyCount = p.proxy_count || 0;
-                    const healthyCount = p.healthy_count || 0;
-                    const strategy = esc(p.rotation_strategy).replace('_', ' ');
-                    const healthPct = proxyCount > 0 ? Math.round(healthyCount / proxyCount * 100) : 0;
-                    const tone = proxyCount === 0 ? 'var(--text-muted)' : healthPct > 70 ? 'var(--green)' : healthPct > 30 ? 'var(--yellow)' : 'var(--red)';
-                    const barWidth = proxyCount === 0 ? 0 : healthPct;
-                    return `<div class="pool-card" data-id="${p.id}">
-                        <div class="pc-head">
-                            <div class="pc-title">
-                                <input type="checkbox" class="row-checkbox" data-id="${p.id}" onchange="togglePoolSelection('${p.id}', this)">
-                                <div style="min-width:0">
-                                    <div class="pc-name">${esc(p.name)}</div>
-                                    <div class="pc-meta">Created ${fmtDate(p.created_at)} <span class="dot-sep">&middot;</span> <span class="tag tag-neutral" style="vertical-align:middle">${strategy}</span></div>
-                                </div>
-                            </div>
-                            <div class="pc-actions">
-                                <button class="btn btn-ghost btn-sm" onclick="manageProxies('${p.id}', '${esc(p.name)}')">Manage Proxies</button>
-                                <button class="btn btn-danger btn-sm" onclick="deletePool('${p.id}')" title="Delete">Delete</button>
-                            </div>
-                        </div>
-                        <div class="pc-stats">
-                            <div class="pc-stat pc-clickable" onclick="manageProxies('${p.id}', '${esc(p.name)}')" title="Manage proxies">
-                                <div class="v">${proxyCount}</div><div class="l">${proxyCount === 1 ? 'Proxy' : 'Proxies'}</div>
-                            </div>
-                            <div class="pc-stat">
-                                <div class="v" style="color:${healthyCount > 0 ? 'var(--green)' : 'var(--text-muted)'}">${healthyCount}</div><div class="l">Healthy</div>
-                            </div>
-                            <div class="pc-stat">
-                                <div class="v" style="color:${tone}">${healthPct}%</div><div class="l">Health</div>
-                            </div>
-                        </div>
-                        <div class="pc-bar">
-                            <i style="width:${barWidth}%;background:${tone}"></i>
-                        </div>
-                        <div class="pc-foot">
-                            <span class="mono" style="font-size:11px">${healthyCount}/${proxyCount} healthy</span>
-                        </div>
-                    </div>`;
-                }).join('');
-            }
-            clearSelection();
-        } catch (e) {
-            showToast('Failed to load pools: ' + e.message, 'error');
-        }
-    }
-
-    async function manageProxies(poolId, poolName) {
-        currentPoolId = poolId;
-        document.getElementById('manageProxiesInfo').textContent = 'Assign proxies to ' + poolName;
-
-        try {
-            const [allProxiesData, poolProxiesData] = await Promise.all([
-                apiCall('GET', '/api/v1/ips?per_page=100'),
-                apiCall('GET', `/api/v1/ips?pool_id=${poolId}&per_page=100`),
-            ]);
-            const allProxies = allProxiesData.data || [];
-            const assignedIds = new Set((poolProxiesData.data || []).map(p => p.id));
-
-            const container = document.getElementById('proxyCheckboxes');
-            if (allProxies.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No proxies available. Import proxies first.</p>';
-            } else {
-                const byProvider = {};
-                allProxies.forEach(p => {
-                    const prov = p.provider || 'No Provider';
-                    if (!byProvider[prov]) byProvider[prov] = [];
-                    byProvider[prov].push(p);
-                });
-
-                let html = '';
-                for (const [provName, proxies] of Object.entries(byProvider)) {
-                    const provKey = provName.replace(/[^a-zA-Z0-9]/g, '_');
-                    const allChecked = proxies.every(p => assignedIds.has(p.id));
-                    html += `<div style="margin-bottom:14px">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">
-                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
-                                <input type="checkbox" class="provider-toggle" data-provider="${provKey}" ${allChecked ? 'checked' : ''}
-                                    onchange="toggleProviderProxies('${provKey}', this.checked)"
-                                    style="width:auto;accent-color:var(--accent)" />
-                                <strong style="font-size:12px;color:var(--text-primary)">${esc(provName)}</strong>
-                                <span style="font-size:11px;color:var(--text-muted)">(${proxies.length})</span>
-                            </label>
-                        </div>`;
-                    html += proxies.map(p => {
-                        const checked = assignedIds.has(p.id) ? 'checked' : '';
-                        const statusDot = p.last_health_status === 'healthy' ? 'var(--green)' : p.last_health_status === 'dead' ? 'var(--red)' : 'var(--text-muted)';
-                        return `<div style="margin-bottom:3px;margin-left:6px">
-                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;transition:background 0.1s">
-                                <input type="checkbox" class="proxy-cb" data-provider="${provKey}" value="${p.id}" ${checked} style="width:auto;accent-color:var(--accent)"
-                                    onchange="updateProviderToggle('${provKey}')" />
-                                <div style="flex:1;display:flex;align-items:center;gap:8px">
-                                    <span class="mono" style="font-size:11px">${esc(p.host)}:${esc(p.port)}</span>
-                                    ${protoTag(p.protocol)}
-                                    <span style="width:6px;height:6px;border-radius:50%;background:${statusDot};flex-shrink:0"></span>
-                                </div>
-                            </label>
-                        </div>`;
-                    }).join('');
-                    html += '</div>';
-                }
-                container.innerHTML = html;
-            }
-            openModal('manageProxiesModal');
-        } catch (e) {
-            showToast('Failed to load proxies: ' + e.message, 'error');
-        }
-    }
-
-    function toggleProviderProxies(providerId, checked) {
-        document.querySelectorAll(`.proxy-cb[data-provider="${providerId}"]`).forEach(cb => {
-            cb.checked = checked;
-        });
-    }
-
-    function updateProviderToggle(providerId) {
-        const cbs = document.querySelectorAll(`.proxy-cb[data-provider="${providerId}"]`);
-        const toggle = document.querySelector(`.provider-toggle[data-provider="${providerId}"]`);
-        if (!toggle) return;
-        const allChecked = Array.from(cbs).every(cb => cb.checked);
-        const someChecked = Array.from(cbs).some(cb => cb.checked);
-        toggle.checked = allChecked;
-        toggle.indeterminate = someChecked && !allChecked;
-    }
-
-    async function saveProxyAssignments() {
-        const checkboxes = document.querySelectorAll('#proxyCheckboxes .proxy-cb');
-        const wantedIds = new Set(Array.from(checkboxes).filter(c => c.checked).map(c => c.value));
-        const allIds = new Set(Array.from(checkboxes).map(c => c.value));
-        const btn = document.querySelector('#manageProxiesModal .btn-primary');
-        btnLoading(btn);
-
-        const currentData = await apiCall('GET', `/api/v1/ips?pool_id=${currentPoolId}&per_page=100`);
-        const currentIds = new Set((currentData.data || []).map(p => p.id));
-
-        const toAdd = [...wantedIds].filter(id => !currentIds.has(id));
-        const toRemove = [...currentIds].filter(id => !wantedIds.has(id));
-
-        try {
-            if (toAdd.length > 0) {
-                await apiCall('POST', `/api/v1/pools/${currentPoolId}/ips`, { proxy_ids: toAdd });
-            }
-            if (toRemove.length > 0) {
-                await apiCall('DELETE', `/api/v1/pools/${currentPoolId}/ips`, { proxy_ids: toRemove });
-            }
-            btnReset(btn);
-            const totalChanges = toAdd.length + toRemove.length;
-            if (totalChanges > 0) {
-                showToast(`Updated pool: ${toAdd.length} added, ${toRemove.length} removed`, 'success');
-            } else {
-                showToast('No changes made', 'success');
-            }
-            closeModal('manageProxiesModal');
-            loadPools();
-        } catch (e) {
-            btnReset(btn);
-            showToast('Update failed: ' + e.message, 'error');
-        }
-    }
-
-    async function createPool() {
-        const name = document.getElementById('poolName').value.trim();
-        if (!name) { showToast('Pool name is required', 'error'); return; }
-        const strategy = document.getElementById('poolStrategy').value;
-        const btn = document.querySelector('#createPoolModal .btn-primary');
-        btnLoading(btn);
-
-        try {
-            await apiCall('POST', '/api/v1/pools', { name, rotation_strategy: strategy });
-            btnReset(btn);
-            showToast('Pool created', 'success');
-            closeModal('createPoolModal');
-            document.getElementById('poolName').value = '';
-            loadPools();
-        } catch (e) {
-            btnReset(btn);
-            showToast('Create failed: ' + e.message, 'error');
-        }
-    }
-
-    async function deletePool(id) {
-        if (!(await confirmAction('This pool will be permanently deleted.'))) return;
-        try {
-            await apiCall('DELETE', `/api/v1/pools/${id}`);
-            showToast('Pool deleted', 'success');
-            loadPools();
-        } catch (e) {
-            showToast('Delete failed: ' + e.message, 'error');
-        }
-    }
-
-    async function bulkDelete() {
-        const ids = Array.from(selectedIds);
-        if (ids.length === 0) return;
-        if (!(await confirmAction(`Delete ${ids.length} pools? This cannot be undone.`))) return;
-        let deleted = 0;
-        for (const id of ids) {
-            try { await apiCall('DELETE', `/api/v1/pools/${id}`); deleted++; } catch {}
-        }
-        showToast(`Deleted ${deleted} pools`, 'success');
-        clearSelection();
-        loadPools();
-    }
-
-    document.getElementById('bulkDeleteBtn').onclick = bulkDelete;
-    loadPools();
-</script>
+<script src="/static/js/pages/pools.js?v={{ asset_version }}"></script>
 {% endblock %}

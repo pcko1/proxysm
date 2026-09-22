@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Requests log</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:Geist,system-ui,sans-serif;background:#090A0D}
+a{color:#6B9BFF}a:hover{color:#9DBBFF}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #090A0D; color: #E8EBF0; font-family: Geist, system-ui, sans-serif; font-size: 13px;">
+<dc-import name="Nav" active="requests" hint-size="1440px,52px"></dc-import>
+<main style="display: flex; flex-direction: column; gap: 16px; padding: 28px 32px;">
+
+<div style="display: flex; align-items: flex-end; justify-content: space-between;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<h1 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.02em;">Requests</h1>
+<div style="display: flex; align-items: center; gap: 7px; color: #8A93A0;"><span style="width: 6px; height: 6px; border-radius: 50%; background: {{liveDot}};"></span>{{liveLabel}}</div>
+</div>
+<button onClick="{{toggleLive}}" style="height: 32px; padding: 0 12px; background: transparent; border: 1px solid #2A2F3A; border-radius: 8px; color: #E8EBF0; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;">{{liveButton}}</button>
+</div>
+
+<div style="display: flex; align-items: center; gap: 8px;">
+<label for="reqSearch" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Search requests</label>
+<input id="reqSearch" type="search" placeholder="Filter by domain, proxy or error" style="width: 280px; height: 32px; box-sizing: border-box; padding: 0 10px; background: #0F1115; border: 1px solid #1C2028; border-radius: 8px; color: #E8EBF0; font-family: inherit; font-size: 13px; outline: none;">
+<label for="reqProject" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Project</label>
+<select id="reqProject" style="height: 32px; padding: 0 10px; background: #0F1115; border: 1px solid #1C2028; border-radius: 8px; color: #A3ACB9; font-family: inherit; font-size: 13px;">
+<option>All projects</option><option>scraper-prod</option><option>price-monitor</option><option>seo-audit</option>
+</select>
+<div style="display: flex; gap: 4px;">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="4">
+<button onClick="{{c.pick}}" style="height: 32px; padding: 0 10px; background: {{c.bg}}; border: 1px solid {{c.bd}}; border-radius: 8px; color: {{c.fg}}; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer;">{{c.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<section style="display: flex; flex-direction: column; background: #0F1115; border: 1px solid #1C2028; border-radius: 10px; overflow: hidden;">
+<div style="display: grid; grid-template-columns: 72px 120px 1.5fr 170px 130px 56px 72px 72px 1fr; gap: 16px; align-items: center; height: 36px; padding: 0 16px; border-bottom: 1px solid #1C2028; font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #8A93A0;">
+<span>Time</span><span>Project</span><span>Target</span><span>Proxy</span><span>Pool</span><span>Status</span><span style="text-align: right;">Latency</span><span style="text-align: right;">Size</span><span>Error</span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="14">
+<div style="display: grid; grid-template-columns: 72px 120px 1.5fr 170px 130px 56px 72px 72px 1fr; gap: 16px; align-items: center; height: 40px; padding: 0 16px; border-bottom: 1px solid #161920; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #A3ACB9;">
+<span style="color: #8A93A0;">{{r.t}}</span>
+<span style="font-family: Geist, system-ui, sans-serif; font-size: 13px;">{{r.project}}</span>
+<span style="color: #E8EBF0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{r.target}}</span>
+<a href="Proxies.dc.html" style="color: #A3ACB9; text-decoration: none;">{{r.proxy}}</a>
+<span style="font-family: Geist, system-ui, sans-serif; font-size: 13px;">{{r.pool}}</span>
+<span style="color: {{r.cc}};">{{r.code}}</span>
+<span style="text-align: right;">{{r.lat}}</span>
+<span style="text-align: right;">{{r.size}}</span>
+<span style="color: #F26B6B;">{{r.err}}</span>
+</div>
+</sc-for>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const st = this.state || {};
+const filter = st.filter || 'all';
+const paused = !!st.paused;
+const all = [
+['14:02:41', 'scraper-prod', 'catalog.example.com', '203.0.113.42:8080', 'public-mix', '—', '30.0 s', '—', 'timeout'],
+['14:02:41', 'scraper-prod', 'catalog.example.com', '203.0.113.18:8080', 'datacenter-us', '200', '212 ms', '48 KB', ''],
+['14:02:40', 'price-monitor', 'shop.example.net', '192.0.2.14:8888', 'public-mix', '200', '344 ms', '112 KB', ''],
+['14:02:40', 'scraper-prod', 'catalog.example.com', '198.51.100.7:1080', 'public-mix', '403', '418 ms', '2 KB', ''],
+['14:02:39', 'scraper-prod', 'catalog.example.com', '203.0.113.27:3128', 'datacenter-us', '200', '198 ms', '51 KB', ''],
+['14:02:39', 'seo-audit', 'www.example.org', '203.0.113.101:8080', 'datacenter-us', '200', '104 ms', '18 KB', ''],
+['14:02:38', 'price-monitor', 'shop.example.net', '192.0.2.33:3128', 'public-mix', '502', '1,012 ms', '0 KB', 'bad_gateway'],
+['14:02:38', 'scraper-prod', 'api.example.org', '203.0.113.18:8080', 'datacenter-us', '200', '176 ms', '6 KB', ''],
+['14:02:37', 'scraper-prod', 'catalog.example.com', '198.51.100.200:8080', 'public-mix', '403', '366 ms', '2 KB', ''],
+['14:02:37', 'price-monitor', 'shop.example.net', '192.0.2.14:8888', 'public-mix', '200', '301 ms', '109 KB', ''],
+['14:02:36', 'scraper-prod', 'api.example.org', '203.0.113.42:8080', 'residential-eu', '—', '—', '—', 'conn_reset'],
+['14:02:36', 'seo-audit', 'www.example.org', '203.0.113.27:3128', 'datacenter-us', '301', '88 ms', '1 KB', ''],
+['14:02:35', 'scraper-prod', 'catalog.example.com', '203.0.113.18:8080', 'datacenter-us', '200', '224 ms', '47 KB', ''],
+['14:02:35', 'price-monitor', 'shop.example.net', '198.51.100.7:1080', 'public-mix', '429', '290 ms', '1 KB', '']
+];
+const kind = (r) => (r[5] === '—' ? 'failed' : r[5] >= '500' ? '5xx' : r[5] >= '400' ? '4xx' : 'ok');
+const tone = { ok: '#3FCF8E', '4xx': '#E6B450', '5xx': '#F26B6B', failed: '#F26B6B' };
+const rows = all
+.filter((r) => filter === 'all' || (filter === 'errors' ? kind(r) !== 'ok' : kind(r) === filter))
+.map((r) => ({ t: r[0], project: r[1], target: r[2], proxy: r[3], pool: r[4], code: r[5], cc: tone[kind(r)], lat: r[6], size: r[7], err: r[8] }));
+const chipDefs = [['all', 'All'], ['errors', 'Errors only'], ['4xx', '4xx'], ['5xx', '5xx'], ['failed', 'No response']];
+return {
+rows: rows,
+chips: chipDefs.map((c) => ({
+label: c[1],
+bg: c[0] === filter ? '#1C2028' : 'transparent',
+bd: c[0] === filter ? '#2A2F3A' : '#1C2028',
+fg: c[0] === filter ? '#E8EBF0' : '#A3ACB9',
+pick: () => this.setState({ filter: c[0] })
+})),
+liveDot: paused ? '#5A626E' : '#3FCF8E',
+liveLabel: paused ? 'Paused · showing the last 15 minutes' : 'Streaming · last 15 minutes',
+liveButton: paused ? 'Resume' : 'Pause',
+toggleLive: () => this.setState({ paused: !paused })
+};
+}
+}
+</script>
+</body>
+</html>

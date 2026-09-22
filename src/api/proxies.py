@@ -273,7 +273,7 @@ async def check_proxy(
 
     from src.health.checker import check_single_proxy
 
-    health_status, latency = await check_single_proxy(proxy)
+    health_status, latency, _external_ip = await check_single_proxy(proxy)
 
     # Update in DB
     proxy.last_health_status = health_status

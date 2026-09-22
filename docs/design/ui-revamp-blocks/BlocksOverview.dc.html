@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Overview, Blocks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Figtree:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap">
+<style>
+body{margin:0;font-family:Figtree,system-ui,sans-serif;background:#0E0E10}
+a{color:#D4F26A}a:hover{color:#E6FA9C}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1160px; box-sizing: border-box; display: flex; background: #0E0E10; color: #FAFAF7; font-family: Figtree, system-ui, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums;">
+<dc-import name="BlocksNav" active="overview" tall="1160" hint-size="248px,1160px"></dc-import>
+<main style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px; padding: 28px 36px 32px 12px;">
+
+<div style="display: flex; align-items: flex-end; justify-content: space-between;">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 44px; font-weight: 700; letter-spacing: -0.045em; line-height: 1;">Overview</h1>
+<div style="display: flex; gap: 4px;">
+<sc-for list="{{ranges}}" as="r" hint-placeholder-count="3">
+<button onClick="{{r.pick}}" style="height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: {{r.bg}}; color: {{r.fg}}; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{r.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px;">
+<sc-for list="{{tiles}}" as="t" hint-placeholder-count="4">
+<section style="display: flex; flex-direction: column; justify-content: space-between; height: 176px; box-sizing: border-box; padding: 20px 24px; border-radius: 28px; background: {{t.bg}}; color: {{t.fg}};">
+<div style="display: flex; align-items: center; justify-content: space-between; font-weight: 600;"><span>{{t.label}}</span><span style="padding: 4px 10px; border-radius: 999px; background: {{t.chip}}; font-size: 13px;">{{t.delta}}</span></div>
+<div style="display: flex; align-items: baseline; gap: 10px;"><span style="font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 60px; font-weight: 700; letter-spacing: -0.05em; line-height: 0.9;">{{t.value}}</span><span style="font-weight: 600;">{{t.unit}}</span></div>
+<div style="font-weight: 500; opacity: 0.8;">{{t.foot}}</div>
+</section>
+</sc-for>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px;">
+<section style="display: flex; flex-direction: column; gap: 16px; padding: 22px 26px; border-radius: 28px; background: #1C1C21;">
+<div style="display: flex; align-items: center; gap: 18px;">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.03em;">Traffic</h2>
+<span style="display: flex; align-items: center; gap: 7px; color: #B5B5BD;"><span style="width: 10px; height: 10px; border-radius: 4px; background: #FAFAF7;"></span>Requests</span>
+<span style="display: flex; align-items: center; gap: 7px; color: #B5B5BD;"><span style="width: 10px; height: 10px; border-radius: 4px; background: #FF8A7A;"></span>Errors</span>
+<span style="flex-grow: 1;"></span>
+<span style="color: #B5B5BD;">{{summary}}</span>
+</div>
+<div role="img" aria-label="Requests and errors over the selected range" style="display: flex; align-items: flex-end; gap: 8px; height: 190px;">
+<sc-for list="{{bars}}" as="b" hint-placeholder-count="24">
+<div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px;">
+<div style="height: {{b.e}}; border-radius: 6px; background: #FF8A7A;"></div>
+<div style="height: {{b.r}}; border-radius: 8px; background: {{b.c}};"></div>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; justify-content: space-between; font-size: 13px; color: #B5B5BD;">
+<sc-for list="{{ticks}}" as="t" hint-placeholder-count="5"><span>{{t}}</span></sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 4px; padding: 22px 26px 12px; border-radius: 28px; background: #C9B8FF; color: #17122B;">
+<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px;">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.03em;">Needs attention</h2>
+<span style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: #17122B; color: #C9B8FF; font-weight: 700;">4</span>
+</div>
+<sc-for list="{{attention}}" as="a" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(23,18,43,0.14);">
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+<div style="font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{a.title}}</div>
+<div style="font-size: 13px; font-weight: 500; color: #3A3160;">{{a.detail}}</div>
+</div>
+<a href="{{a.href}}" style="flex-shrink: 0; display: flex; align-items: center; height: 30px; padding: 0 14px; border-radius: 999px; background: #17122B; color: #FAFAF7; font-size: 13px; font-weight: 600; text-decoration: none;">{{a.action}}</a>
+</div>
+</sc-for>
+</section>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+<section style="display: flex; flex-direction: column; padding: 18px 26px 8px; border-radius: 28px; background: #1C1C21;">
+<h2 style="margin: 0 0 6px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.03em;">Providers</h2>
+<div style="display: grid; grid-template-columns: 1.3fr 0.6fr 0.7fr 1.8fr; gap: 16px; align-items: center; height: 34px; font-size: 13px; font-weight: 600; color: #B5B5BD;">
+<span>Provider</span><span style="text-align: right;">Total</span><span style="text-align: right;">Healthy</span><span>Availability</span>
+</div>
+<sc-for list="{{providers}}" as="p" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: 1.3fr 0.6fr 0.7fr 1.8fr; gap: 16px; align-items: center; height: 50px; border-top: 1px solid #2A2A31; font-weight: 500; color: #E4E4E0;">
+<span style="font-weight: 700; color: #FAFAF7;">{{p.name}}</span>
+<span style="text-align: right;">{{p.total}}</span>
+<span style="text-align: right;">{{p.healthy}}</span>
+<div style="display: flex; align-items: center; gap: 12px;">
+<div style="flex-grow: 1; height: 12px; border-radius: 6px; background: #2A2A31;"><div style="width: {{p.w}}; height: 12px; border-radius: 6px; background: {{p.c}};"></div></div>
+<span style="width: 38px; text-align: right;">{{p.w}}</span>
+</div>
+</div>
+</sc-for>
+</section>
+
+<section style="display: flex; flex-direction: column; padding: 18px 26px 8px; border-radius: 28px; background: #1C1C21;">
+<h2 style="margin: 0 0 6px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.03em;">Pools</h2>
+<div style="display: grid; grid-template-columns: 1.7fr 1.2fr 0.8fr 0.7fr 0.9fr; gap: 16px; align-items: center; height: 34px; font-size: 13px; font-weight: 600; color: #B5B5BD;">
+<span>Pool</span><span style="text-align: right;">Healthy</span><span style="text-align: right;">Req 24h</span><span style="text-align: right;">Errors</span><span style="text-align: right;">p50</span>
+</div>
+<sc-for list="{{pools}}" as="p" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: 1.7fr 1.2fr 0.8fr 0.7fr 0.9fr; gap: 16px; align-items: center; height: 50px; border-top: 1px solid #2A2A31; font-weight: 500; color: #E4E4E0;">
+<span style="display: flex; flex-direction: column; gap: 1px;"><span style="font-weight: 700; color: #FAFAF7;">{{p.name}}</span><span style="font-size: 12px; color: #B5B5BD;">{{p.strategy}}</span></span>
+<span style="justify-self: end; padding: 3px 10px; border-radius: 999px; background: {{p.hbg}}; color: {{p.hfg}}; font-size: 13px; font-weight: 600;">{{p.health}}</span>
+<span style="text-align: right;">{{p.req}}</span>
+<span style="text-align: right; color: {{p.ec}};">{{p.err}}</span>
+<span style="text-align: right;">{{p.p50}}</span>
+</div>
+</sc-for>
+</section>
+</div>
+
+<section style="display: flex; flex-direction: column; padding: 18px 26px 8px; border-radius: 28px; background: #1C1C21;">
+<h2 style="margin: 0 0 6px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.03em;">Projects</h2>
+<div style="display: grid; grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr 2fr 80px; gap: 16px; align-items: center; height: 34px; font-size: 13px; font-weight: 600; color: #B5B5BD;">
+<span>Project</span><span style="text-align: right;">Req 24h</span><span style="text-align: right;">Req / min</span><span style="text-align: right;">Errors</span><span style="text-align: right;">p50</span><span>Bandwidth quota</span><span></span>
+</div>
+<sc-for list="{{projects}}" as="p" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr 2fr 80px; gap: 16px; align-items: center; height: 54px; border-top: 1px solid #2A2A31; font-weight: 500; color: #E4E4E0;">
+<span style="font-weight: 700; color: #FAFAF7;">{{p.name}}</span>
+<span style="text-align: right;">{{p.req}}</span>
+<span style="text-align: right;">{{p.rpm}}</span>
+<span style="text-align: right; color: {{p.ec}};">{{p.err}}</span>
+<span style="text-align: right;">{{p.p50}}</span>
+<div style="display: flex; align-items: center; gap: 12px;">
+<div style="flex-grow: 1; height: 12px; border-radius: 6px; background: #2A2A31;"><div style="width: {{p.w}}; height: 12px; border-radius: 6px; background: {{p.c}};"></div></div>
+<span style="width: 96px; text-align: right; font-size: 13px;">{{p.bw}}</span>
+</div>
+<a href="BlocksProjects.dc.html" style="justify-self: end; display: flex; align-items: center; height: 30px; padding: 0 14px; border-radius: 999px; background: #2A2A31; color: #FAFAF7; font-size: 13px; font-weight: 600; text-decoration: none;">Open</a>
+</div>
+</sc-for>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const range = (this.state && this.state.range) || '24h';
+const req = [70, 74, 68, 80, 92, 102, 124, 136, 150, 144, 158, 162, 154, 166, 160, 148, 156, 140, 128, 132, 116, 104, 110, 98];
+const err = [8, 8, 8, 9, 10, 10, 12, 13, 15, 14, 16, 25, 30, 17, 15, 14, 14, 13, 12, 12, 11, 10, 10, 9];
+const shift = { '1h': 7, '24h': 0, '7d': 15 }[range];
+const at = (arr, i) => arr[(i + shift) % arr.length];
+const summaries = { '1h': '76.9K requests · 4.1% errors', '24h': '1.84M requests · 3.2% errors', '7d': '11.2M requests · 2.9% errors' };
+const tickSets = { '1h': ['−60m', '−45m', '−30m', '−15m', 'now'], '24h': ['−24h', '−18h', '−12h', '−6h', 'now'], '7d': ['−7d', '−5d', '−3d', '−1d', 'now'] };
+return {
+ranges: ['1h', '24h', '7d'].map((label) => ({
+label: label,
+bg: label === range ? '#FAFAF7' : '#1C1C21',
+fg: label === range ? '#0E0E10' : '#B5B5BD',
+pick: () => this.setState({ range: label })
+})),
+summary: summaries[range],
+ticks: tickSets[range],
+bars: req.map((r, i) => ({ r: at(req, i) + 'px', e: at(err, i) + 'px', c: i === req.length - 1 ? '#D4F26A' : '#FAFAF7' })),
+tiles: [
+{ label: 'Healthy', value: '384', unit: '', delta: '+12', foot: 'of 2,162 proxies', bg: '#D4F26A', fg: '#12160A', chip: 'rgba(18,22,10,0.10)' },
+{ label: 'Degraded', value: '173', unit: '', delta: '−2', foot: 'rechecked every 15 seconds', bg: '#FFC95C', fg: '#1A1204', chip: 'rgba(26,18,4,0.10)' },
+{ label: 'Dead', value: '812', unit: '', delta: '+5', foot: '793 more not checked yet', bg: '#FF8A7A', fg: '#1F0A07', chip: 'rgba(31,10,7,0.10)' },
+{ label: 'Requests', value: '1,284', unit: '/ min', delta: '+8%', foot: '3.2% errors · 412 ms p50', bg: '#1C1C21', fg: '#FAFAF7', chip: '#2A2A31' }
+],
+attention: [
+{ title: 'Pool residential-eu below minimum', detail: '2 healthy, 5 required', action: 'Open pool', href: '#pools' },
+{ title: 'scraper-prod at 91% of quota', detail: '45.5 of 50 GB used', action: 'Edit limit', href: 'BlocksProjects.dc.html' },
+{ title: 'Error spike on catalog.example.com', detail: '38% failed in the last hour, mostly 403', action: 'View', href: 'BlocksRequests.dc.html' },
+{ title: '812 dead proxies', detail: 'No successful check in over 24 hours', action: 'Review', href: 'BlocksProxies.dc.html' }
+],
+providers: [
+{ name: 'webshare', total: '212', healthy: '118', w: '56%', c: '#D4F26A' },
+{ name: 'manual', total: '100', healthy: '30', w: '30%', c: '#FFC95C' },
+{ name: 'proxyscrape', total: '610', healthy: '140', w: '23%', c: '#FFC95C' },
+{ name: 'thespeedx', total: '1,240', healthy: '96', w: '8%', c: '#FF8A7A' }
+],
+pools: [
+{ name: 'residential-eu', strategy: 'weighted_random', health: '2 / 14', hbg: '#FF8A7A', hfg: '#1F0A07', req: '412K', err: '11.8%', ec: '#FF8A7A', p50: '890 ms' },
+{ name: 'datacenter-us', strategy: 'round_robin', health: '118 / 212', hbg: '#2A2A31', hfg: '#E4E4E0', req: '1.21M', err: '1.4%', ec: '#E4E4E0', p50: '310 ms' },
+{ name: 'public-mix', strategy: 'random', health: '264 / 1,936', hbg: '#2A2A31', hfg: '#E4E4E0', req: '218K', err: '6.9%', ec: '#FFC95C', p50: '1,120 ms' }
+],
+projects: [
+{ name: 'scraper-prod', req: '1.31M', rpm: '912', err: '2.1%', ec: '#E4E4E0', p50: '340 ms', w: '91%', c: '#FFC95C', bw: '45.5 / 50 GB' },
+{ name: 'price-monitor', req: '486K', rpm: '338', err: '6.4%', ec: '#FFC95C', p50: '610 ms', w: '38%', c: '#D4F26A', bw: '7.6 / 20 GB' },
+{ name: 'seo-audit', req: '44K', rpm: '34', err: '0.9%', ec: '#E4E4E0', p50: '280 ms', w: '6%', c: '#D4F26A', bw: '0.6 / 10 GB' }
+]
+};
+}
+}
+</script>
+</body>
+</html>
